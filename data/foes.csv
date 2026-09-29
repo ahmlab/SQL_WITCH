@@ -1,0 +1,3 @@
+`foes.csv` - guardians and minions: `id,name,hp,max_hp,mp,max_mp,element,weakness,speed,squad`.
+  NULL's hp, element and weakness are left empty so they load as SQL NULL.
+1,Asterisk Slime,140,140,20,20,Nature,Fire,3,
