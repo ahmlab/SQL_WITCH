@@ -1,0 +1,11 @@
+ Elemento  Identidad 
+ 🔥 Fire  burst, Burn, poder alto 
+ 🌊 Wave  sustain, MP manipulation, cleanse 
+ 🌿 Nature  regeneration, poison, root 
+ ⚡ Storm  speed, chain attacks, crit 
+ 🔮 Arcane  neutral coverage, MP manipulation 
+ 🪨 Earth  wards, stagger, defense 
+ ❄️ Frost  Slow, Freeze, control 
+ 🌪️ Wind  evasion, multihit, low MP 
+ ☀️ Light  healing, cleanse, anti-Shadow 
+ 🌑 Shadow  lifesteal, curses, risky damage 
