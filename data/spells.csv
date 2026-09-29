@@ -1,24 +1,24 @@
 name,element,power,mp_cost,kind
-Ember,Fire,18,3,attack
-Flame Lance,Fire,34,7,attack
-Wildfire,Fire,14,6,area
-Fireball,Fire,56,13,attack
-Flame Barrier,Fire,26,6,ward
-Cauterize,Fire,32,7,heal
-Blazing Wave,Fire,66,20,area
-Inferno Spear,Fire,112,34,attack
-Phoenix Blaze,Fire,168,60,attack
-Solar Inferno,Fire,238,124,attack
-Water Jet,Wave,16,3,attack
-RipWave,Wave,36,8,attack
-Downpour,Wave,14,6,area
-Aqua Lance,Wave,54,13,attack
-Water Veil,Wave,27,6,ward
-Healing Rain,Wave,36,8,heal
-Tidal Surge,Wave,64,20,area
-Abyssal Current,Wave,108,33,attack
-Maelstrom,Wave,164,59,attack
-Leviathan Wave,Wave,235,122,attack
+Ember,🔥Fire,18,3,attack
+Flame Lance,🔥Fire,34,7,attack
+Wildfire,🔥Fire,14,6,area
+Fireball,🔥Fire,56,13,attack
+Flame Barrier,🔥Fire,26,6,ward
+Cauterize,🔥Fire,32,7,heal
+Blazing Wave,🔥Fire,66,20,area
+Inferno Spear,🔥Fire,112,34,attack
+Phoenix Blaze,🔥Fire,168,60,attack
+Solar Inferno,🔥Fire,238,124,attack
+Water Jet,Tide,16,3,attack
+Riptide,Tide,36,8,attack
+Downpour,Tide,14,6,area
+Aqua Lance,Tide,54,13,attack
+Water Veil,Tide,27,6,ward
+Healing Rain,Tide,36,8,heal
+Tidal Surge,Tide,64,20,area
+Abyssal Current,Tide,108,33,attack
+Maelstrom,Tide,164,59,attack
+Leviathan Tide,Tide,235,122,attack
 Thorn Whip,Nature,17,3,attack
 Overgrowth,Nature,35,8,attack
 Leaf Storm,Nature,15,6,area
