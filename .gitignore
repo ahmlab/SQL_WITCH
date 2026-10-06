@@ -8,3 +8,4 @@ sim/results/
 .DS_Store
 .vscode
 settings.json
+try_guard.py
