@@ -28,27 +28,26 @@ RUNES = {
 class Miscast(Exception):
     """A query the magic system refuses. The message is shown to the player."""
 
-
 # sqlglot logs a warning for syntax it does not understand; keep the game console clean.
 logging.getLogger("sqlglot").setLevel(logging.ERROR)
 
 # Statements that try to change the world instead of reading it, and what the game says back.
 # This is the funny layer only: the sandbox (tomorrow) is what actually blocks writes.
 FORBIDDEN = {
-    exp.Drop: "Ada: Drop the tables? MY LIVE is in these tables!",
-    exp.Delete: "Ada: Yo I don't think we can do that without unbelivable consequences.",
+    exp.Drop: "Ada: Drop the tables? MY LIFE is in these tables!",
+    exp.Delete: "Ada: Yo I don't think we can DELETE that without unimaginable consequences.",
     exp.Update: "Ada: Oh no, I'm new in this world and you too, we are not gonna do that.",
-    exp.Insert: "Ada: What are we now? The Dungeon Master. I won't take such approach now",
+    exp.Insert: "Ada: What are we now? The Dungeon Master? I won't take such approach now",
     exp.Create: "Ada: Create a table? Really? I'm level one in this world, come on!.",
-    exp.Alter: "Ada: Mmm... no, I'm not gonna do it.",
+    exp.Alter: "Ada: Mmm... no, I'm not gonna ALTER anything.",
     exp.Union: "Ada: I'm not ready for commitment. One SELECT, please.",
     exp.Except: "Ada: EXCEPT what? Except you, trying to break everything. One SELECT, please.",
     exp.Intersect: "Ada: INTERSECT? Our paths have intersected enough already. One SELECT, please.",
     exp.Pragma: "Grimoire: *Angry noises*.",
     exp.Attach: "Ada: ATTACH another database? Absolutely not. We have enough monsters here.",
 }
-INJECTION = "Ada: Hahaha no. Put the semicolon down and step away from the database of this world.",
-GIBBERISH = "Ada: Mmm that was NOT the right way of making the spell.",
+INJECTION = "Ada: Hahaha no. Put the semicolon down and step away from the database of this world."
+GIBBERISH = "Ada: Mmm that was NOT the right way of making the spell."
 NOT_A_SELECT = "Ada: That's not a SELECT. The grimoire looked at it, sighed, and closed itself."
 
 def forbidden_message(statement):
@@ -73,3 +72,31 @@ def parse_one_select(sql):
     if len(statements) != 1 or not isinstance(statements[0], exp.Select):
         raise Miscast(NOT_A_SELECT)
     return statements[0]
+
+def runes_used(tree):
+    """Return the set of runes that appear anywhere in the query, subqueries included."""
+    used = set()
+    for rune, node_type in RUNES.items():
+        if tree.find(node_type) is not None:
+            used.add(rune)
+    return used
+
+
+def check_forgery(tree):
+    """No string literal may appear in any SELECT list: names must be read from a table."""
+    for select in tree.find_all(exp.Select):
+        for column in select.expressions:
+            for literal in column.find_all(exp.Literal):
+                if literal.is_string:
+                    raise Miscast("Ada: Ink cannot conjure names. Pick them from a table.")
+
+
+def inspect(sql, unlocked):
+    """Validate a query before it runs. Returns its technique signature (the runes used)."""
+    tree = parse_one_select(sql)
+    used = runes_used(tree)
+    locked = used - set(unlocked)
+    if locked:
+        raise Miscast("Ada: I cannot read these runes yet: " + ", ".join(sorted(locked)))
+    check_forgery(tree)
+    return used
