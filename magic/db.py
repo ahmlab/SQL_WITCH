@@ -39,12 +39,12 @@ def read_csv(path):
     with open(path, newline="", encoding="utf-8") as f:
         lines = (line for line in f if not line.lstrip().startswith("#"))
         rows = []                                  
-    for row in csv.DictReader(lines):          # each line comes as a text dictionary
-        converted = {}                         # we save here the line
-        for key, value in row.items():         # column and value
-            converted[key] = convert(value)    
-        rows.append(converted)                 
-    return rows                                # final list
+        for row in csv.DictReader(lines):          # each line comes as a text dictionary
+            converted = {}                         # we save here the line
+            for key, value in row.items():         # column and value
+                converted[key] = convert(value)    
+            rows.append(converted)                 
+        return rows                                # final list
 
 def check_unique_names(tables):
     """Every name must be unique across all files, or the casting contract cannot tell them apart. (∩ ͡° ͜ʖ ͡°)⊃━☆ﾟ. *"""
