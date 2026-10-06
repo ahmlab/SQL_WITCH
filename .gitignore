@@ -9,3 +9,5 @@ sim/results/
 .vscode
 settings.json
 try_guard.py
+try.sandbox.py
+Try/

@@ -1,9 +1,13 @@
 """I call it guard.py because the work of this baddie is to separate which queries work against does queries that doesn't work  (•◡•) """
 
 import sqlglot # Creates a tree for the queries so we can analize what queries the players are choosing
+import logging
+import sqlite3
+import time
+
+from contextlib import contextmanager
 from sqlglot import exp
 from sqlglot.errors import ParseError
-import logging
 
 # print(repr(sqlglot.parse_one("SELECT name FROM spells WHERE power > 10", read="sqlite"))) # Uncomment to see the tree
 
@@ -100,3 +104,50 @@ def inspect(sql, unlocked):
         raise Miscast("Ada: I cannot read these runes yet: " + ", ".join(sorted(locked)))
     check_forgery(tree)
     return used
+
+# ---------------------------------------------------------------- the sandbox--------------------------------------------------------------------#
+
+# SQLite tells the authorizer what a query is about to do. We allow only reads.
+ALLOWED_ACTIONS = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION}
+ALLOWED_FUNCTIONS = {"count", "sum", "avg", "min", "max", "coalesce", "ifnull", "abs", "round"}
+
+TOO_SLOW = "Ada: That spell collapsed under its own weight. The grimoire is still smoking."
+DENIED = "The world refused to listen. Spells read the world, they do not rewrite it."
+
+
+def _authorizer(action, arg1, arg2, db_name, trigger):
+    """Called by SQLite for every table, column and function a query touches."""
+    if action == sqlite3.SQLITE_FUNCTION:          # arg2 holds the function name
+        if arg2 is not None and arg2.lower() in ALLOWED_FUNCTIONS:
+            return sqlite3.SQLITE_OK
+        return sqlite3.SQLITE_DENY
+    if action in ALLOWED_ACTIONS:
+        return sqlite3.SQLITE_OK
+    return sqlite3.SQLITE_DENY
+
+@contextmanager
+def sandbox(conn, budget_s=0.05):
+    """Make the connection read-only and time-limited, then give the permissions back."""
+    deadline = time.perf_counter() + budget_s
+    conn.set_authorizer(_authorizer)
+    conn.set_progress_handler(lambda: time.perf_counter() > deadline, 10_000)
+    try:
+        yield conn
+    finally:                                       # the engine must be able to write again
+        conn.set_authorizer(None)
+        conn.set_progress_handler(None, 0)
+
+def run_query(conn, sql, max_rows=200):
+    """Run a player or foe query safely. Returns (column names, rows)."""
+    try:
+        with sandbox(conn):                        # fetch inside: SQLite runs lazily
+            cursor = conn.execute(sql)
+            columns = [d[0] for d in cursor.description]
+            rows = cursor.fetchmany(max_rows + 1)  # +1 detects a catastrophic overflow
+    except sqlite3.OperationalError as error:
+        if "interrupted" in str(error):
+            raise Miscast(TOO_SLOW)
+        raise Miscast(f"Ada: The world does not understand that. ({error})")
+    except sqlite3.DatabaseError:
+        raise Miscast(DENIED)
+    return columns, rows
