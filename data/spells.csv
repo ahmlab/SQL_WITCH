@@ -1,101 +1,103 @@
-name,element,power,mp_cost,kind
-Ember,🔥Fire,18,3,attack
-Flame Lance,🔥Fire,34,7,attack
-Wildfire,🔥Fire,14,6,area
-Fireball,🔥Fire,56,13,attack
-Flame Barrier,🔥Fire,26,6,ward
-Cauterize,🔥Fire,32,7,heal
-Blazing Wave,🔥Fire,66,20,area
-Inferno Spear,🔥Fire,112,34,attack
-Phoenix Blaze,🔥Fire,168,60,attack
-Solar Inferno,🔥Fire,238,124,attack
-Water Jet,Tide,16,3,attack
-Riptide,Tide,36,8,attack
-Downpour,Tide,14,6,area
-Aqua Lance,Tide,54,13,attack
-Water Veil,Tide,27,6,ward
-Healing Rain,Tide,36,8,heal
-Tidal Surge,Tide,64,20,area
-Abyssal Current,Tide,108,33,attack
-Maelstrom,Tide,164,59,attack
-Leviathan Tide,Tide,235,122,attack
-Thorn Whip,Nature,17,3,attack
-Overgrowth,Nature,35,8,attack
-Leaf Storm,Nature,15,6,area
-Vine Spear,Nature,53,12,attack
-Barkskin,Nature,30,6,ward
-Bloom,Nature,40,8,heal
-Briar Field,Nature,62,19,area
-Ancient Roots,Nature,106,32,attack
-Verdant Wrath,Nature,160,56,attack
-World Tree,Nature,228,116,attack
-Spark,Storm,18,3,attack
-Thunderclap,Storm,38,8,attack
-Static Field,Storm,15,6,area
-Lightning Spear,Storm,58,14,attack
-Static Guard,Storm,25,6,ward
-Electric Pulse,Storm,30,7,heal
-Chain Lightning,Storm,68,21,area
-Thunderbolt,Storm,118,36,attack
-Heaven's Wrath,Storm,176,64,attack
-Tempest Judgment,Storm,245,130,attack
-Arcane Bolt,Arcane,22,5,attack
-Mana Lance,Arcane,39,9,attack
-Arcane Burst,Arcane,17,7,area
-Mystic Ray,Arcane,60,15,attack
-Ward,Arcane,20,4,ward
-Mend,Arcane,30,6,heal
-Astral Nova,Arcane,70,22,area
-Runic Cannon,Arcane,116,36,attack
-Ether Break,Arcane,174,64,attack
-Cosmic Rupture,Arcane,242,128,attack
-Pebble Shot,Earth,17,3,attack
-Stone Spike,Earth,35,7,attack
-Rock Burst,Earth,15,6,area
-Boulder Crush,Earth,55,13,attack
-Stonewall,Earth,34,7,ward
-Mineral Renewal,Earth,34,7,heal
-Earthquake,Earth,65,20,area
-Titan Hammer,Earth,110,33,attack
-Mountain Breaker,Earth,166,59,attack
-Continental Rupture,Earth,236,123,attack
-Ice Shard,Frost,18,3,attack
-Frozen Spear,Frost,36,8,attack
-Snowburst,Frost,14,6,area
-Glacial Spike,Frost,56,13,attack
-Ice Barrier,Frost,29,6,ward
-Frozen Renewal,Frost,33,7,heal
-Blizzard,Frost,64,20,area
-Permafrost Lance,Frost,111,34,attack
-Glacial Collapse,Frost,169,61,attack
-Absolute Zero,Frost,240,126,attack
-Air Cutter,Wind,17,3,attack
-Gale Blade,Wind,34,7,attack
-Whirlwind,Wind,15,6,area
-Cyclone Edge,Wind,53,12,attack
-Wind Shield,Wind,26,5,ward
-Refreshing Breeze,Wind,35,7,heal
-Tempest Ring,Wind,63,19,area
-Skybreaker,Wind,109,32,attack
-Hurricane Lance,Wind,163,57,attack
-Eye of the Storm,Wind,232,119,attack
-Light Ray,Light,16,3,attack
-Radiant Spear,Light,34,7,attack
-Holy Flash,Light,14,6,area
-Sunbeam,Light,52,12,attack
-Radiant Ward,Light,31,6,ward
-Blessing,Light,44,9,heal
-Dawn Nova,Light,61,19,area
-Judgment Ray,Light,106,32,attack
-Seraphic Light,Light,158,55,attack
-Divine Judgment,Light,226,
-Shadow Dart,Shadow,19,3,attack
-Night Lance,Shadow,38,8,attack
-Dark Pulse,Shadow,15,6,area
-Void Fang,Shadow,59,14,attack
-Shadow Veil,Shadow,24,5,ward
-Dark Renewal,Shadow,31,7,heal
-Nightfall,Shadow,69,21,area
-Abyssal Claw,Shadow,119,36,attack
-Void Devourer,Shadow,178,65,attack
-Eternal Darkness,Shadow,246,132,attack
+# Ada's spell catalogue. unlock_level: 1 = known in the Glade; 99 = post-game (never loaded in this build).
+# Level 1 = cheapest attack of each element + Mend + Ward. Then by mp_cost: 2 (<=9), 3 (<=15), 4 (<=22), 5 (<=36), 6 (<=65).
+name,element,power,mp_cost,kind,unlock_level
+Ember,Fire,18,3,attack,1
+Flame Lance,Fire,34,7,attack,2
+Wildfire,Fire,14,6,area,2
+Fireball,Fire,56,13,attack,3
+Flame Barrier,Fire,26,6,ward,2
+Cauterize,Fire,32,7,heal,2
+Blazing Wave,Fire,66,20,area,4
+Inferno Spear,Fire,112,34,attack,5
+Phoenix Blaze,Fire,168,60,attack,6
+Solar Inferno,Fire,238,124,attack,99
+Water Jet,Tide,16,3,attack,1
+Riptide,Tide,36,8,attack,2
+Downpour,Tide,14,6,area,2
+Aqua Lance,Tide,54,13,attack,3
+Water Veil,Tide,27,6,ward,2
+Healing Rain,Tide,36,8,heal,2
+Tidal Surge,Tide,64,20,area,4
+Abyssal Current,Tide,108,33,attack,5
+Maelstrom,Tide,164,59,attack,6
+Leviathan Tide,Tide,235,122,attack,99
+Thorn Whip,Nature,17,3,attack,1
+Overgrowth,Nature,35,8,attack,2
+Leaf Storm,Nature,15,6,area,2
+Vine Spear,Nature,53,12,attack,3
+Barkskin,Nature,30,6,ward,2
+Bloom,Nature,40,8,heal,2
+Briar Field,Nature,62,19,area,4
+Ancient Roots,Nature,106,32,attack,5
+Verdant Wrath,Nature,160,56,attack,6
+World Tree,Nature,228,116,attack,99
+Spark,Storm,18,3,attack,1
+Thunderclap,Storm,38,8,attack,2
+Static Field,Storm,15,6,area,2
+Lightning Spear,Storm,58,14,attack,3
+Static Guard,Storm,25,6,ward,2
+Electric Pulse,Storm,30,7,heal,2
+Chain Lightning,Storm,68,21,area,4
+Thunderbolt,Storm,118,36,attack,5
+Heaven's Wrath,Storm,176,64,attack,6
+Tempest Judgment,Storm,245,130,attack,99
+Arcane Bolt,Arcane,22,5,attack,1
+Mana Lance,Arcane,39,9,attack,2
+Arcane Burst,Arcane,17,7,area,2
+Mystic Ray,Arcane,60,15,attack,3
+Ward,Arcane,20,4,ward,1
+Mend,Arcane,30,6,heal,1
+Astral Nova,Arcane,70,22,area,4
+Runic Cannon,Arcane,116,36,attack,5
+Ether Break,Arcane,174,64,attack,6
+Cosmic Rupture,Arcane,242,128,attack,99
+Pebble Shot,Earth,17,3,attack,1
+Stone Spike,Earth,35,7,attack,2
+Rock Burst,Earth,15,6,area,2
+Boulder Crush,Earth,55,13,attack,3
+Stonewall,Earth,34,7,ward,2
+Mineral Renewal,Earth,34,7,heal,2
+Earthquake,Earth,65,20,area,4
+Titan Hammer,Earth,110,33,attack,5
+Mountain Breaker,Earth,166,59,attack,6
+Continental Rupture,Earth,236,123,attack,99
+Ice Shard,Frost,18,3,attack,1
+Frozen Spear,Frost,36,8,attack,2
+Snowburst,Frost,14,6,area,2
+Glacial Spike,Frost,56,13,attack,3
+Ice Barrier,Frost,29,6,ward,2
+Frozen Renewal,Frost,33,7,heal,2
+Blizzard,Frost,64,20,area,4
+Permafrost Lance,Frost,111,34,attack,5
+Glacial Collapse,Frost,169,61,attack,6
+Absolute Zero,Frost,240,126,attack,99
+Air Cutter,Wind,17,3,attack,1
+Gale Blade,Wind,34,7,attack,2
+Whirlwind,Wind,15,6,area,2
+Cyclone Edge,Wind,53,12,attack,3
+Wind Shield,Wind,26,5,ward,2
+Refreshing Breeze,Wind,35,7,heal,2
+Tempest Ring,Wind,63,19,area,4
+Skybreaker,Wind,109,32,attack,5
+Hurricane Lance,Wind,163,57,attack,6
+Eye of the Storm,Wind,232,119,attack,99
+Light Ray,Light,16,3,attack,1
+Radiant Spear,Light,34,7,attack,2
+Holy Flash,Light,14,6,area,2
+Sunbeam,Light,52,12,attack,3
+Radiant Ward,Light,31,6,ward,2
+Blessing,Light,44,9,heal,2
+Dawn Nova,Light,61,19,area,4
+Judgment Ray,Light,106,32,attack,5
+Seraphic Light,Light,158,55,attack,6
+Divine Judgment,Light,226,115,attack,99
+Shadow Dart,Shadow,19,3,attack,1
+Night Lance,Shadow,38,8,attack,2
+Dark Pulse,Shadow,15,6,area,2
+Void Fang,Shadow,59,14,attack,3
+Shadow Veil,Shadow,24,5,ward,2
+Dark Renewal,Shadow,31,7,heal,2
+Nightfall,Shadow,69,21,area,4
+Abyssal Claw,Shadow,119,36,attack,5
+Void Devourer,Shadow,178,65,attack,6
+Eternal Darkness,Shadow,246,132,attack,99

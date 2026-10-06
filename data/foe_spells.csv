@@ -1,0 +1,10 @@
+# Asterisk Slime: the first 4 rows cost 13 MP; with 20 MP its own SELECT * overflows and drains it to 0.
+foe_id,name,element,power,mp_cost,kind
+1,Goo Spit,Nature,4,2,attack
+1,Sticky Slap,Nature,6,3,attack
+1,Bubble Pop,Tide,5,3,attack
+1,Ooze Splash,Nature,7,5,attack
+1,Slime Bolt,Nature,9,4,attack
+1,Acid Drip,Nature,11,5,attack
+1,Gel Shield,Nature,10,4,ward
+1,Mega Splat,Nature,16,8,attack
