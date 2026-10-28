@@ -166,6 +166,55 @@ def make_effects() -> None:
               volume=0.45)))
 
 
+# ------------------------------------------------------------------ typing and story
+
+TYPING_SCALE = (72, 74, 76, 79, 81, 84, 86, 88)   # C major pentatonic: any order sounds good
+
+
+def pluck(freq: float, duration: float, volume: float = 0.5) -> list[float]:
+    """A short magical pluck: a triangle body, a bright octave sparkle and an electric crackle."""
+    n, out = int(duration * RATE), []
+    crackle = Noise(17)
+    p1 = p2 = 0.0
+    for i in range(n):
+        t = i / RATE
+        p1 += freq / RATE
+        p2 += 2 * freq / RATE
+        body = triangle(p1) * math.exp(-18 * t)
+        sparkle = square(p2, 0.125) * 0.35 * math.exp(-45 * t)
+        zap = crackle.next() * 0.25 * math.exp(-260 * t)
+        attack = min(1.0, i / (0.001 * RATE))
+        out.append((body + sparkle + zap) * attack * volume)
+    return out
+
+
+def make_typing_and_story() -> None:
+    # One note per key: the letters of a word climb this scale, so typing plays a melody.
+    for i, n in enumerate(TYPING_SCALE, start=1):
+        write(f"key_{i}.wav", pluck(midi(n), 0.11))
+    write("erase.wav", sweep(0.06, 700, 350, duty=0.125, volume=0.25))
+    write("newline.wav", mix(noise_burst(0.16, 0.12, 2, seed=19, hold=3),
+                             sweep(0.16, 400, 800, wave_fn=triangle, volume=0.25)))
+    # A keyword completed (SELECT, FROM...): a quick bright chord, the rune "clicks" into place.
+    write("rune.wav", mix(notes([(midi(n), 0.035) for n in (84, 88, 91)] + [(midi(96), 0.15)],
+                                wave_fn=triangle, volume=0.45),
+                          noise_burst(0.05, 0.12, 30, seed=23)))
+    # A locked rune typed: a dull thud, the page refuses it.
+    write("locked.wav", mix(sweep(0.12, 140, 60, volume=0.35),
+                            noise_burst(0.1, 0.2, 12, seed=29, hold=8)))
+    # The office monitor: two heartbeats, then the flat line.
+    beep = lambda d: sweep(d, 988, 988, wave_fn=triangle, volume=0.35, curve=1.0)
+    silence = lambda d: [0.0] * int(d * RATE)
+    tone = notes([(988, 2.2)], wave_fn=triangle, volume=0.3)
+    fade = 0.6 * RATE                                    # the flat line fades out slowly
+    flat = [sample * min(1.0, (len(tone) - i) / fade) for i, sample in enumerate(tone)]
+    write("flatline.wav", beep(0.1) + silence(0.55) + beep(0.1) + silence(0.55) + flat)
+    # The Grimoire appears: a rising shimmer with sparkles.
+    write("book.wav", mix(sweep(0.8, 300, 1500, wave_fn=triangle, volume=0.35, curve=0.6),
+                          notes([(midi(n), 0.09) for n in (84, 88, 91, 96, 100, 103)],
+                                duty=0.125, volume=0.12)))
+
+
 # ------------------------------------------------------------------ battle music
 
 BPM = 150
@@ -254,6 +303,7 @@ def make_music() -> None:
 def main() -> None:
     print(f"Writing sounds to {OUT}")
     make_effects()
+    make_typing_and_story()
     make_music()
 
 

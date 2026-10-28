@@ -8,6 +8,9 @@ Every sound the game plays, and `sounds.json`, which says which file plays for e
 2. In `sounds.json`, change the `file` of the event to your file name.
 3. Adjust `volume` (0.0 to 1.0) if needed. `master_volume` scales everything.
 
+An event can list several files with `"files": [...]` instead of `"file"`; the game picks one
+by context (the typing notes use this).
+
 No code changes are needed. If a file is missing, the game prints one warning and keeps
 going without that sound.
 
@@ -24,6 +27,12 @@ going without that sound.
 | `miscast` | A rejected query: the book puffs smoke. |
 | `invitation` | The Slime's `LIMIT` glows and Ada learns the rune. |
 | `faint` | A combatant falls. |
+| `typing` | Every letter typed in the Grimoire. It has 8 files (`files` list): the letters of a word climb through them like a scale, so typing plays a melody. |
+| `erase` / `newline` | Backspace or Delete / Enter in the editor. |
+| `rune` | A keyword was just finished (`SELECT`, `FROM`...): the word glows. |
+| `locked` | A keyword of a rune Ada has not learned yet was typed. |
+| `flatline` | The intro: Ada's heart stops (two beats, then the flat line). |
+| `book` | The intro: the Grimoire appears. |
 | `confirm` | ENTER on the title screen. |
 | `victory` / `defeat` | The result screen. |
 

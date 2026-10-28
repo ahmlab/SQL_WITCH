@@ -14,19 +14,26 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from dataclasses import dataclass
 from typing import Callable
 
 import pygame
 
-from engine import render
+from engine import fx, render, scenery
 from engine.audio import Audio, Silent
-from engine.grimoire import Grimoire, draw_foe_book, wrap
-from engine.textinput import QueryEditor, schema_tables, schema_words
+from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
+from engine.textinput import (KEYWORD_WORDS, QueryEditor, locked_words, schema_tables,
+                              schema_words)
 from magic.battle import Battle
 from magic.cast import SCRY_PER_TURN, CastReport, effect_word
 from magic.db import DATA_DIR
 from magic.guard import Miscast
+
+
+def _last_word(text: str) -> str:
+    match = re.search(r"[A-Za-z_][A-Za-z0-9_]*$", text)
+    return match.group(0) if match else ""
 
 
 def load_dialogue(path=DATA_DIR / "dialogue.json") -> dict:
@@ -185,42 +192,104 @@ class TitleScene(Scene):
 # ------------------------------------------------------------------ dialogue
 
 class DialogueScene(Scene):
-    """Ada wakes up in Codd. ENTER finishes the line, then moves on; ESC skips the scene."""
+    """The intro: Ada falls asleep at her desk, dies, and wakes up in Codd, where a floating
+    book speaks to her. Each line of data/dialogue.json names its backdrop ("scene"), and may
+    add Ada's sleepiness ("sleep" 0-3), the book, the Slime and a sound.
+    ENTER finishes the line, then moves on; ESC skips the scene."""
     MS_PER_CHAR = 30
+    FADE_MS = 450                     # half a dip to black between two backdrops
+    BOOK_AT = (198, 72)
 
     def __init__(self, game):
         super().__init__(game)
         self.lines = game.dialogue["intro"]
         self.index = 0
-        self.line_started = 0
+        self.backdrop = self.lines[0].get("scene", "glade")
+        self.fade_from, self.fade_at = "black", 0     # the story fades in from black
+        self.drowsy = 0.0
+        self.book_born: int | None = None
+        self.void_since = 0
+        self.line_started = 2 * self.FADE_MS
+        self._start_line()
+
+    @property
+    def line(self) -> dict:
+        return self.lines[self.index]
 
     def _shown_chars(self) -> int:
         return (self.time - self.line_started) // self.MS_PER_CHAR
+
+    def _start_line(self) -> None:
+        scene = self.line.get("scene", self.backdrop)
+        if scene != self.backdrop:                    # dip to black, then the new place
+            self.fade_from, self.fade_at, self.backdrop = self.backdrop, self.time, scene
+            self.line_started = self.time + 2 * self.FADE_MS
+            if scene == "void":
+                self.void_since = self.time + self.FADE_MS
+        if self.line.get("book") and self.book_born is None:
+            self.book_born = self.line_started
+        if self.line.get("sound"):
+            self.game.audio.play(self.line["sound"])
 
     def handle(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.game.switch(BattleScene(self.game))
         elif is_confirm_key(event):
-            text = self.lines[self.index]["text"]
-            if self._shown_chars() < len(text):
+            if self._shown_chars() < len(self.line["text"]):
                 self.line_started = -10 ** 9            # finish the typewriter at once
             elif self.index + 1 < len(self.lines):
                 self.index += 1
                 self.line_started = self.time
+                self._start_line()
             else:
                 self.game.switch(BattleScene(self.game))
 
+    def update(self, dt):
+        super().update(dt)
+        target = float(self.line.get("sleep", self.drowsy))
+        step = 0.6 * dt / 1000                        # Ada drifts off slowly, never at once
+        self.drowsy = target if abs(target - self.drowsy) <= step else \
+            self.drowsy + step * (1 if target > self.drowsy else -1)
+
+    # ------------------------------------------------------------ drawing
+
+    def _draw_backdrop(self, canvas, name: str) -> None:
+        if name == "office":
+            progress = 0.95 + 0.04 * min(1.0, self.drowsy / 3)     # it stops at 99%
+            scenery.draw_office(canvas, self.time, self.drowsy, progress)
+        elif name == "void":
+            scenery.draw_void(canvas, self.time - self.void_since)
+        elif name == "glade":
+            draw_backdrop(canvas, ground_y=110)
+            draw_ada_back(canvas, 52, 68, False)
+            if self.book_born is not None and self.line.get("book"):
+                speaking = (self.line["speaker"] == "Grimoire"
+                            and self._shown_chars() < len(self.line["text"]))
+                scenery.draw_book(canvas, self.BOOK_AT, self.time,
+                                  self.time - self.book_born, speaking)
+            if self.line.get("slime"):
+                draw_slime(canvas, (262, 96), self.time, False, False, False)
+        else:
+            canvas.fill(render.INK)
+
     def draw(self, canvas):
         f = render.font()
-        draw_backdrop(canvas, ground_y=110)
-        if self.index >= len(self.lines) - 1:             # the last line: the Slime appears
-            draw_slime(canvas, (250, 96), self.time, False, False, False)
-        line = self.lines[self.index]
+        elapsed = self.time - self.fade_at
+        if elapsed < self.FADE_MS:                    # the old place goes dark...
+            self._draw_backdrop(canvas, self.fade_from)
+            scenery.dim(canvas, canvas.get_rect(), 255 * elapsed // self.FADE_MS)
+        else:                                         # ...and the new one comes out of it
+            self._draw_backdrop(canvas, self.backdrop)
+            if elapsed < 2 * self.FADE_MS:
+                scenery.dim(canvas, canvas.get_rect(),
+                            255 - 255 * (elapsed - self.FADE_MS) // self.FADE_MS)
+        line = self.line
         box = pygame.Rect(8, 128, 304, 44)
         render.panel(canvas, box)
         if line["speaker"]:
+            colour = render.LAVENDER if line["speaker"] == "Grimoire" else render.VIOLET
             tag = pygame.Rect(12, 121, f.width(line["speaker"]) + 8, 10)
-            render.panel(canvas, tag, fill=render.VIOLET)
+            render.panel(canvas, tag, fill=colour)
             f.draw(canvas, line["speaker"], (tag.x + 4, tag.y + 3), render.WHITE)
         text = line["text"][:max(0, self._shown_chars())]
         for i, row in enumerate(wrap(text, 74)[:4]):
@@ -277,6 +346,10 @@ class BattleScene(Scene):
         self.glow: tuple[str, int] | None = None
         self.idle = 0
         self.rounds_told = set()
+        self.fx = fx.Effects(game.vfx)          # sparks and lightning: looks only
+        self.streak = fx.Streak()
+        self.word_glow: tuple[pygame.Rect, int] | None = None
+        self._elements: dict[str, str | None] = {}
         self.say(game.dialogue["battle_tip"], 2500)
         self.phase = "input" if self.battle.whose_turn == "ada" else "wait"
 
@@ -296,8 +369,22 @@ class BattleScene(Scene):
     def side_of(self, name: str) -> str:
         return "ada" if name == self.battle.state.ada.name else "foe"
 
-    def _hit(self, side: str, damage: int, crit: bool):
+    def _element_of(self, spell: str) -> str | None:
+        """A spell's element, read from the battle tables, to colour its bolt."""
+        if spell not in self._elements:
+            row = self.battle.conn.execute(
+                "SELECT element FROM spells WHERE name = ? UNION ALL "
+                "SELECT element FROM foe_spells WHERE name = ?", (spell, spell)).fetchone()
+            self._elements[spell] = row[0] if row else None
+        return self._elements[spell]
+
+    def _hit(self, side: str, damage: int, crit: bool, spell: str = ""):
         def effect():
+            ada_hand = (ADA_AT[0] + 22, ADA_AT[1] + 2)
+            slime = (SLIME_AT[0] - 4, SLIME_AT[1] + 2)
+            start, end = (ada_hand, slime) if side == "foe" else (slime, ada_hand)
+            self.fx.bolt(start, end, render.ELEMENT_COLOURS.get(self._element_of(spell),
+                                                                 render.LILAC))
             self.shown[side][0] = max(0, self.shown[side][0] - damage)
             self.flash[side] = 160
             x, y = (SLIME_AT[0], SLIME_AT[1] - 26) if side == "foe" else (ADA_AT[0] + 18, ADA_AT[1] - 6)
@@ -325,7 +412,7 @@ class BattleScene(Scene):
                 _, _, _, spell, target, dmg, crit, mult = event
                 words = effect_word(mult)
                 text = f"{spell}: {dmg}" + (" CRIT!" if crit else "") + (f" {words}!" if words else "")
-                self.say(text, 650, self._hit(self.side_of(target), dmg, crit),
+                self.say(text, 650, self._hit(self.side_of(target), dmg, crit, spell),
                          "crit" if crit else "hit", *(("hp_down",) if dmg else ()))
             elif kind in ("heal", "item"):
                 side = self.side_of(event[3])
@@ -407,19 +494,82 @@ class BattleScene(Scene):
 
     def handle(self, event):
         if self.phase == "input":
+            before = self.editor.text
             sql = self.editor.handle_event(event)
             if sql:
+                cx, cy = self.grimoire.cursor_xy()
+                self.fx.burst(cx, cy, count=14, speed=80)
                 self.cast(sql)
+                return
+            self._typing_feedback(event, before)
             return
         if is_cast_key(event):                      # Ctrl+Enter while waiting: fast-forward
             self.beat_left = 0
         elif self.phase != "end":
+            before = self.editor.text
             self.editor.handle_event(event)         # typing ahead is fine, casting is not
+            self._typing_feedback(event, before)
+
+    # ------------------------------------------------------------ the magic of typing
+
+    def _typing_feedback(self, event, before: str) -> None:
+        """Every key is a little spell: a note, a spark, a bolt. Letters of one word climb a
+        pentatonic scale; finishing a keyword makes its rune glow and chime."""
+        if self.editor.text == before:
+            return                                   # arrows, Home, F-keys: nothing typed
+        x, y = self.grimoire.cursor_xy()
+        self.streak.hit(self.time)
+        heat = self.streak.level(self.time)
+        if event.type == pygame.TEXTINPUT:
+            char = event.text[-1:]
+            if char.isalnum() or char == "_":
+                word = self.editor.word_before_cursor()
+                self.game.audio.play("typing", len(word) - 1)
+                self.fx.zap(x, y + 1, height=10 + round(heat * 10))
+                self.fx.burst(x, y + 2, count=2 + round(heat * 4), speed=30 + heat * 30)
+            else:
+                line = self.editor.lines[self.editor.row][:self.editor.col - 1]
+                self._finish_word(_last_word(line), x - render.ADVANCE, y)
+        elif event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_BACKSPACE, pygame.K_DELETE):
+                self.game.audio.play("erase")
+                self.fx.burst(x, y + 3, count=2, colours=(render.GREY, render.SLATE), life=200)
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.game.audio.play("newline")
+                above = self.editor.lines[self.editor.row - 1] if self.editor.row else ""
+                end_x = self.grimoire.EDITOR_AT[0] + len(above) * render.ADVANCE
+                self._finish_word(_last_word(above), end_x, y - render.LINE_H, quiet=True)
+            else:                                    # TAB or -> accepted a completion
+                word = self.editor.word_before_cursor()
+                if not self._finish_word(word, x, y):
+                    self.game.audio.play("typing", 7)
+                    self.fx.burst(x, y, count=6)
+
+    def _finish_word(self, word: str, end_x: int, y: int, quiet: bool = False) -> bool:
+        """A word just ended at end_x. If it is a keyword, its rune glows (or refuses)."""
+        upper = word.upper()
+        if upper not in KEYWORD_WORDS:
+            return False
+        rect = pygame.Rect(end_x - len(word) * render.ADVANCE - 1, y - 1,
+                           len(word) * render.ADVANCE + 1, render.GLYPH_H + 1)
+        if upper in locked_words(self.editor.unlocked):
+            self.game.audio.play("locked")
+            self.fx.burst(rect.centerx, rect.centery, count=4,
+                          colours=(render.GREY, render.SLATE), life=260)
+            return True
+        if not quiet:
+            self.game.audio.play("rune")
+        self.word_glow = (rect, self.time)
+        self.fx.burst(rect.centerx, rect.y, count=10, speed=60)
+        self.fx.zap(rect.x + 2, rect.y, height=14)
+        self.fx.zap(rect.right - 2, rect.y, height=14)
+        return True
 
     def update(self, dt):
         super().update(dt)
         self._update_beats(dt)
         self._update_visuals(dt)
+        self.fx.update(dt)
         resting = self.beat is None and not self.beats
         if resting:
             self._sync_shown()
@@ -491,8 +641,30 @@ class BattleScene(Scene):
                    p.colour, shadow=render.INK)
 
         self.grimoire.draw(canvas, self.time, focused=self.phase == "input")
+        self._draw_page_heat(canvas)
+        self.fx.draw(canvas)
         if self.game.debug:
             self._draw_debug(canvas)
+
+    def _draw_page_heat(self, canvas):
+        """The left page lights up the faster you type; a finished keyword shines."""
+        if self.word_glow:
+            rect, born = self.word_glow
+            age = self.time - born
+            if age < 140:
+                pygame.draw.rect(canvas, render.BUTTER, rect)
+            elif age < 420:
+                pygame.draw.rect(canvas, render.GOLD, rect, 1)
+            else:
+                self.word_glow = None
+        heat = self.streak.level(self.time)
+        if heat > 0.25:
+            edge = LEFT_PAGE.inflate(5, 5)
+            colour = render.LILAC if heat > 0.7 else render.LAVENDER
+            pygame.draw.rect(canvas, colour, edge, 1)
+            if heat > 0.7 and (self.time // 120) % 2 == 0:
+                for corner in (edge.topleft, edge.topright, edge.bottomleft, edge.bottomright):
+                    pygame.draw.rect(canvas, render.GOLD, (corner[0] - 1, corner[1] - 1, 3, 3))
 
     def _draw_foe_panel(self, canvas):
         f, foe = render.font(), self.battle.state.foe

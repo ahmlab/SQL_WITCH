@@ -11,7 +11,7 @@ STATUS: effects and looping battle music from sounds.json; F2 mutes.
 from __future__ import annotations
 
 import json
-from collections import deque
+from collections import Counter, deque
 from pathlib import Path
 
 import pygame
@@ -38,6 +38,7 @@ class Audio:
         self._sounds: dict[str, pygame.mixer.Sound | None] = {}
         self._warned: set[str] = set()
         self.played: deque[str] = deque(maxlen=64)     # what was asked for, even when silent
+        self.counts: Counter[str] = Counter()           # how often, since the start
         self.music: str | None = None
 
     @staticmethod
@@ -72,9 +73,15 @@ class Audio:
             return None
         return path
 
-    def _load(self, name: str) -> pygame.mixer.Sound | None:
-        if name not in self._sounds:
-            entry = self.config.get("effects", {}).get(name)
+    def _load(self, name: str, variant: int = 0) -> pygame.mixer.Sound | None:
+        entry = self.config.get("effects", {}).get(name)
+        files = entry.get("files") if entry else None
+        if files:                                   # several files: pick one by variant
+            entry = dict(entry, file=files[variant % len(files)])
+            key = f"{name}#{variant % len(files)}"
+        else:
+            key = name
+        if key not in self._sounds:
             path = self._path(entry, name)
             sound = None
             if path is not None:
@@ -83,16 +90,18 @@ class Audio:
                     sound.set_volume(self._volume(entry))
                 except pygame.error as error:
                     print(f"[audio] '{name}': cannot play {path.name} ({error}).")
-            self._sounds[name] = sound
-        return self._sounds[name]
+            self._sounds[key] = sound
+        return self._sounds[key]
 
     # ------------------------------------------------------------ what scenes call
 
-    def play(self, name: str) -> None:
+    def play(self, name: str, variant: int = 0) -> None:
+        """Play an effect. An event with a "files" list (like typing) uses file `variant`."""
         self.played.append(name)
+        self.counts[name] += 1
         if not self.enabled or self.muted:
             return
-        sound = self._load(name)
+        sound = self._load(name, variant)
         if sound is not None:
             sound.play()
 

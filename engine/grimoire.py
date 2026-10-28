@@ -93,6 +93,12 @@ class Grimoire:
         self.shown_at = 0
         self.looks_left = 3
 
+    EDITOR_AT = (LEFT_PAGE.x, LEFT_PAGE.y + 9)
+
+    def cursor_xy(self) -> tuple[int, int]:
+        """The editor's cursor on the canvas: where typing sparks fly from."""
+        return self.editor.cursor_xy(self.EDITOR_AT)
+
     def show_result(self, report: CastReport, now: int, looks_left: int) -> None:
         self.report, self.miscast, self.shown_at = report, None, now
         self.looks_left = looks_left
@@ -115,7 +121,7 @@ class Grimoire:
         f.draw(surface, "YOUR QUERY", (LEFT_PAGE.x, LEFT_PAGE.y), render.VIOLET)
         looks = f"looks {self.looks_left}"
         f.draw(surface, looks, (LEFT_PAGE.right - f.width(looks), LEFT_PAGE.y), render.SAND)
-        self.editor.draw(surface, (LEFT_PAGE.x, LEFT_PAGE.y + 9), now, focused)
+        self.editor.draw(surface, self.EDITOR_AT, now, focused)
         self._draw_status(surface)
 
         # Right page: the result, cut by the page.

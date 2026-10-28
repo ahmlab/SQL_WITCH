@@ -1,17 +1,19 @@
 {
   "intro": [
-    {"speaker": "", "text": "11:58 pm. The quarterly report is still running."},
-    {"speaker": "Ada", "text": "Nobody reads these dashboards anyway. SQL is just... busywork."},
-    {"speaker": "", "text": "The progress bar stops at 99%. So does Ada's heart."},
-    {"speaker": "", "text": "..."},
-    {"speaker": "Ada", "text": "Grass? Why is the sky a table? Why does it have so many columns?"},
-    {"speaker": "Grimoire", "text": "Welcome to the Kingdom of Codd, witch. Here the world is a database, and magic is querying."},
-    {"speaker": "Grimoire", "text": "Write a query on my left page. Every row that names a spell will cast it."},
-    {"speaker": "Grimoire", "text": "But my right page holds only four rows. You pay for every spell you summon..."},
-    {"speaker": "Grimoire", "text": "...and only the rows you can read take effect."},
-    {"speaker": "Ada", "text": "So SELECT * is... a bad idea?"},
-    {"speaker": "Grimoire", "text": "Ask the slime."},
-    {"speaker": "", "text": "Something round and green wobbles out of the bushes: the ASTERISK SLIME!"}
+    {"scene": "office", "sleep": 0, "speaker": "", "text": "11:58 pm. The quarterly report is still running."},
+    {"scene": "office", "sleep": 1, "speaker": "Ada", "text": "Nobody reads these dashboards anyway. SQL is just... busywork."},
+    {"scene": "office", "sleep": 2, "speaker": "Ada", "text": "I'll just close my eyes... until it reaches 100%..."},
+    {"scene": "office", "sleep": 3, "speaker": "", "text": "The progress bar stops at 99%. So does Ada's heart.", "sound": "flatline"},
+    {"scene": "void", "speaker": "", "text": "..."},
+    {"scene": "glade", "speaker": "Ada", "text": "Grass? Why is the sky a table? Why does it have so many columns?"},
+    {"scene": "glade", "book": true, "sound": "book", "speaker": "Grimoire", "text": "Welcome to the Kingdom of Codd, witch. Here the world is a database, and magic is querying."},
+    {"scene": "glade", "book": true, "speaker": "Ada", "text": "A... talking book?"},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Your Grimoire. Write a query on my left page. Every row that names a spell will cast it."},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "But my right page holds only four rows. You pay for every spell you summon..."},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "...and only the rows you can read take effect."},
+    {"scene": "glade", "book": true, "speaker": "Ada", "text": "So SELECT * is... a bad idea?"},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Ask the slime."},
+    {"scene": "glade", "book": true, "slime": true, "speaker": "", "text": "Something round and green wobbles out of the bushes: the ASTERISK SLIME!"}
   ],
   "battle_tip": "Look first: SELECT * FROM enemies. CTRL+ENTER casts.",
   "victory": [

@@ -40,6 +40,9 @@ KEYWORDS = ["SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "LIMIT", "ORDER
             "ASC", "DESC", "JOIN", "ON", "AS", "GROUP BY", "HAVING", "COUNT", "SUM",
             "DISTINCT", "IS NULL", "COALESCE", "WITH"]
 
+# Every single word that belongs to a keyword: finishing one of these makes the rune glow.
+KEYWORD_WORDS = {w for k in KEYWORDS for w in k.split()}
+
 STYLE_COLOURS = {
     "plain": render.INK,
     "keyword": render.VIOLET,
@@ -339,6 +342,15 @@ class QueryEditor:
                 cursor = (len(out) + i, self.col - i * width)
             out.extend((r, i * width, chunk) for i, chunk in enumerate(chunks))
         return out, cursor
+
+    def cursor_xy(self, topleft: tuple[int, int]) -> tuple[int, int]:
+        """Where the cursor is drawn, in canvas pixels, when the editor sits at topleft."""
+        _, (line, col) = self.visual_lines()
+        first = max(0, line - self.visible_lines + 1)
+        return (topleft[0] + col * render.ADVANCE, topleft[1] + (line - first) * render.LINE_H)
+
+    def word_before_cursor(self) -> str:
+        return self._word_before_cursor()
 
     def draw(self, surface: pygame.Surface, topleft: tuple[int, int], time_ms: int,
              focused: bool = True) -> None:

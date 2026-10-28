@@ -12,6 +12,9 @@ Schema reference: design document, Appendix A. Starting values: Appendix B.
 - `items.csv` - `name,kind,amount,qty`.
 - `type_chart.csv` - `attack,defend,multiplier`. Cycle: Fire > Nature > Storm > Tide > Fire;
   Arcane is neutral except x2 against Void; every other element is x0.5 against Void.
-- `dialogue.json` - story beats and guardian lines, keyed by scene id.
+- `dialogue.json` - story beats and guardian lines, keyed by scene id. Each `intro` line has a
+  `speaker` and `text`, plus: `scene` (`office`, `void` or `glade`: changing it dips to black),
+  `sleep` (office only, 0 awake to 3 asleep on the desk), `book` (the Grimoire floats on screen),
+  `slime` (the Slime appears) and `sound` (an event from `assets/audio/sounds.json`).
 
 Balance these numbers in a spreadsheet and export to CSV; never edit values inside the code.
