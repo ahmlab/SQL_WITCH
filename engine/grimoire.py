@@ -1,7 +1,7 @@
 """The Grimoire: the query on the left page, its result on the right (design doc 3.3, 6.4).
 
-The result table is drawn on its own surface, which can be taller and wider than the page,
-and blitted through a clip rectangle. The clip is what cuts row five in half and hides the
+The result table is drawn whole, through a clip rectangle the size of the page, so it can be
+taller and wider than the page. The clip is what cuts row five in half and hides the
 columns past the right edge; nothing here decides what is readable, magic/cast.py does.
 When the result has more rows than PAGE_ROWS, ink drips off the bottom of the page.
 
@@ -61,26 +61,26 @@ def column_x(columns: list[str], rows: list[tuple]) -> list[int]:
     return xs
 
 
-def render_table(report: CastReport, rows_shown: int) -> pygame.Surface:
-    """The whole result table on its own surface. It is allowed to be bigger than the page."""
+def draw_table(surface: pygame.Surface, report: CastReport, rows_shown: int,
+               topleft: tuple[int, int]) -> None:
+    """Draw the whole result table from topleft. It may be bigger than the page: the caller
+    sets the clip, and the clip is what cuts row five and the columns past the edge."""
     f = render.font()
     columns, rows = report.columns, report.rows
     widths = column_widths(columns, rows)
     xs = column_x(columns, rows)
     total_w = (xs[-1] + widths[-1] * render.ADVANCE) if xs else 1
-    drawn = rows[:min(rows_shown, PAGE_ROWS + 1)]              # nobody sees past row five
-    height = TABLE_TOP + (len(drawn) + 1) * ROW_H
-    table = pygame.Surface((max(1, total_w), height), pygame.SRCALPHA)
+    x0, y0 = topleft
     for name, x in zip(columns, xs):
-        f.draw(table, name, (x, 0), render.LEATHER)
-    pygame.draw.line(table, render.LEATHER, (0, render.GLYPH_H + 1), (total_w, render.GLYPH_H + 1))
-    for i, row in enumerate(drawn):
-        y = TABLE_TOP + i * ROW_H
+        f.draw(surface, name, (x0 + x, y0), render.LEATHER)
+    pygame.draw.line(surface, render.LEATHER, (x0, y0 + render.GLYPH_H + 1),
+                     (x0 + total_w, y0 + render.GLYPH_H + 1))
+    for i, row in enumerate(rows[:min(rows_shown, PAGE_ROWS + 1)]):   # nobody sees past row 5
+        y = y0 + TABLE_TOP + i * ROW_H
         for value, x in zip(row, xs):
-            f.draw(table, cell_text(value), (x, y + TEXT_DY), render.INK)
+            f.draw(surface, cell_text(value), (x0 + x, y + TEXT_DY), render.INK)
         for dot in range(0, total_w, 3):                        # dotted row separator
-            table.set_at((dot, y + ROW_H - 2), render.SAND)
-    return table
+            surface.set_at((x0 + dot, y + ROW_H - 2), render.SAND)
 
 
 class Grimoire:
@@ -160,11 +160,10 @@ class Grimoire:
                                (RIGHT_PAGE.x, RIGHT_PAGE.y + 12), render.GREY)
             return
         rows_shown = 1 + (now - self.shown_at) // INK_MS            # ink in, row by row
-        table = render_table(report, rows_shown)
         clip = pygame.Rect(RIGHT_PAGE.x, RIGHT_PAGE.y + TABLE_TOP,
                            RIGHT_PAGE.width, RIGHT_PAGE.height - TABLE_TOP)
         surface.set_clip(clip)
-        surface.blit(table, clip.topleft)                          # row 5 is cut in half here
+        draw_table(surface, report, rows_shown, clip.topleft)      # row 5 is cut in half here
         surface.set_clip(None)
 
         # A gold star in the spine marks every row that cast (design doc 4.4).
@@ -231,7 +230,5 @@ def draw_foe_book(surface: pygame.Surface, foe_name: str, sql: str | None,
             glow = pygame.Rect(x0 + start * render.ADVANCE - 1, y0 - 1,
                                len(glow_word) * render.ADVANCE + 1, render.GLYPH_H + 1)
             pygame.draw.rect(surface, pulse, glow)
-        for i, char in enumerate(line):
-            surface.blit(f.glyph(char, STYLE_COLOURS[styles[i]]),
-                         (x0 + i * render.ADVANCE, y0))
+        render.draw_coloured(surface, line, [STYLE_COLOURS[st] for st in styles], (x0, y0))
     f.draw(surface, foe_summary(report)[:36], (FOE_BOOK.x + 4, FOE_BOOK.y + 25), render.WINE)

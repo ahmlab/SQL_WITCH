@@ -18,6 +18,7 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 import pygame  # noqa: E402  (the environment variable must be set first)
 
 from engine import render  # noqa: E402
+from engine.audio import Audio, init_mixer  # noqa: E402
 from engine.scenes import Game  # noqa: E402
 
 UPDATES_PER_SECOND = 60
@@ -43,10 +44,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def run(seed: int, scale: int | None = None, max_frames: int | None = None) -> int:
+    init_mixer()                                   # before pygame.init(): low-latency sound
     pygame.init()
     try:
         screen = render.Screen(scale=scale)
-        game = Game(screen.canvas, seed, screen=screen)
+        game = Game(screen.canvas, seed, screen=screen, audio=Audio())
         clock = pygame.time.Clock()
         updates, lag_ms, last = 0, 0.0, time.perf_counter()
         frames = 0

@@ -6,10 +6,12 @@ Typing is the controller, so the editor must feel solid before it feels clever:
 - Enter starts a new line, Ctrl+Enter casts;
 - Up/Down walk the query history when the cursor is on the first/last line;
 - TAB completes table, column and keyword names (tables and columns from PRAGMA table_info);
+  while typing, the most likely completion is shown faded after the cursor, and TAB or the
+  right arrow accepts it;
 - syntax colours come from sqlglot.tokenize(); keywords of locked runes are drawn grey and
   struck through, so the player sees what they cannot use yet.
 
-STATUS: step 5 done - editing, history, TAB completion, colouring, locked runes, drawing.
+STATUS: editing, history, TAB completion with a faded suggestion, colouring, locked runes.
 """
 
 from __future__ import annotations
@@ -47,6 +49,8 @@ STYLE_COLOURS = {
     "name": render.TEAL,
     "punct": render.SLATE,
 }
+GHOST_COLOUR = (*render.GREY, 170)      # half-transparent: a hint, not text you typed
+GHOST_MIN = 2                           # letters typed before a suggestion appears
 _PUNCT = {TokenType.COMMA, TokenType.DOT, TokenType.L_PAREN, TokenType.R_PAREN,
           TokenType.SEMICOLON, TokenType.STAR, TokenType.EQ, TokenType.GT, TokenType.LT,
           TokenType.GTE, TokenType.LTE, TokenType.NEQ}
@@ -235,7 +239,8 @@ class QueryEditor:
 
     def _matches(self, prefix: str) -> list[str]:
         """Names and keywords that start with prefix, shortest first, in the player's case."""
-        pool = set(self.names) | set(KEYWORDS)
+        locked = locked_words(self.unlocked)       # never suggest a rune Ada cannot read
+        pool = set(self.names) | {k for k in KEYWORDS if k not in locked}
         before = self.lines[self.row][:self.col - len(prefix)].split()
         wants_table = bool(before) and before[-1].upper() in ("FROM", "JOIN")
         found = sorted((w for w in pool if w.lower().startswith(prefix.lower())),
@@ -243,6 +248,24 @@ class QueryEditor:
         if prefix.islower():                 # "sel" -> "select", "SEL" -> "SELECT"
             found = [w.lower() if w.isupper() else w for w in found]
         return found
+
+    def suggestion(self) -> str:
+        """The rest of the most likely word, shown faded after the cursor ("SE" -> "LECT").
+        Only at the end of a line, after 2+ letters, and never once the word is complete."""
+        line = self.lines[self.row]
+        prefix = self._word_before_cursor()
+        if self.col != len(line) or len(prefix) < GHOST_MIN or self._tab:
+            return ""
+        matches = self._matches(prefix)
+        if not matches or any(m.lower() == prefix.lower() for m in matches):
+            return ""
+        return matches[0][len(prefix):]
+
+    def accept_suggestion(self) -> bool:
+        rest = self.suggestion()
+        if rest:
+            self.insert(rest)
+        return bool(rest)
 
     def complete(self) -> None:
         """TAB: complete the word before the cursor; TAB again cycles through the matches."""
@@ -286,7 +309,8 @@ class QueryEditor:
         elif key == pygame.K_LEFT:
             self.move(-1)
         elif key == pygame.K_RIGHT:
-            self.move(+1)
+            if not self.accept_suggestion():       # at the end of a line, -> takes the ghost
+                self.move(+1)
         elif key == pygame.K_UP:
             self.up()
         elif key == pygame.K_DOWN:
@@ -329,12 +353,18 @@ class QueryEditor:
         for n, (r, start, text) in enumerate(lines[first:first + self.visible_lines]):
             y = y0 + n * render.LINE_H
             styles = styles_by_row[r][start:start + len(text)]
-            for i, char in enumerate(text):
-                style = styles[i] if i < len(styles) else "plain"
-                x = x0 + i * render.ADVANCE
-                surface.blit(f.glyph(char, STYLE_COLOURS[style]), (x, y))
+            styles += ["plain"] * (len(text) - len(styles))
+            render.draw_coloured(surface, text, [STYLE_COLOURS[st] for st in styles], (x0, y))
+            for i, style in enumerate(styles):
                 if style == "locked":       # strike-through: a rune Ada cannot read yet
+                    x = x0 + i * render.ADVANCE
                     pygame.draw.line(surface, render.RED, (x - 1, y + 2), (x + 3, y + 2))
+        ghost = self.suggestion() if focused else ""
+        if ghost and first <= cursor_line < first + self.visible_lines:
+            room = max(0, self.columns - cursor_col)               # stay on the page
+            render.font().draw(surface, ghost[:room],
+                               (x0 + cursor_col * render.ADVANCE,
+                                y0 + (cursor_line - first) * render.LINE_H), GHOST_COLOUR)
         if focused and (time_ms // 500) % 2 == 0:                     # blinking cursor
             cx = x0 + cursor_col * render.ADVANCE - 1
             cy = y0 + (cursor_line - first) * render.LINE_H

@@ -4,11 +4,13 @@ Everything in the game draws onto one small surface. Only present() touches the 
 scales the canvas by a whole number with nearest-neighbour sampling and letterboxes the rest,
 so pixels stay square and nothing shimmers.
 
-The font is a built-in 3x5 bitmap font (4 px per character), so the 146 px right page holds
-about 36 characters, exactly the PAGE_WIDTH of the Rule of the Page. It is monospaced on
-purpose: character counts and pixels then always agree.
+Text sits on a 4-pixel character grid, so the 146 px right page holds about 36 characters,
+exactly the PAGE_WIDTH of the Rule of the Page. It is monospaced on purpose: character counts
+and pixels then always agree. The letters themselves are drawn at the window's real resolution
+with a 5x7 font (see Canvas), which keeps them sharp and legible at any scale; the chunky
+3x5 font is kept for big titles and for surfaces that are not the main canvas.
 
-STATUS: step 5 done - canvas, scaling, palette, pixel font, small drawing helpers.
+STATUS: canvas, scaling, palette, sharp text layer (5x7) and chunky 3x5 font, helpers.
 """
 
 from __future__ import annotations
@@ -123,33 +125,186 @@ _GLYPHS = {
 _UNKNOWN = ["###", "#.#", "#.#", "#.#", "###"]
 
 
+# A 5x7 font for the text layer: same 4-pixel character grid, far more detail per letter.
+# Rows top to bottom; rows 7 and 8 are descenders (g, j, p, q, y, comma).
+_GLYPHS_5X7 = {
+    "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "B": ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
+    "C": [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+    "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+    "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+    "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+    "G": [".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".####"],
+    "H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "I": [".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###."],
+    "J": ["..###", "...#.", "...#.", "...#.", "...#.", "#..#.", ".##.."],
+    "K": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    "L": ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+    "M": ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
+    "N": ["#...#", "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#"],
+    "O": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+    "Q": [".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#"],
+    "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+    "S": [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
+    "T": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "V": ["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+    "W": ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "#.#.#", ".#.#."],
+    "X": ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"],
+    "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
+    "Z": ["#####", "....#", "...#.", "..#..", ".#...", "#....", "#####"],
+    "a": [".....", ".....", ".###.", "....#", ".####", "#...#", ".####"],
+    "b": ["#....", "#....", "####.", "#...#", "#...#", "#...#", "####."],
+    "c": [".....", ".....", ".###.", "#....", "#....", "#...#", ".###."],
+    "d": ["....#", "....#", ".####", "#...#", "#...#", "#...#", ".####"],
+    "e": [".....", ".....", ".###.", "#...#", "#####", "#....", ".###."],
+    "f": ["..##.", ".#..#", ".#...", "###..", ".#...", ".#...", ".#..."],
+    "g": [".....", ".....", ".####", "#...#", "#...#", "#...#", ".####", "....#", ".###."],
+    "h": ["#....", "#....", "####.", "#...#", "#...#", "#...#", "#...#"],
+    "i": ["..#..", ".....", ".##..", "..#..", "..#..", "..#..", ".###."],
+    "j": ["...#.", ".....", "..##.", "...#.", "...#.", "...#.", "...#.", "#..#.", ".##.."],
+    "k": ["#....", "#....", "#..#.", "#.#..", "##...", "#.#..", "#..#."],
+    "l": [".##..", "..#..", "..#..", "..#..", "..#..", "..#..", ".###."],
+    "m": [".....", ".....", "##.#.", "#.#.#", "#.#.#", "#.#.#", "#.#.#"],
+    "n": [".....", ".....", "####.", "#...#", "#...#", "#...#", "#...#"],
+    "o": [".....", ".....", ".###.", "#...#", "#...#", "#...#", ".###."],
+    "p": [".....", ".....", "####.", "#...#", "#...#", "#...#", "####.", "#....", "#...."],
+    "q": [".....", ".....", ".####", "#...#", "#...#", "#...#", ".####", "....#", "....#"],
+    "r": [".....", ".....", "#.##.", "##..#", "#....", "#....", "#...."],
+    "s": [".....", ".....", ".####", "#....", ".###.", "....#", "####."],
+    "t": [".#...", ".#...", "###..", ".#...", ".#...", ".#..#", "..##."],
+    "u": [".....", ".....", "#...#", "#...#", "#...#", "#..##", ".##.#"],
+    "v": [".....", ".....", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+    "w": [".....", ".....", "#...#", "#...#", "#.#.#", "#.#.#", ".#.#."],
+    "x": [".....", ".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
+    "y": [".....", ".....", "#...#", "#...#", "#...#", "#...#", ".####", "....#", ".###."],
+    "z": [".....", ".....", "#####", "...#.", "..#..", ".#...", "#####"],
+    "0": [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
+    "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+    "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+    "3": ["#####", "...#.", "..#..", "...#.", "....#", "#...#", ".###."],
+    "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
+    "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
+    "6": ["..##.", ".#...", "#....", "####.", "#...#", "#...#", ".###."],
+    "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+    "8": [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
+    "9": [".###.", "#...#", "#...#", ".####", "....#", "...#.", ".##.."],
+    " ": [],
+    "!": ["..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.."],
+    '"': [".#.#.", ".#.#.", ".#.#."],
+    "#": [".#.#.", ".#.#.", "#####", ".#.#.", "#####", ".#.#.", ".#.#."],
+    "$": ["..#..", ".####", "#.#..", ".###.", "..#.#", "####.", "..#.."],
+    "%": ["##...", "##..#", "...#.", "..#..", ".#...", "#..##", "...##"],
+    "&": [".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"],
+    "'": ["..#..", "..#..", ".#..."],
+    "(": ["...#.", "..#..", ".#...", ".#...", ".#...", "..#..", "...#."],
+    ")": [".#...", "..#..", "...#.", "...#.", "...#.", "..#..", ".#..."],
+    "*": [".....", "..#..", "#.#.#", ".###.", "#.#.#", "..#..", "....."],
+    "+": [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."],
+    ",": [".....", ".....", ".....", ".....", ".....", ".##..", ".##..", "..#..", ".#..."],
+    "-": [".....", ".....", ".....", "#####"],
+    ".": [".....", ".....", ".....", ".....", ".....", ".##..", ".##.."],
+    "/": [".....", "....#", "...#.", "..#..", ".#...", "#....", "....."],
+    ":": [".....", ".##..", ".##..", ".....", ".##..", ".##..", "....."],
+    ";": [".....", ".##..", ".##..", ".....", ".##..", ".##..", "..#..", ".#..."],
+    "<": ["...#.", "..#..", ".#...", "#....", ".#...", "..#..", "...#."],
+    "=": [".....", ".....", "#####", ".....", "#####"],
+    ">": [".#...", "..#..", "...#.", "....#", "...#.", "..#..", ".#..."],
+    "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
+    "@": [".###.", "#...#", "....#", ".##.#", "#.#.#", "#.#.#", ".###."],
+    "[": [".###.", ".#...", ".#...", ".#...", ".#...", ".#...", ".###."],
+    "\\": [".....", "#....", ".#...", "..#..", "...#.", "....#", "....."],
+    "]": [".###.", "...#.", "...#.", "...#.", "...#.", "...#.", ".###."],
+    "^": ["..#..", ".#.#.", "#...#"],
+    "_": [".....", ".....", ".....", ".....", ".....", ".....", "#####"],
+    "`": [".#...", "..#..", "...#."],
+    "{": ["...#.", "..#..", "..#..", ".#...", "..#..", "..#..", "...#."],
+    "|": ["..#..", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "}": [".#...", "..#..", "..#..", "...#.", "..#..", "..#..", ".#..."],
+    "~": [".....", ".....", ".#...", "#.#.#", "...#."],
+}
+_UNKNOWN_5X7 = ["#####", "#...#", "#...#", "#...#", "#...#", "#...#", "#####"]
+FINE_W, FINE_H, FINE_CAP = 5, 9, 7
+
+
+def fine_pixel(k: int) -> int:
+    """Size in screen pixels of one dot of the 5x7 font at window scale k.
+    It stays a whole number (crisp) and the letter, bold stroke included, keeps at least one
+    pixel of space inside its 4k-pixel cell."""
+    dot = max(1, round(k * 0.6))
+    while dot > 1 and 5 * dot + bold_px(dot) > 4 * k - 1:
+        dot -= 1
+    return dot
+
+
+def bold_px(dot: int) -> int:
+    """Strokes are widened by half a dot: thin 1-dot strokes are hard to read when small."""
+    return max(1, dot // 2)
+
+
+class Canvas(pygame.Surface):
+    """The 320x180 game surface, plus the text drawn on it this frame.
+
+    Text is not painted into the canvas: it is recorded, and Screen.present() draws it on top
+    of the scaled frame at the window's real resolution. Letters keep the same 4-pixel grid
+    (so PAGE_WIDTH still means 36 characters), but each one gets far more detail.
+    """
+
+    def __init__(self, size=(LOGICAL_W, LOGICAL_H)):
+        super().__init__(size)
+        self.ops: list[tuple] = []
+
+    def begin_frame(self) -> None:
+        self.ops.clear()
+
+    def texts(self) -> list[str]:
+        """Every string drawn this frame (handy for tests)."""
+        return [op[1] for op in self.ops if op[0] == "text"]
+
+
 class PixelFont:
-    """Draws the bitmap glyphs; each (character, colour) is built once and cached."""
+    """Draws text. On a Canvas the text goes to the sharp text layer; on any other surface
+    (and for big scaled titles) it is drawn right away with the chunky 3x5 glyphs."""
 
     def __init__(self):
-        self._cache: dict[tuple[str, tuple], pygame.Surface] = {}
+        self._cache: dict[tuple, pygame.Surface] = {}
 
     def glyph(self, char: str, colour: tuple) -> pygame.Surface:
-        key = (char, tuple(colour))
+        key = ("lo", char, tuple(colour))
         if key not in self._cache:
-            rows = _GLYPHS.get(char, _UNKNOWN)
-            surface = pygame.Surface((GLYPH_W, GLYPH_H), pygame.SRCALPHA)
-            for y, row in enumerate(rows):
-                for x, bit in enumerate(row):
-                    if bit == "#":
-                        surface.set_at((x, y), colour)
-            self._cache[key] = surface
+            self._cache[key] = self._build(_GLYPHS.get(char, _UNKNOWN), GLYPH_W, GLYPH_H,
+                                           colour, 1)
         return self._cache[key]
+
+    def fine_glyph(self, char: str, colour: tuple, dot: int) -> pygame.Surface:
+        key = ("hi", char, tuple(colour), dot)
+        if key not in self._cache:
+            self._cache[key] = self._build(_GLYPHS_5X7.get(char, _UNKNOWN_5X7), FINE_W,
+                                           FINE_H, colour, dot, bold_px(dot))
+        return self._cache[key]
+
+    @staticmethod
+    def _build(rows, w, h, colour, dot, bold=0) -> pygame.Surface:
+        surface = pygame.Surface((w * dot + bold, h * dot), pygame.SRCALPHA)
+        for y, row in enumerate(rows):
+            for x, bit in enumerate(row):
+                if bit == "#":
+                    surface.fill(colour, (x * dot, y * dot, dot + bold, dot))
+        return surface
 
     def width(self, text: str, scale: int = 1) -> int:
         return max(0, len(text) * ADVANCE - 1) * scale
 
     def draw(self, surface: pygame.Surface, text: str, pos: tuple[float, float],
              colour: tuple, scale: int = 1, shadow: tuple | None = None) -> int:
-        """Draw text with its top-left at pos. Returns the width drawn, in pixels."""
+        """Draw text with its top-left at pos. Returns the width drawn, in logical pixels."""
         x, y = snap(pos[0]), snap(pos[1])
         if shadow is not None:
             self.draw(surface, text, (x, y + scale), shadow, scale)   # drop shadow
+        if isinstance(surface, Canvas) and scale == 1:
+            surface.ops.append(("text", text, x, y, tuple(colour), surface.get_clip()))
+            return self.width(text)
         for i, char in enumerate(text):
             glyph = self.glyph(char, colour)
             if scale != 1:
@@ -174,6 +329,51 @@ def snap(value: float) -> int:
     return int(round(value))
 
 
+def draw_coloured(surface: pygame.Surface, text: str, colours: list[tuple],
+                  pos: tuple[int, int]) -> None:
+    """Draw text where each character has its own colour (syntax colouring), in runs."""
+    f, x, start = font(), pos[0], 0
+    for i in range(1, len(text) + 1):
+        if i == len(text) or colours[i] != colours[start]:
+            f.draw(surface, text[start:i], (x + start * ADVANCE, pos[1]), colours[start])
+            start = i
+
+
+def cover(surface: pygame.Surface, rect: pygame.Rect, rgba: tuple) -> None:
+    """A translucent box that also hides text drawn earlier (e.g. the F1 overlay)."""
+    rect = pygame.Rect(rect)
+    if isinstance(surface, Canvas):
+        surface.ops.append(("fill", rect, tuple(rgba), surface.get_clip()))
+        return
+    box = pygame.Surface(rect.size, pygame.SRCALPHA)
+    box.fill(rgba)
+    surface.blit(box, rect.topleft)
+
+
+def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
+    """Replay the frame's text on the scaled frame, at k screen pixels per game pixel."""
+    f = font()
+    dot = fine_pixel(k)
+    dy = (GLYPH_H - 1) * k // 2 - FINE_CAP * dot // 2      # centre the 5x7 cap on the old one
+    for op in ops:
+        clip = op[-1]
+        frame.set_clip(pygame.Rect(clip.x * k, clip.y * k, clip.w * k, clip.h * k))
+        if op[0] == "fill":
+            rect, rgba = op[1], op[2]
+            box = pygame.Surface((rect.w * k, rect.h * k), pygame.SRCALPHA)
+            box.fill(rgba)
+            frame.blit(box, (rect.x * k, rect.y * k))
+            continue
+        _, text, x, y, colour, _ = op
+        for i, char in enumerate(text):
+            cx = (x + i * ADVANCE) * k
+            if k == 1:                                       # no room for detail at 1x
+                frame.blit(f.glyph(char, colour), (cx, y))
+            else:
+                frame.blit(f.fine_glyph(char, colour, dot), (cx, y * k + dy))
+    frame.set_clip(None)
+
+
 # ------------------------------------------------------------------ the window
 
 def fit(window_size: tuple[int, int]) -> tuple[int, tuple[int, int]]:
@@ -193,13 +393,20 @@ class Screen:
         self.window = pygame.display.set_mode((LOGICAL_W * scale, LOGICAL_H * scale),
                                               pygame.RESIZABLE)
         pygame.display.set_caption(title)
-        self.canvas = pygame.Surface((LOGICAL_W, LOGICAL_H))
+        self.canvas = Canvas()
         self.shake = 0           # frames of screen shake left (design doc 7.3)
 
-    def present(self, rng=None) -> None:
-        k, (ox, oy) = fit(self.window.get_size())
+    def compose(self) -> tuple[pygame.Surface, int]:
+        """The finished frame at window scale: pixel art scaled up, then the sharp text."""
+        k, _ = fit(self.window.get_size())
         # pygame.transform.scale is nearest-neighbour: exactly what pixel art needs.
         frame = pygame.transform.scale(self.canvas, (LOGICAL_W * k, LOGICAL_H * k))
+        draw_text_layer(frame, self.canvas.ops, k)
+        return frame, k
+
+    def present(self, rng=None) -> None:
+        frame, k = self.compose()
+        _, (ox, oy) = fit(self.window.get_size())
         if self.shake > 0 and rng is not None:
             ox += rng.choice((-1, 1)) * rng.randint(1, 2) * k
             oy += rng.choice((-1, 1)) * rng.randint(0, 1) * k

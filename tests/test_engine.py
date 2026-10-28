@@ -191,3 +191,61 @@ def test_the_editor_draws_without_crashing():
     editor = typed(QueryEditor(names=["spells"], unlocked=set()),
                    "SELECT name FROM spells WHERE power > 15 LIMIT 1")
     editor.draw(surface, (2, 2), time_ms=0)
+
+
+# ------------------------------------------------------------------ the faded suggestion
+
+def test_a_faded_suggestion_follows_what_you_type():
+    assert typed(QueryEditor(), "SE").suggestion() == "LECT"
+    assert typed(QueryEditor(), "se").suggestion() == "lect"         # the player's case
+    assert typed(QueryEditor(), "S").suggestion() == ""              # too early to guess
+
+
+def test_tab_and_right_arrow_accept_the_suggestion():
+    editor = typed(QueryEditor(), "SE")
+    editor.handle_event(key(pygame.K_TAB))
+    assert editor.text == "SELECT" and editor.suggestion() == ""
+    editor = typed(QueryEditor(), "SE")
+    editor.handle_event(key(pygame.K_RIGHT))
+    assert editor.text == "SELECT"
+
+
+def test_after_from_the_suggestion_is_a_table():
+    conn = build_db()
+    editor = QueryEditor(names=schema_words(conn), tables=schema_tables(conn))
+    assert typed(editor, "SELECT * FROM spe").suggestion() == "lls"
+
+
+def test_no_suggestion_for_a_finished_word_or_in_the_middle_of_a_line():
+    assert typed(QueryEditor(), "FROM").suggestion() == ""
+    editor = typed(QueryEditor(), "SE spells")
+    for _ in range(len(" spells")):
+        editor.handle_event(key(pygame.K_LEFT))
+    assert editor.suggestion() == ""
+
+
+def test_locked_runes_are_never_suggested():
+    assert typed(QueryEditor(unlocked=set()), "LIM").suggestion() == ""
+    assert typed(QueryEditor(unlocked={"LIMIT"}), "LIM").suggestion() == "IT"
+
+
+def test_the_suggestion_is_drawn_faded_on_the_text_layer():
+    canvas = render.Canvas()
+    typed(QueryEditor(), "SE").draw(canvas, (2, 2), time_ms=0)
+    ghost = [op for op in canvas.ops if op[0] == "text" and op[1] == "LECT"]
+    assert ghost and ghost[0][4][3] < 255                             # alpha below opaque
+
+
+def test_text_on_the_canvas_is_sharp_at_any_window_scale():
+    for k in range(2, 9):
+        dot = render.fine_pixel(k)
+        assert 5 * dot + render.bold_px(dot) < 4 * k                   # fits its cell
+    canvas = render.Canvas()
+    render.font().draw(canvas, "SELECT", (10, 10), render.INK)
+    assert canvas.texts() == ["SELECT"]
+    frame = pygame.Surface((320 * 4, 180 * 4))
+    frame.fill(render.CREAM)
+    render.draw_text_layer(frame, canvas.ops, 4)
+    inked = sum(frame.get_at((x, y))[:3] == render.INK
+                for x in range(40, 40 + 6 * 16) for y in range(40, 68))
+    assert inked > 100

@@ -4,7 +4,7 @@ pygame = pytest.importorskip("pygame")
 
 from engine import render
 from engine.grimoire import (RIGHT_PAGE, ROW_H, TABLE_TOP, TEXT_DY, Grimoire, foe_summary,
-                             render_table, wrap)
+                             wrap)
 from engine.scenes import (BattleScene, DialogueScene, Game, ResultScene, TitleScene)
 from engine.textinput import QueryEditor
 from magic.battle import Battle
@@ -64,11 +64,17 @@ def test_row_five_is_cut_in_half_by_the_page():
     assert fourth_bottom <= clip_height                        # row four is fully readable
 
 
-def test_the_table_surface_may_be_wider_than_the_page():
+def test_the_table_may_be_wider_than_the_page_and_the_clip_cuts_it():
     battle = Battle(seed=1)
     report = battle.ada_cast("SELECT * FROM spells")
-    table = render_table(report, rows_shown=99)
-    assert table.get_width() > RIGHT_PAGE.width
+    grimoire = Grimoire(QueryEditor())
+    grimoire.show_result(report, now=0, looks_left=3)
+    canvas = render.Canvas()
+    grimoire.draw(canvas, now=5000, focused=False)
+    # "unlock_level" starts past the right edge: it is drawn, but only inside the page's clip.
+    header = [op for op in canvas.ops if op[0] == "text" and op[1] == "unlock_level"]
+    assert header and header[0][2] > RIGHT_PAGE.right
+    assert header[0][5].right == RIGHT_PAGE.right
 
 
 def grimoire_pixels_below_page(sql):

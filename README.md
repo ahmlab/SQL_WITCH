@@ -55,10 +55,11 @@ python main.py
 |---|---|
 | `Enter` | Title and dialogue: continue. In the editor: new line. |
 | `Ctrl+Enter` | Cast the query (also fast-forwards the battle narration). |
-| `Tab` | Complete a table, column or keyword (press again for the next match). |
+| `Tab` or `→` | Accept the faded suggestion after the cursor (`SE` → `SELECT`). Tab again cycles through other matches. |
 | `Up` / `Down` | Previous / next query in the history (from the first / last line). |
 | `Ctrl+L` | Clear the query. |
 | `F1` | Debug overlay: what the Slime's brain decided and why. |
+| `F2` | Mute / unmute sound and music. |
 | `Esc` | Skip the intro; quit from the title or result screen. |
 
 In the terminal, no pygame needed. It plays the same battle with the same rules:
@@ -68,6 +69,14 @@ python -m sim.play_cli --seed 7
 ```
 
 Type a query and press Enter. `:help`, `:why` (the Slime's reasoning), `:schema`, `:quit`.
+
+## Sound and music
+
+All sounds live in [`assets/audio/`](assets/audio/), and
+[`assets/audio/sounds.json`](assets/audio/sounds.json) says which file plays for each event
+(damage, HP/MP bars going down or up, casting, fizzling, the battle music...). Swap in your own
+files by editing that JSON; see [`assets/audio/README.md`](assets/audio/README.md). The
+current sounds are placeholder chiptunes made by `python -m tools.make_sounds`.
 
 ## Tests
 
@@ -93,7 +102,9 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `ai/` | Foe brains and their SQL styles. **Never imports pygame.** |
 | `ai/fsm.py` | The Asterisk Slime: a probabilistic finite state machine. |
 | `ai/styles.py` | Turns a brain's intent into the Slime's sloppy `SELECT *`. |
-| `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes. |
+| `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
+| `assets/audio/` | Sound effects, battle music and `sounds.json`. |
+| `tools/make_sounds.py` | Generates the placeholder chiptune sounds. |
 | `sim/play_cli.py` | The terminal battle. |
 | `data/` | CSV game data and dialogue (see `data/README.md`). |
 | `tests/` | pytest suite. |

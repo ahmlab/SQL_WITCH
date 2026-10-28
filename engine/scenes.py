@@ -7,7 +7,7 @@ one narration beat at a time. Art is placeholder shapes for now (design doc 7.2:
 Two random generators exist on purpose: the battle's own (inside Battle, never touched here)
 and game.vfx for screen shake, so visual effects can never change the outcome of a battle.
 
-STATUS: step 6 done - title, intro dialogue, battle with narration and F1 overlay, result.
+STATUS: title, intro dialogue, battle with narration, sounds, F1 overlay; result.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import Callable
 import pygame
 
 from engine import render
+from engine.audio import Audio, Silent
 from engine.grimoire import Grimoire, draw_foe_book, wrap
 from engine.textinput import QueryEditor, schema_tables, schema_words
 from magic.battle import Battle
@@ -63,9 +64,11 @@ class Scene:
 class Game:
     """Holds the current scene and what all scenes share. main.py runs the loop."""
 
-    def __init__(self, canvas: pygame.Surface, seed: int, screen=None):
+    def __init__(self, canvas: pygame.Surface, seed: int, screen=None,
+                 audio: Audio | None = None):
         self.canvas = canvas
         self.screen = screen              # optional: only used for screen shake
+        self.audio = audio if audio is not None else Silent()
         self.seed = seed
         self.vfx = random.Random(seed)    # visual effects only, never the battle's rng
         self.dialogue = load_dialogue()
@@ -85,6 +88,8 @@ class Game:
             self.running = False
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
             self.debug = not self.debug
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_F2:
+            self.audio.toggle_mute()
         else:
             self.scene.handle(event)
 
@@ -92,6 +97,8 @@ class Game:
         self.scene.update(dt)
 
     def draw(self) -> None:
+        if isinstance(self.canvas, render.Canvas):
+            self.canvas.begin_frame()             # text is recorded per frame
         self.scene.draw(self.canvas)
 
     def shake(self, frames: int = 6) -> None:
@@ -155,6 +162,7 @@ def draw_ada_back(canvas: pygame.Surface, x: int, y: int, flash: bool) -> None:
 class TitleScene(Scene):
     def handle(self, event):
         if is_confirm_key(event):
+            self.game.audio.play("confirm")
             self.game.switch(DialogueScene(self.game))
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.game.running = False
@@ -229,6 +237,7 @@ class Beat:
     text: str
     ms: int = 700
     effect: Callable[[], None] | None = None
+    sounds: tuple[str, ...] = ()          # event names in assets/audio/sounds.json
 
 
 @dataclass
@@ -273,14 +282,16 @@ class BattleScene(Scene):
 
     def enter(self):
         pygame.key.start_text_input()
+        self.game.audio.play_music("battle")
 
     def exit(self):
         pygame.key.stop_text_input()
+        self.game.audio.stop_music()
 
     # ------------------------------------------------------------ narration
 
-    def say(self, text: str, ms: int = 700, effect=None) -> None:
-        self.beats.append(Beat(text, ms, effect))
+    def say(self, text: str, ms: int = 700, effect=None, *sounds: str) -> None:
+        self.beats.append(Beat(text, ms, effect, sounds))
 
     def side_of(self, name: str) -> str:
         return "ada" if name == self.battle.state.ada.name else "foe"
@@ -314,35 +325,38 @@ class BattleScene(Scene):
                 _, _, _, spell, target, dmg, crit, mult = event
                 words = effect_word(mult)
                 text = f"{spell}: {dmg}" + (" CRIT!" if crit else "") + (f" {words}!" if words else "")
-                self.say(text, 650, self._hit(self.side_of(target), dmg, crit))
+                self.say(text, 650, self._hit(self.side_of(target), dmg, crit),
+                         "crit" if crit else "hit", *(("hp_down",) if dmg else ()))
             elif kind in ("heal", "item"):
                 side = self.side_of(event[3])
                 amount = event[4] if kind == "heal" else event[5]
                 slot = 1 if kind == "item" and event[4] == "mp" else 0
-                self.say(f"{event[2]}: +{amount}", 600, self._add_shown(side, slot, amount))
+                self.say(f"{event[2]}: +{amount}", 600, self._add_shown(side, slot, amount),
+                         "mp_up" if slot == 1 else "hp_up")
             elif kind == "ward":
-                self.say(f"{event[2]}: ward {event[4]}", 600)
+                self.say(f"{event[2]}: ward {event[4]}", 600, None, "cast")
             elif kind == "fizzle":
                 if event[3] == "overflow":
                     margin += 1
                 elif event[3] == "duplicate":
-                    self.say(f"{event[2]} again: it fizzles", 600)
+                    self.say(f"{event[2]} again: it fizzles", 600, None, "fizzle")
                 elif event[3] == "no_mana":
-                    self.say(f"{event[2]}: no MP left", 450)
+                    self.say(f"{event[2]}: no MP left", 450, None, "fizzle")
                 else:
                     self.say(f"{event[2]}: none left", 450)
             elif kind == "mp":
                 _, name, before, after = event
                 if margin:
-                    self.say(f"{margin} spells fizzle in the margin", 800)
+                    self.say(f"{margin} spells fizzle in the margin", 800, None, "fizzle")
                     margin = 0
                 if before != after:
                     self.say(f"MP {before} -> {after}", 600,
-                             self._set_shown(self.side_of(name), 1, after))
+                             self._set_shown(self.side_of(name), 1, after),
+                             "mp_down" if after < before else "mp_up")
             elif kind == "exhausted":
                 self.say(f"{event[1].split()[-1]} is EXHAUSTED!", 800)
             elif kind == "faint":
-                self.say(f"{event[1]} faints!", 1000)
+                self.say(f"{event[1]} faints!", 1000, None, "faint")
             elif kind == "scry":
                 self.say("A free look." if not event[2] else "Nothing castable: turn spent.", 600)
 
@@ -350,7 +364,8 @@ class BattleScene(Scene):
         end = self.battle.last_round
         if end and end.turn not in self.rounds_told:
             self.rounds_told.add(end.turn)
-            self.say(f"Round {end.turn} ends: +{end.mp_gained['ada']} MP", 700, self._sync_shown)
+            self.say(f"Round {end.turn} ends: +{end.mp_gained['ada']} MP", 700, self._sync_shown,
+                     *(("mp_up",) if end.mp_gained["ada"] else ()))
 
     def _sync_shown(self) -> None:
         state = self.battle.state
@@ -363,7 +378,9 @@ class BattleScene(Scene):
             report = self.battle.ada_cast(sql)
         except Miscast as miscast:
             self.grimoire.show_miscast(str(miscast), self.time)
+            self.game.audio.play("miscast")
             return
+        self.game.audio.play("scry" if report.scry else "cast")
         looks = SCRY_PER_TURN - self.battle.state.scries_used
         self.grimoire.show_result(report, self.time, looks)
         self.narrate(report)
@@ -374,7 +391,7 @@ class BattleScene(Scene):
     def foe_turn(self) -> None:
         turn = self.battle.foe_act()
         self.foe_sql, self.foe_report, self.reasoning = turn.sql, turn.report, turn.reasoning
-        self.say("The Slime casts!", 500)
+        self.say("The Slime casts!", 500, None, "scry" if turn.report.scry else "cast")
         self.narrate(turn.report)
         if turn.invitation:
             rune = turn.invitation
@@ -382,7 +399,7 @@ class BattleScene(Scene):
             def learn():
                 self.editor.unlocked.add(rune)
                 self.glow = (rune, self.time)
-            self.say(f"{rune} glows in the Slime's book!", 1200, learn)
+            self.say(f"{rune} glows in the Slime's book!", 1200, learn, "invitation")
             self.say(f"Ada copies the rune: {rune}", 1200)
         self._tell_round_end()
 
@@ -433,6 +450,8 @@ class BattleScene(Scene):
             self.beat_left = self.beat.ms
             if self.beat.effect:
                 self.beat.effect()
+            for sound in self.beat.sounds:
+                self.game.audio.play(sound)
 
     def _update_visuals(self, dt: int) -> None:
         for side in ("ada", "foe"):
@@ -520,12 +539,11 @@ class BattleScene(Scene):
         else:
             lines.append("The Slime has not decided anything yet.")
         lines.append(f"Slime book: {len(battle.state.foe_book)} queries")
-        overlay = pygame.Surface((312, 8 + len(lines) * render.LINE_H), pygame.SRCALPHA)
-        overlay.fill((*render.INK, 230))
+        render.cover(canvas, pygame.Rect(4, 4, 312, 8 + len(lines) * render.LINE_H),
+                     (*render.INK, 235))
         for i, line in enumerate(lines):
-            f.draw(overlay, line, (4, 4 + i * render.LINE_H),
+            f.draw(canvas, line, (8, 8 + i * render.LINE_H),
                    render.GOLD if i == 0 else render.MINT)
-        canvas.blit(overlay, (4, 4))
 
 
 # ------------------------------------------------------------------ result
@@ -541,6 +559,9 @@ class ResultScene(Scene):
             (battle.state.ada.name,)).fetchone()
         # The Codex records the guardian's own query as the example for the rune (design doc 3.6).
         self.codex = next((sql for sql in battle.state.foe_book if "LIMIT" in sql), None)
+
+    def enter(self):
+        self.game.audio.play("victory" if self.won else "defeat")
 
     def handle(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
