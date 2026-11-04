@@ -232,7 +232,7 @@ def draw_void(canvas: pygame.Surface, t: int) -> None:
 # ------------------------------------------------------------------ the floating book
 
 def draw_book(canvas: pygame.Surface, centre: tuple[int, int], t: int, age: int,
-              speaking: bool, ground_y: int = 110) -> None:
+              speaking: bool, ground_y: int = 110, shadow=render.FOREST) -> None:
     """The Grimoire: an open book floating over the grass, glowing when it talks.
     age: ms since it appeared (it pops in from a ring of sparks)."""
     if age < 0:
@@ -247,7 +247,7 @@ def draw_book(canvas: pygame.Surface, centre: tuple[int, int], t: int, age: int,
                            render.snap(cy + math.sin(angle) * r * 0.6)),
                           render.BUTTER if i % 2 else render.LILAC)
     cy += render.snap(2 * math.sin(t / 380))                 # it floats
-    pygame.draw.ellipse(canvas, render.FOREST, (cx - 10, ground_y - 2, 20, 4))   # shadow
+    pygame.draw.ellipse(canvas, shadow, (cx - 10, ground_y - 2, 20, 4))          # shadow
     w, h = 16 * grow, 9 * grow
     if w < 2:
         return

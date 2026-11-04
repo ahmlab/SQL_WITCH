@@ -187,10 +187,23 @@ def test_moving_to_the_next_line_plays_a_sound():
     assert ("next", 0) in game.audio.log
 
 
-def test_adas_hat_is_outlined_against_the_violet_sky():
-    from engine.scenes import draw_backdrop, draw_ada_back
+def test_ada_is_the_artists_sprite_in_battle_and_in_the_story():
+    from engine import sprites
+    from engine.scenes import ADA_FEET, ADA_STANDING
+    image = sprites.sprite("ada_back")
+    assert image.get_size() == (41, 83)
     canvas = pygame.Surface((320, 180))
-    draw_backdrop(canvas, ground_y=110)
-    draw_ada_back(canvas, 52, 68, False)
-    hat_tip = [canvas.get_at((52 + 22, y))[:3] for y in range(66, 72)]
-    assert render.INK in hat_tip                # a dark edge separates it from the sky
+    canvas.fill(render.CREAM)
+    rect = sprites.draw_ada(canvas, ADA_STANDING)
+    assert rect.bottom == ADA_STANDING[1] and rect.top >= 0
+    assert canvas.get_at(rect.center)[:3] != render.CREAM       # she is drawn there
+    battle = sprites.draw_ada(pygame.Surface((320, 180)), ADA_FEET)
+    assert 58 < battle.top < 100 < battle.bottom                # half hidden by the Grimoire
+
+
+def test_the_hit_flash_is_her_white_silhouette():
+    from engine import sprites
+    normal, flash = sprites.sprite("ada_back"), sprites.sprite("ada_back", flash=True)
+    assert flash.get_size() == normal.get_size()
+    opaque = [(x, y) for x in range(41) for y in range(83) if normal.get_at((x, y))[3]]
+    assert all(flash.get_at(p)[:3] == (251, 247, 239) for p in opaque[::50])

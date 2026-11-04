@@ -30,8 +30,16 @@ pixel art" at high resolution, with noise and in-between colours. That is why th
    *Sprite → Color Mode → Indexed*).
 4. Touch up stray pixels by hand. This is normal and the step that makes the most difference.
 
-I can write a `tools/pixelize.py` script that does steps 2 and 3 automatically
-(downscale + snap to the palette). Just ask.
+`tools/pixelize.py` does steps 2 and 3 automatically: it finds the block grid, reads each
+block from its centre (where the image is cleanest), keeps the transparency, crops to the
+figure and merges near-identical shades. For example, Ada's sprite was made with:
+
+```bash
+python -m tools.pixelize assets/sprites/source_ada_back.webp assets/sprites/ada_back.png --block 15
+```
+
+`--block` is the approximate size of one pixel in the source image (it searches 1.5 around it);
+`--palette` snaps every colour to the 32-colour palette instead of keeping the image's own.
 
 Base prompt (prepend it to each sprite prompt below):
 
@@ -89,6 +97,10 @@ Prompt:
 > Each frame 48x40 game pixels.
 
 ### 3.2 Ada, back view in battle (`ada_back.png`), cell 54 × 60
+
+**Done:** `assets/sprites/ada_back.png` (41 × 83, made from `source_ada_back.webp` with
+`tools/pixelize.py`). It is used in battle (hat and hair above the Grimoire, Pokémon style)
+and standing in the story scenes. Its animation frames below are still to do.
 
 The protagonist seen from behind (the camera is over her shoulder, Pokémon style). A data
 analyst who wakes up as a witch: pointed violet hat with a golden band, long brown hair,

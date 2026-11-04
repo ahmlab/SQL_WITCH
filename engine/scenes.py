@@ -26,6 +26,7 @@ from engine import fx, render, scenery
 from engine.audio import Audio, Silent
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
 from engine.guide import Guide
+from engine.sprites import draw_ada
 from engine.textinput import (KEYWORD_WORDS, QueryEditor, layout, locked_words,
                               schema_tables, schema_words)
 from ai import steering
@@ -177,25 +178,6 @@ def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
         render.font().draw(canvas, "*", (cx - 3, top + 18), render.GOLD, scale=2)
 
 
-def draw_ada_back(canvas: pygame.Surface, x: int, y: int, flash: bool) -> None:
-    """Placeholder Ada seen from behind: hat, hair, robe (design doc 4.4)."""
-    hat, brim, hair, robe = ((render.WHITE,) * 4 if flash else
-                             (render.VIOLET, render.DUSK, render.LEATHER, render.NIGHT))
-    pygame.draw.rect(canvas, robe, (x + 4, y + 30, 28, 12))
-    pygame.draw.rect(canvas, hair, (x + 7, y + 16, 22, 18))
-    # The hat is violet like the Glade's sky, so it gets a dark outline and a lit edge:
-    # it must read against any backdrop.
-    cone = [(x + 22, y), (x + 8, y + 15), (x + 28, y + 15)]
-    if not flash:
-        pygame.draw.ellipse(canvas, render.INK, (x - 1, y + 11, 38, 10))
-        pygame.draw.polygon(canvas, render.INK, [(x + 22, y - 2), (x + 6, y + 16), (x + 30, y + 16)])
-    pygame.draw.ellipse(canvas, brim, (x, y + 12, 36, 8))
-    pygame.draw.polygon(canvas, hat, cone)
-    if not flash:
-        pygame.draw.line(canvas, render.LAVENDER, (x + 21, y + 2), (x + 11, y + 13))   # lit edge
-    pygame.draw.rect(canvas, render.GOLD, (x + 9, y + 12, 18, 2))         # hat band
-
-
 # ------------------------------------------------------------------ title
 
 class TitleScene(Scene):
@@ -301,13 +283,14 @@ class DialogueScene(Scene):
                 draw_backdrop(canvas, ground_y=110)
             else:
                 scenery.draw_keep(canvas, self.time, ground_y=110)
-            draw_ada_back(canvas, 52, 68, False)
+            draw_ada(canvas, ADA_STANDING)            # full length, in front of the book
             if self.book_born is not None and self.line.get("book"):
                 speaking = (self.line["speaker"] == "Grimoire"
                             and self._shown_chars() < len(self.line["text"]))
                 book_at = self.BOOK_AT if name == "glade" else (130, 64)
                 scenery.draw_book(canvas, book_at, self.time,
-                                  self.time - self.book_born, speaking)
+                                  self.time - self.book_born, speaking,
+                                  shadow=render.FOREST if name == "glade" else render.SLATE)
             if self.line.get("slime"):
                 draw_slime(canvas, (262, 96), self.time, False, False, False)
             if self.line.get("knight"):
@@ -363,7 +346,9 @@ class Popup:
 GUIDE_BUTTON = pygame.Rect(258, 2, 59, 11)        # the clickable "? GUIDE" tab, top right
 KEY_REPEAT_DELAY = 350       # ms a key must be held before it starts repeating
 KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
-ADA_AT = (24, 58)
+ADA_AT = (24, 58)                                   # where bolts and numbers start/land
+ADA_FEET = (38, 143)                                # battle: hat and hair above the Grimoire
+ADA_STANDING = (60, 118)                            # story scenes: standing on the grass
 HOME = {"slime": (250, 50), "knight": (252, 46)}   # each guardian's post
 FRONT = (182, 56)                                   # the striking spot, closer to Ada
 ARENA = pygame.Rect(176, 36, 122, 30)               # where a guardian may walk (clear of panels)
@@ -756,7 +741,8 @@ class BattleScene(Scene):
             home = HOME[self.key]
             pygame.draw.ellipse(canvas, render.MINT, (home[0] - 28, home[1] + 12, 56, 10))
             draw_slime(canvas, self.foe_xy(), self.time, flash, state.foe.exhausted, fainted)
-        draw_ada_back(canvas, *ADA_AT, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0)
+        # Seen from behind like a Pokemon battle: the Grimoire, drawn later, hides her legs.
+        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0)
 
         self._draw_foe_panel(canvas)
         glow_word = self.glow[0] if self.glow and self.time - self.glow[1] < 4000 else None
