@@ -13,7 +13,7 @@ ALL_RUNES = {"WHERE", "ORDER BY", "LIMIT", "JOIN", "GROUP BY", "HAVING",
 @pytest.fixture
 def battle():
     """A fresh level-1 battle against the Slime, with every rune unlocked for testing."""
-    conn = build_db(level=1)
+    conn = build_db(level=1, foe_ids=[1])
     state = load_state(conn, foe_id=1, seed=1)
     state.ada.runes = set(ALL_RUNES)
     state.foe.runes = {"WHERE", "LIMIT"}

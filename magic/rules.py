@@ -4,7 +4,7 @@ No SQL runs here except reading the type chart once, and nothing here imports py
 That is what lets the same rules run in the window, in the terminal and in thousands of
 simulated battles (design doc 5.8 and 9.1).
 
-STATUS: step 1 done - combatants, damage, wards, exhaustion, round end, tested.
+STATUS: combatants, damage, wards, Ward of Relevance, exhaustion, round end, Ada's cast memory.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ CRIT_MULT = 1.5
 EXHAUSTED_MULT = 1.5                 # an overflowed caster is wide open (design doc 5.3)
 VOID = "Void"                        # how a NULL element defends (design doc 4.2)
 FOE_MP_REGEN = 5                     # foes.csv has no mp_regen column; same rate as Ada at level 1
+SUPER_EFFECTIVE = 2.0                # the only multiplier that passes a Ward of Relevance
 
 
 @dataclass
@@ -38,6 +39,9 @@ class Combatant:
     exhausted: bool = False
     # Keywords this combatant may write. The rune gate (magic/guard.py) reads this.
     runes: set[str] = field(default_factory=set)
+    # Sir Wherewell's Ward of Relevance (design doc 5.4): while it is up, only super-effective
+    # spells land, and the first one that does shatters it.
+    relevance: bool = False
 
     @property
     def hp_ratio(self) -> float:
@@ -46,6 +50,18 @@ class Combatant:
     @property
     def alive(self) -> bool:
         return self.hp > 0
+
+
+@dataclass(frozen=True)
+class CastMemory:
+    """One of Ada's queries, as a foe can remember it (its perception reads these)."""
+    turn: int
+    runes: tuple[str, ...]           # technique signature, e.g. ("LIMIT", "WHERE")
+    elements: tuple[str, ...]        # elements of the spells that took effect
+    damage: int                      # damage dealt to the foe
+    super_effective: bool            # did any spell hit the foe for x2?
+    overflow: int                    # castable rows lost past the page
+    scry: bool
 
 
 @dataclass
@@ -58,6 +74,7 @@ class BattleState:
     foe_id: int = 1                   # which rows of foe_spells belong to this foe
     scries_used: int = 0              # free looks taken in the current turn
     foe_book: list[str] = field(default_factory=list)  # every query the foe has cast
+    ada_casts: list[CastMemory] = field(default_factory=list)  # what Ada has done so far
 
     def side(self, who: str) -> Combatant:
         """'ada' or 'foe' -> the combatant. Callers pass the side, never the name."""
@@ -77,6 +94,8 @@ class Hit:
     absorbed: int        # damage the ward soaked (and loses)
     multiplier: float    # type-chart multiplier, used for "super effective" messages
     crit: bool
+    deflected: bool = False   # a Ward of Relevance turned it aside
+    shatters: bool = False    # it broke a Ward of Relevance
 
 
 def load_type_chart(conn) -> dict[tuple[str, str], float]:
@@ -103,11 +122,20 @@ def damage(power: int, element: str, target: Combatant, chart: dict,
     if target.exhausted:
         raw *= EXHAUSTED_MULT
     raw = round(raw)
+    if target.relevance:
+        if multiplier < SUPER_EFFECTIVE:      # irrelevant: it bounces off
+            return Hit(amount=0, absorbed=0, multiplier=multiplier, crit=crit, deflected=True)
+        shatters = True
+    else:
+        shatters = False
     absorbed = min(raw, target.ward)          # the ward soaks flat damage first
-    return Hit(amount=raw - absorbed, absorbed=absorbed, multiplier=multiplier, crit=crit)
+    return Hit(amount=raw - absorbed, absorbed=absorbed, multiplier=multiplier, crit=crit,
+               shatters=shatters)
 
 
 def apply_hit(target: Combatant, hit: Hit) -> None:
+    if hit.shatters:
+        target.relevance = False
     target.ward -= hit.absorbed
     target.hp = max(0, target.hp - hit.amount)
 

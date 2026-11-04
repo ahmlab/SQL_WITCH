@@ -1,4 +1,4 @@
-"""Play the Asterisk Slime battle in the terminal: python -m sim.play_cli --seed 7
+"""Play a guardian battle in the terminal: python -m sim.play_cli --seed 7 [--foe knight]
 
 This is the build that proves the game is fun before any pixel is drawn (design doc 8.1).
 It uses exactly the same Battle as the window, and never imports pygame.
@@ -12,11 +12,21 @@ import argparse
 import time
 from typing import Callable
 
+from ai.roster import GUARDIANS
 from magic.battle import Battle, FoeTurn
 from magic.cast import PAGE_ROWS, CastReport, cell_text, column_widths, effect_word
 from magic.guard import Miscast
 
 Out = Callable[[str], None]
+
+KNIGHT_INTRO = """\
+The Filter Keep. A knight in blue armour bars the gate: SIR WHEREWELL, Knight of the Filter.
+His Ward of Relevance turns aside every spell that is not super-effective against him.
+Watch how he casts: he never casts without a WHERE.
+
+  Scry him first:  SELECT * FROM enemies
+  Commands:  :help  :why  :schema  :quit
+"""
 
 INTRO = """\
 Ada wakes up on wet grass. Above her, the sky is a table with too many columns.
@@ -35,7 +45,7 @@ HELP = """\
   Tables: witch, spells, items, enemies, foe_spells, type_chart, query_log
   A row casts a spell if one of its cells is the name of a spell Ada knows.
   A row uses an item if a cell is an item's name. A combatant's name in the row is the target.
-  :why     what the Slime's brain was thinking (the debug overlay)
+  :why     what the guardian's brain was thinking (the debug overlay)
   :schema  the columns of every table
   :quit    leave the battle"""
 
@@ -119,6 +129,14 @@ def narrate(report: CastReport) -> list[str]:
             lines.append(f"  {name}'s MP: {before} -> {after}")
         elif kind == "exhausted":
             lines.append(f"  {event[1]} is EXHAUSTED: the next hit lands 1.5x.")
+        elif kind == "deflect":
+            lines.append(f"  {event[2]} bounces off the Ward of Relevance: not relevant!")
+        elif kind == "shatter":
+            lines.append(f"  The Ward of Relevance shatters! Every spell can reach {event[1]} now.")
+        elif kind == "relevance":
+            lines.append(f"  {event[3]} raises the Ward of Relevance.")
+        elif kind == "dispel":
+            lines.append(f"  {event[2]} strips {event[4]} ward from {event[3]}.")
         elif kind == "faint":
             lines.append(f"  {event[1]} faints!")
         elif kind == "scry":
@@ -137,7 +155,7 @@ def show_foe_turn(turn: FoeTurn, battle: Battle, out: Out) -> None:
         out(line)
     if turn.invitation:
         out("")
-        out(f"  *** The word {turn.invitation} glows in the Slime's book. Ada copies the rune: "
+        out(f"  *** The word {turn.invitation} glows in the guardian's book. Ada copies the rune: "
             f"{turn.invitation} unlocked! ***")
 
 
@@ -150,7 +168,7 @@ def show_schema(battle: Battle, out: Out) -> None:
 
 def show_reasoning(battle: Battle, out: Out, reasoning: dict | None) -> None:
     if not reasoning:
-        out("  The Slime has not thought about anything yet.")
+        out("  The guardian has not thought about anything yet.")
         return
     for key, value in reasoning.items():
         out(f"  {key}: {value}")
@@ -166,7 +184,7 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
         if battle.last_round:
             gained = battle.last_round.mp_gained
             out(f"\n-- end of round {battle.last_round.turn}: Ada +{gained['ada']} MP, "
-                f"Slime +{gained['foe']} MP --")
+                f"{battle.state.foe.name} +{gained['foe']} MP --")
             battle.last_round = None
         if battle.state.turn != shown_round:
             shown_round = battle.state.turn
@@ -213,22 +231,25 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
     for line in status(battle):
         out(line)
     if battle.winner == "ada":
-        out("\nThe Asterisk Slime melts into a puddle of rows. Ada wins!")
+        out(f"\n{battle.state.foe.name} falls. Ada wins!")
     else:
-        out("\nAda's HP hits zero. The Slime wobbles triumphantly. Game over.")
+        out(f"\nAda's HP hits zero. {battle.state.foe.name} stands victorious. Game over.")
     return battle.winner
 
 
 def main(argv: list[str] | None = None, read: Callable[[str], str] = input,
          out: Out = print) -> int:
-    parser = argparse.ArgumentParser(description="SQL Witch: fight the Asterisk Slime in SQL.")
+    parser = argparse.ArgumentParser(description="SQL Witch: fight a guardian in SQL.")
+    parser.add_argument("--foe", choices=sorted(GUARDIANS), default="slime",
+                        help="which guardian to fight (default: slime)")
     parser.add_argument("--seed", type=int, default=None,
                         help="random seed; the same seed replays the same battle")
     args = parser.parse_args(argv)
     seed = args.seed if args.seed is not None else int(time.time())
-    battle = Battle(seed=seed)
-    out(f"SQL WITCH - the Tutorial Glade   (seed {seed})\n")
-    out(INTRO.format(rows=PAGE_ROWS))
+    battle = Battle(seed=seed, guardian=args.foe)
+    region = "the Filter Keep" if args.foe == "knight" else "the Tutorial Glade"
+    out(f"SQL WITCH - {region}   (seed {seed})\n")
+    out((KNIGHT_INTRO if args.foe == "knight" else INTRO).format(rows=PAGE_ROWS))
     play(battle, read, out)
     return 0
 

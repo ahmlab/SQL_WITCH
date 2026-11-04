@@ -25,6 +25,9 @@
     "rune":       {"file": "rune.wav", "volume": 0.55},
     "locked":     {"file": "locked.wav", "volume": 0.5},
     "flatline":   {"file": "flatline.wav", "volume": 0.6},
-    "book":       {"file": "book.wav", "volume": 0.7}
+    "book":       {"file": "book.wav", "volume": 0.7},
+    "deflect":    {"file": "deflect.wav", "volume": 0.6},
+    "shatter":    {"file": "shatter.wav", "volume": 0.8},
+    "ward_up":    {"file": "ward_up.wav", "volume": 0.6}
   }
 }

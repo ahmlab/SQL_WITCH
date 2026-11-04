@@ -2,11 +2,12 @@
 
 The battle is a small step machine instead of a loop, so the pygame scene can drive it one
 event at a time and the terminal can drive it with input(). Either way the order is:
+the guardian opens the first round (so the player reads a query before writing one), then
 the faster side acts first; Ada may scry up to SCRY_PER_TURN times, then casts one query;
 the foe perceives, decides, writes its SQL and casts it; then the round ends.
 Never imports pygame.
 
-STATUS: step 4 done - rounds, turns, the foe's five-stage loop and the Invitation.
+STATUS: any guardian from ai/roster.py, guardian opens, Ada's casts remembered, Invitation.
 """
 
 from __future__ import annotations
@@ -15,8 +16,7 @@ import copy
 import random
 from dataclasses import dataclass
 
-from ai.fsm import SlimeBrain
-from ai.styles import SLIME_RUNES, SLIME_SIGNATURE, render_slime
+from ai.roster import GUARDIANS, Guardian
 from magic import rules
 from magic.cast import CastReport, load_state, resolve, sync_state
 from magic.db import build_db
@@ -29,6 +29,7 @@ class FoeTurn:
     report: CastReport
     reasoning: dict              # brain.explain(), for the F1 overlay
     invitation: str | None       # a rune Ada just learned from the foe's book
+    movement: object = None      # the brain's steering order (ai.steering.Movement), if any
 
 
 @dataclass
@@ -40,18 +41,22 @@ class RoundEnd:
 
 
 class Battle:
-    def __init__(self, seed: int, level: int = 1, foe_id: int = 1, brain=None,
-                 ada_runes: set[str] | None = None):
+    def __init__(self, seed: int, guardian: str = "slime", brain=None,
+                 ada_runes: set[str] | None = None, level: int | None = None,
+                 foe_opens: bool = True):
+        self.guardian: Guardian = GUARDIANS[guardian]
+        g = self.guardian
         # One random generator for the whole battle: same seed, same battle (design doc 5.10).
         self.rng = random.Random(seed)
         self.seed = seed
-        self.conn = build_db(level)
-        self.state = load_state(self.conn, foe_id=foe_id, seed=seed)
-        # The Glade assumes nothing beyond SELECT and FROM; LIMIT comes from the Slime.
-        self.state.ada.runes = set(ada_runes or ())
-        self.state.foe.runes = set(SLIME_RUNES)
+        self.conn = build_db(level or g.level, foe_ids=[g.foe_id])
+        self.state = load_state(self.conn, foe_id=g.foe_id, seed=seed)
+        # The Glade assumes nothing beyond SELECT and FROM; each guardian then adds its rune.
+        self.state.ada.runes = set(g.ada_runes if ada_runes is None else ada_runes)
+        self.state.foe.runes = set(g.runes)
         self.chart = rules.load_type_chart(self.conn)
-        self.brain = brain if brain is not None else SlimeBrain()
+        self.brain = brain if brain is not None else g.make_brain(self.conn)
+        self.foe_opens = foe_opens
         self.foe_turns = 0
         self.winner: str | None = None
         self.queue: list[str] = []
@@ -66,7 +71,10 @@ class Battle:
         return "over" if self.winner else self.queue[0]
 
     def _start_round(self) -> None:
-        first = rules.first_mover(self.state, self.rng)
+        if self.foe_opens and self.state.turn == 1:
+            first = "foe"          # the guardian teaches by example: its query comes first
+        else:
+            first = rules.first_mover(self.state, self.rng)
         self.queue = [first, "foe" if first == "ada" else "ada"]
         rules.start_turn(self.state, first)
 
@@ -98,9 +106,20 @@ class Battle:
             raise RuntimeError(f"It is not Ada's turn ({self.whose_turn}).")
         self.last_round = None
         report = resolve(self.conn, self.state, sql, "ada", self.rng, self.chart)
+        self.state.ada_casts.append(self._remember(report))   # what the foe can perceive
         if report.ends_turn:
             self._advance()
         return report
+
+    def _remember(self, report: CastReport) -> rules.CastMemory:
+        foe = self.state.foe.name
+        hits = [c for c in report.casts if c.kind in ("attack", "area") and c.target == foe]
+        return rules.CastMemory(
+            turn=self.state.turn, runes=tuple(sorted(report.runes)),
+            elements=tuple(c.element for c in report.casts if c.element),
+            damage=sum(c.damage for c in hits),
+            super_effective=any(c.effective >= rules.SUPER_EFFECTIVE for c in hits),
+            overflow=report.overflow, scry=report.scry)
 
     def foe_act(self) -> FoeTurn:
         """The foe's five-stage loop (design doc 5.1): perceive, decide, express, execute, reveal."""
@@ -111,16 +130,18 @@ class Battle:
         snapshot = copy.deepcopy(self.state)                  # perceive: a copy it cannot change
         intent = self.brain.decide(snapshot, self.rng)        # decide
         reasoning = self.brain.explain()
-        sql = render_slime(intent, self.state, self.foe_turns)   # express
+        movement = getattr(self.brain, "movement", None)
+        sql = self.guardian.style(intent, self.state, self.foe_turns)   # express
         del intent                                            # from here on only the SQL counts
         report = resolve(self.conn, self.state, sql, "foe", self.rng, self.chart)  # execute
         invitation = self._invitation(report)                 # reveal
         self._advance()
-        return FoeTurn(sql, report, reasoning, invitation)
+        return FoeTurn(sql, report, reasoning, invitation, movement)
 
     def _invitation(self, report: CastReport) -> str | None:
         """When the foe's signature rune appears in its book, Ada may copy it (design doc 3.6)."""
-        if SLIME_SIGNATURE in report.runes and SLIME_SIGNATURE not in self.state.ada.runes:
-            self.state.ada.runes.add(SLIME_SIGNATURE)
-            return SLIME_SIGNATURE
+        rune = self.guardian.signature
+        if rune in report.runes and rune not in self.state.ada.runes:
+            self.state.ada.runes.add(rune)
+            return rune
         return None

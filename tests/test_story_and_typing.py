@@ -105,6 +105,10 @@ def to_battle():
     key(game, pygame.K_RETURN)
     key(game, pygame.K_ESCAPE)
     assert isinstance(game.scene, BattleScene)
+    for _ in range(600):                        # let the Slime's opening attack play out
+        if game.scene.phase == "input":
+            break
+        run(game, 50)
     game.audio.log.clear()
     return game
 
@@ -120,7 +124,7 @@ def test_finishing_a_keyword_makes_it_glow_and_chime():
     type_text(game, "SELECT ")
     assert ("rune", 0) in game.audio.log
     assert game.scene.word_glow is not None
-    assert game.scene.fx.busy()                 # sparks and bolts are flying
+    assert game.scene.fx.sparks and not game.scene.fx.bolts   # sparks, no lightning
 
 
 def test_a_locked_keyword_thuds_instead():
@@ -166,7 +170,6 @@ def test_a_hit_fires_a_bolt_from_caster_to_target():
 def test_effects_expire():
     effects = fx.Effects(__import__("random").Random(1))
     effects.burst(10, 10)
-    effects.zap(10, 10)
     effects.bolt((0, 0), (50, 50))
     canvas = pygame.Surface((320, 180))
     for _ in range(40):

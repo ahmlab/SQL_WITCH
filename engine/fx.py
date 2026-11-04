@@ -3,7 +3,7 @@
 Effects use the game's visual-only random generator (Game.vfx), never the battle's, so they
 can never change what happens in a fight.
 
-STATUS: sparks, cursor lightning, spell bolts, typing streak glow.
+STATUS: sparks, spell bolts between fighters, typing streak glow.
 """
 
 from __future__ import annotations
@@ -62,12 +62,6 @@ class Effects:
             self.sparks.append(Spark(x, y, math.cos(angle) * v, math.sin(angle) * v,
                                      self.rng.choice(colours),
                                      self.rng.randint(life // 2, life)))
-
-    def zap(self, x: float, y: float, height: int = 12) -> None:
-        """The little lightning on every key: from the letter, up into the page."""
-        top = (x + self.rng.uniform(-4, 4), y - height - self.rng.uniform(0, 5))
-        self.bolts.append(Bolt((x, y), top, life=110, jitter=2.5, core=render.BUTTER,
-                               glow=render.LAVENDER, segments=3))
 
     def bolt(self, start: tuple[float, float], end: tuple[float, float],
              colour: tuple = render.LILAC, life: int = 260) -> None:

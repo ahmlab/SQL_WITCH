@@ -51,6 +51,7 @@ def to_battle(seed=7):
     game = Game(pygame.Surface((320, 180)), seed=seed)
     key(game, pygame.K_RETURN)                  # title -> dialogue
     key(game, pygame.K_ESCAPE)                  # skip the intro
+    until_input(game)                           # the Slime opens the battle
     return game
 
 
@@ -65,7 +66,7 @@ def test_row_five_is_cut_in_half_by_the_page():
 
 
 def test_the_table_may_be_wider_than_the_page_and_the_clip_cuts_it():
-    battle = Battle(seed=1)
+    battle = Battle(seed=1, foe_opens=False)
     report = battle.ada_cast("SELECT * FROM spells")
     grimoire = Grimoire(QueryEditor())
     grimoire.show_result(report, now=0, looks_left=3)
@@ -78,7 +79,7 @@ def test_the_table_may_be_wider_than_the_page_and_the_clip_cuts_it():
 
 
 def grimoire_pixels_below_page(sql):
-    battle = Battle(seed=1, ada_runes={"LIMIT"})
+    battle = Battle(seed=1, ada_runes={"LIMIT"}, foe_opens=False)
     report = battle.ada_cast(sql)
     grimoire = Grimoire(QueryEditor())
     grimoire.show_result(report, now=0, looks_left=3)
@@ -97,7 +98,7 @@ def test_ink_drips_only_when_rows_overflow():
 def test_wrap_and_foe_summary():
     assert wrap("SELECT * FROM foe_spells WHERE foe_id = 1 LIMIT 2", 36) == \
         ["SELECT * FROM foe_spells WHERE", "foe_id = 1 LIMIT 2"]
-    battle = Battle(seed=1)
+    battle = Battle(seed=1, foe_opens=False)
     battle.ada_cast("SELECT name FROM spells")
     turn = battle.foe_act()
     assert foe_summary(turn.report).startswith(f"{len(turn.report.rows)} rows")
@@ -154,7 +155,7 @@ def test_f1_toggles_the_debug_overlay():
     assert not game.debug
 
 
-def test_a_whole_battle_reaches_the_result_screen_and_can_restart():
+def test_a_whole_battle_reaches_the_result_screen_and_moves_on():
     game = to_battle(seed=7)
     for _ in range(40):
         until_input(game)
@@ -165,8 +166,14 @@ def test_a_whole_battle_reaches_the_result_screen_and_can_restart():
              else "SELECT name FROM spells")
     run(game, 3000)
     assert isinstance(game.scene, ResultScene)
+    won = game.scene.won
     key(game, pygame.K_RETURN)
-    assert isinstance(game.scene, BattleScene) and game.seed == 8
+    if won:                                     # on to the Knight, keeping LIMIT for good
+        assert isinstance(game.scene, DialogueScene) and game.scene.guardian == "knight"
+        assert "LIMIT" in game.runes
+    else:                                       # try the Slime again
+        assert isinstance(game.scene, BattleScene) and game.scene.key == "slime"
+    assert game.seed == 8
 
 
 def test_the_invitation_unlocks_the_rune_in_the_editor():
@@ -187,6 +194,7 @@ def test_visual_effects_do_not_change_the_battle():
     """Screen shake and animations use their own rng: the game plays exactly like Battle."""
     game = to_battle(seed=11)
     plain = Battle(seed=11)
+    plain.foe_act()                             # the same opening move
     for _ in range(3):
         until_input(game)
         if not isinstance(game.scene, BattleScene):

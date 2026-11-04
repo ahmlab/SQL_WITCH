@@ -69,7 +69,7 @@ class Spell:
     element: str
     power: int
     mp_cost: int
-    kind: str              # attack | heal | ward | area
+    kind: str              # attack | area | heal | ward | relevance | dispel
 
 
 @dataclass(frozen=True)
@@ -106,11 +106,13 @@ class Cast:
     row: int
     spell: str             # spell or item name
     target: str            # combatant name
-    kind: str              # attack | area | heal | ward | item
+    kind: str              # attack | area | heal | ward | relevance | dispel | item
     damage: int = 0
     crit: bool = False
     effective: float = 1.0 # type-chart multiplier: 2.0 is super effective
-    amount: int = 0        # HP healed, ward gained or MP restored
+    amount: int = 0        # HP healed, ward gained or MP restored, ward dispelled
+    element: str | None = None
+    deflected: bool = False
 
 
 @dataclass
@@ -188,9 +190,12 @@ def _read_row(index: int, row: tuple, book: dict, items: dict,
     return _Row(index, name, column, book.get(name), items.get(name), target)
 
 
+SELF_KINDS = ("heal", "ward", "relevance")
+
+
 def _default_target(kind: str, caster: str) -> str:
-    # Attacks go to the other side; heals and wards go to the caster (clause 3).
-    return caster if kind in ("heal", "ward") else ("foe" if caster == "ada" else "ada")
+    # Attacks and dispels go to the other side; heals and wards go to the caster (clause 3).
+    return caster if kind in SELF_KINDS else ("foe" if caster == "ada" else "ada")
 
 
 def _cost(plan: _Row) -> int:
@@ -204,19 +209,36 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
         hit = rules.damage(spell.power, spell.element, target, chart, rng)
         rules.apply_hit(target, hit)
         report.casts.append(Cast(plan.index, spell.name, target.name, spell.kind,
-                                 damage=hit.amount, crit=hit.crit, effective=hit.multiplier))
+                                 damage=hit.amount, crit=hit.crit, effective=hit.multiplier,
+                                 element=spell.element, deflected=hit.deflected))
         report.events.append(("cast", plan.index, me.name, spell.name, target.name,
                               hit.amount, hit.crit, hit.multiplier))
+        if hit.deflected:
+            report.events.append(("deflect", plan.index, spell.name, target.name))
+        if hit.shatters:
+            report.events.append(("shatter", target.name))
         if not target.alive:
             report.events.append(("faint", target.name))
     elif spell.kind == "heal":
         amount = rules.heal(target, spell.power)
-        report.casts.append(Cast(plan.index, spell.name, target.name, "heal", amount=amount))
+        report.casts.append(Cast(plan.index, spell.name, target.name, "heal", amount=amount,
+                                 element=spell.element))
         report.events.append(("heal", plan.index, spell.name, target.name, amount))
     elif spell.kind == "ward":
         amount = rules.add_ward(target, spell.power)
-        report.casts.append(Cast(plan.index, spell.name, target.name, "ward", amount=amount))
+        report.casts.append(Cast(plan.index, spell.name, target.name, "ward", amount=amount,
+                                 element=spell.element))
         report.events.append(("ward", plan.index, spell.name, target.name, amount))
+    elif spell.kind == "relevance":
+        target.relevance = True
+        report.casts.append(Cast(plan.index, spell.name, target.name, "relevance",
+                                 element=spell.element))
+        report.events.append(("relevance", plan.index, spell.name, target.name))
+    elif spell.kind == "dispel":
+        removed, target.ward = target.ward, 0
+        report.casts.append(Cast(plan.index, spell.name, target.name, "dispel", amount=removed,
+                                 element=spell.element))
+        report.events.append(("dispel", plan.index, spell.name, target.name, removed))
 
 
 def _use_item(conn, plan: _Row, target: Combatant, report: CastReport) -> None:

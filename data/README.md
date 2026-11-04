@@ -8,7 +8,10 @@ Schema reference: design document, Appendix A. Starting values: Appendix B.
   Names must be unique across spells AND items (checked at load time, NOT by a database index).
 - `foes.csv` - guardians and minions: `id,name,hp,max_hp,mp,max_mp,element,weakness,speed,squad`.
   NULL's hp, element and weakness are left empty so they load as SQL NULL.
-- `foe_spells.csv` - `foe_id,name,element,power,mp_cost,kind`.
+- `foe_spells.csv` - `foe_id,name,element,power,mp_cost,kind`. Besides attack/heal/ward/area,
+  foes may use `relevance` (raise the Ward of Relevance: only super-effective spells land, and
+  the first one shatters it) and `dispel` (remove the target's ward). Only the foes of the
+  current battle (and their spells) are loaded: `build_db(level, foe_ids=[...])`.
 - `items.csv` - `name,kind,amount,qty`.
 - `type_chart.csv` - `attack,defend,multiplier`. Cycle: Fire > Nature > Storm > Tide > Fire;
   Arcane is neutral except x2 against Void; every other element is x0.5 against Void.

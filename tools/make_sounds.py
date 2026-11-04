@@ -215,6 +215,22 @@ def make_typing_and_story() -> None:
                                 duty=0.125, volume=0.12)))
 
 
+# ------------------------------------------------------------------ Sir Wherewell
+
+def make_knight_sounds() -> None:
+    # A spell bounces off the Ward of Relevance: a short metallic clang.
+    write("deflect.wav", mix(notes([(1568, 0.03), (1175, 0.12)], duty=0.125, volume=0.3),
+                             noise_burst(0.05, 0.2, 25, seed=31)))
+    # The ward shatters: falling glassy pings over a crash.
+    write("shatter.wav", mix(noise_burst(0.5, 0.45, 5, seed=37, hold=1),
+                             notes([(midi(n), 0.05) for n in (100, 96, 93, 88, 84, 79)],
+                                   wave_fn=triangle, volume=0.3)))
+    # The ward rises again: a solemn rising fifth with a shimmer.
+    write("ward_up.wav", mix(notes([(midi(62), 0.12), (midi(69), 0.12), (midi(74), 0.3)],
+                                   wave_fn=triangle, volume=0.45),
+                             sweep(0.54, 600, 1800, duty=0.125, volume=0.08, curve=0.5)))
+
+
 # ------------------------------------------------------------------ battle music
 
 BPM = 150
@@ -304,6 +320,7 @@ def main() -> None:
     print(f"Writing sounds to {OUT}")
     make_effects()
     make_typing_and_story()
+    make_knight_sounds()
     make_music()
 
 

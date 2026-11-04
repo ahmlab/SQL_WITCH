@@ -230,3 +230,80 @@ def draw_book(canvas: pygame.Surface, centre: tuple[int, int], t: int, age: int,
             pygame.draw.polygon(canvas, render.PARCHMENT,
                                 [(cx, cy - h + 4), (cx + 9, cy - h + 4 - lift), (cx + 9, cy + h - lift),
                                  (cx, cy + h)])
+
+
+# ------------------------------------------------------------------ the Filter Keep
+
+def draw_keep(canvas: pygame.Surface, t: int, ground_y: int = 60) -> None:
+    """The courtyard of the Filter Keep at dusk: battlements, a gate, banners and torches."""
+    pygame.draw.rect(canvas, render.NIGHT, (0, 0, 320, ground_y))
+    pygame.draw.rect(canvas, render.DUSK, (0, 0, 320, 10))
+    wall_top = 14
+    pygame.draw.rect(canvas, render.SLATE, (0, wall_top, 320, ground_y - wall_top))
+    for x in range(0, 320, 12):                                   # battlements
+        pygame.draw.rect(canvas, render.SLATE, (x, wall_top - 6, 7, 6))
+    for row, y in enumerate(range(wall_top + 4, ground_y, 6)):    # brick courses
+        pygame.draw.line(canvas, render.DUSK, (0, y), (320, y))
+        for x in range((row % 2) * 6, 320, 12):
+            pygame.draw.line(canvas, render.DUSK, (x, y - 5), (x, y - 1))
+    gate = pygame.Rect(232, ground_y - 34, 40, 34)                # the gate behind his post
+    pygame.draw.rect(canvas, render.BARK, gate)
+    pygame.draw.circle(canvas, render.BARK, (gate.centerx, gate.y), gate.w // 2)
+    for x in range(gate.x + 4, gate.right, 6):                    # portcullis
+        pygame.draw.line(canvas, render.INK, (x, gate.y - 12), (x, gate.bottom))
+    for x in (60, 120, 300):                                      # banners with the funnel
+        pygame.draw.rect(canvas, render.NAVY, (x - 6, wall_top + 2, 12, 22))
+        pygame.draw.polygon(canvas, render.NAVY, [(x - 6, wall_top + 24), (x, wall_top + 28),
+                                                  (x + 6, wall_top + 24)])
+        pygame.draw.polygon(canvas, render.WHITE, [(x - 4, wall_top + 8), (x + 4, wall_top + 8),
+                                                   (x, wall_top + 14)])
+        pygame.draw.line(canvas, render.WHITE, (x, wall_top + 14), (x, wall_top + 18))
+    for x in (90, 210):                                           # torches flicker
+        pygame.draw.rect(canvas, render.BARK, (x - 1, wall_top + 20, 3, 8))
+        flame = render.GOLD if (t // 120 + x) % 3 else render.BUTTER
+        pygame.draw.polygon(canvas, flame, [(x - 2, wall_top + 20), (x + 3, wall_top + 20),
+                                            (x + 1, wall_top + 13 - (t // 90 + x) % 2)])
+    pygame.draw.rect(canvas, render.GREY, (0, ground_y, 320, 180 - ground_y))   # flagstones
+    for y in range(ground_y + 6, 180, 8):
+        pygame.draw.line(canvas, render.SLATE, (0, y), (320, y))
+        for x in range((y // 8 % 2) * 10, 320, 20):
+            pygame.draw.line(canvas, render.SLATE, (x, y - 7), (x, y))
+
+
+def draw_knight(canvas: pygame.Surface, centre: tuple[float, float], t: int, flash: bool,
+                fainted: bool, relevance: bool, moving: bool) -> None:
+    """Placeholder Sir Wherewell: blue tabard with a filter funnel, shield, sword, red plume.
+    While his Ward of Relevance is up, a dashed shimmer circles him."""
+    cx, cy = render.snap(centre[0]), render.snap(centre[1])
+    pygame.draw.ellipse(canvas, render.SLATE, (cx - 12, cy + 16, 24, 5))         # shadow
+    if fainted:
+        pygame.draw.rect(canvas, render.GREY, (cx - 16, cy + 10, 32, 7))
+        pygame.draw.rect(canvas, render.NAVY, (cx - 8, cy + 11, 14, 5))
+        return
+    armour, tabard, trim = ((render.WHITE,) * 3 if flash else
+                            (render.GREY, render.NAVY, render.GOLD))
+    step = 2 if moving and (t // 120) % 2 else 0                                  # walking
+    pygame.draw.rect(canvas, render.SLATE, (cx - 6, cy + 8 - step, 4, 10))       # legs
+    pygame.draw.rect(canvas, render.SLATE, (cx + 2, cy + 8 - (2 - step if moving else 0), 4, 10))
+    pygame.draw.rect(canvas, armour, (cx - 8, cy - 6, 16, 15))                   # breastplate
+    pygame.draw.rect(canvas, tabard, (cx - 5, cy - 5, 10, 14))
+    if not flash:
+        pygame.draw.polygon(canvas, render.WHITE, [(cx - 3, cy - 2), (cx + 3, cy - 2), (cx, cy + 2)])
+        pygame.draw.line(canvas, render.WHITE, (cx, cy + 2), (cx, cy + 5))       # the funnel
+    pygame.draw.rect(canvas, armour, (cx - 5, cy - 17, 10, 11))                  # helmet
+    pygame.draw.rect(canvas, render.INK, (cx - 3, cy - 13, 6, 1))                # visor slit
+    pygame.draw.polygon(canvas, render.WHITE if flash else render.RED,
+                        [(cx - 1, cy - 17), (cx + 4, cy - 24), (cx + 2, cy - 17)])  # plume
+    pygame.draw.rect(canvas, tabard, (cx - 15, cy - 6, 7, 13))                   # shield
+    pygame.draw.rect(canvas, trim, (cx - 15, cy - 6, 7, 13), 1)
+    pygame.draw.line(canvas, render.WHITE, (cx + 10, cy - 15), (cx + 10, cy + 3))  # sword
+    pygame.draw.rect(canvas, trim, (cx + 8, cy + 2, 5, 1))
+    if relevance:
+        spin = t / 250
+        for i in range(16):
+            if (i + int(spin * 2)) % 2:
+                continue
+            angle = i / 16 * 2 * math.pi + spin
+            canvas.set_at((render.snap(cx + math.cos(angle) * 19),
+                           render.snap(cy + math.sin(angle) * 23)),
+                          render.AQUA if i % 4 else render.LILAC)

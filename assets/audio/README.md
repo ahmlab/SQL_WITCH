@@ -33,6 +33,9 @@ going without that sound.
 | `locked` | A keyword of a rune Ada has not learned yet was typed. |
 | `flatline` | The intro: Ada's heart stops (two beats, then the flat line). |
 | `book` | The intro: the Grimoire appears. |
+| `deflect` | A spell bounces off Sir Wherewell's Ward of Relevance. |
+| `shatter` | A super-effective spell breaks the Ward of Relevance. |
+| `ward_up` | The Knight raises his Ward of Relevance again. |
 | `confirm` | ENTER on the title screen. |
 | `victory` / `defeat` | The result screen. |
 

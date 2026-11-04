@@ -74,12 +74,18 @@ def test_a_desperate_slime_is_always_careful():
 
 def test_explain_shows_the_state_and_the_probabilities():
     _, state = fresh_state()
-    brain = SlimeBrain()
+    brain = SlimeBrain(start="wobble")
     brain.decide(state, random.Random(0))
     why = brain.explain()
-    assert why["previous"] == "wobble"
+    assert why["mode"].startswith("wobble -> ")
     assert why["probabilities"] == {"overcast": 0.7, "wobble": 0.3}
-    assert why["state"] in ("overcast", "wobble")
+    assert brain.state in ("overcast", "wobble")
+
+
+def test_the_slime_always_opens_with_its_whole_book():
+    _, state = fresh_state()
+    for seed in range(20):
+        assert SlimeBrain().decide(state, random.Random(seed)).action == "overcast"
 
 
 def test_the_random_baseline_is_legal_and_roughly_uniform():

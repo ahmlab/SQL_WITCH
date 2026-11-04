@@ -38,12 +38,23 @@ def precise(battle):
 
 # ------------------------------------------------------------------ the round
 
-def test_the_faster_side_acts_first():
-    assert Battle(seed=1).whose_turn == "ada"          # Ada speed 5, Slime speed 3
+def test_the_guardian_opens_with_an_attack_and_then_speed_decides():
+    battle = Battle(seed=1)
+    assert battle.whose_turn == "foe"                   # round 1: the Slime casts first
+    opening = battle.foe_act()
+    assert opening.sql == "SELECT * FROM foe_spells WHERE foe_id = 1"
+    assert opening.report.casts                         # a real attack the player can copy
+    assert battle.whose_turn == "ada"
+    battle.ada_cast("SELECT name FROM spells")
+    assert battle.state.turn == 2 and battle.whose_turn == "ada"   # Ada speed 5, Slime 3
+
+
+def test_without_the_opening_the_faster_side_acts_first():
+    assert Battle(seed=1, foe_opens=False).whose_turn == "ada"
 
 
 def test_a_scry_keeps_the_turn_and_a_cast_passes_it():
-    battle = Battle(seed=1)
+    battle = Battle(seed=1, foe_opens=False)
     battle.ada_cast("SELECT * FROM enemies")
     assert battle.whose_turn == "ada"
     battle.ada_cast("SELECT name FROM spells")
@@ -51,20 +62,20 @@ def test_a_scry_keeps_the_turn_and_a_cast_passes_it():
 
 
 def test_a_miscast_is_free_in_apprentice_mode():
-    battle = Battle(seed=1)
+    battle = Battle(seed=1, foe_opens=False)
     with pytest.raises(Miscast):
         battle.ada_cast("SELECT name FROM spells LIMIT 1")   # LIMIT is still locked
     assert battle.whose_turn == "ada" and battle.state.ada.mp == 30
 
 
 def test_acting_out_of_turn_is_refused():
-    battle = Battle(seed=1)
+    battle = Battle(seed=1, foe_opens=False)
     with pytest.raises(RuntimeError):
         battle.foe_act()
 
 
 def test_end_of_round_regenerates_and_the_tables_see_it():
-    battle = Battle(seed=1)
+    battle = Battle(seed=1, foe_opens=False)
     battle.ada_cast("SELECT name FROM spells")         # drains Ada to 0
     battle.foe_act()
     assert battle.state.turn == 2
@@ -83,9 +94,10 @@ def test_the_same_seed_replays_the_same_battle():
     def replay(seed):
         battle = Battle(seed=seed)
         fight(battle, precise)
-        return battle.conn.execute("SELECT turn, caster, sql, rows_cast FROM query_log").fetchall()
+        log = battle.conn.execute("SELECT turn, caster, sql, rows_cast FROM query_log").fetchall()
+        return tuple(log) + ((battle.state.ada.hp, battle.state.foe.hp),)
     assert replay(4) == replay(4)
-    assert len({tuple(replay(seed)) for seed in range(8)}) > 1
+    assert len({replay(seed) for seed in range(8)}) > 1     # damage rolls differ by seed
 
 
 @pytest.mark.parametrize("seed", range(25))
@@ -103,10 +115,9 @@ def test_the_invitation_teaches_limit_within_three_slime_turns(seed):
 
 def test_the_foe_turn_reports_sql_and_reasoning_but_not_the_intent():
     battle = Battle(seed=2)
-    battle.ada_cast("SELECT name FROM spells")
     turn = battle.foe_act()
     assert turn.sql.startswith("SELECT * FROM")
-    assert "state" in turn.reasoning
+    assert {"mode", "sees", "goals", "plan", "movement"} <= set(turn.reasoning)
     assert not hasattr(turn, "intent")
 
 
@@ -126,7 +137,6 @@ def test_the_brain_cannot_change_the_real_state():
             return {}
 
     battle = Battle(seed=1, brain=Cheater())
-    battle.ada_cast("SELECT name FROM spells")
     battle.foe_act()
     assert battle.state.ada.hp == 60
 

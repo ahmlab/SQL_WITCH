@@ -226,7 +226,10 @@ def draw_foe_book(surface: pygame.Surface, foe_name: str, sql: str | None,
     if not sql:
         f.draw(surface, "(waiting)", (FOE_BOOK.x + 4, FOE_BOOK.y + 11), render.GREY)
         return
-    lines = wrap(sql, 36)[:2]
+    lines = wrap(sql, 36)
+    # The query is the lesson: when it needs three lines it gets them, and the summary waits.
+    show_summary = len(lines) <= 2
+    lines = lines[:3]
     for n, line in enumerate(lines):
         x0, y0 = FOE_BOOK.x + 4, FOE_BOOK.y + 11 + n * render.LINE_H
         styles = colour_styles(line, set(), set())
@@ -237,4 +240,5 @@ def draw_foe_book(surface: pygame.Surface, foe_name: str, sql: str | None,
                                len(glow_word) * render.ADVANCE + 1, render.GLYPH_H + 1)
             pygame.draw.rect(surface, pulse, glow)
         render.draw_coloured(surface, line, [STYLE_COLOURS[st] for st in styles], (x0, y0))
-    f.draw(surface, foe_summary(report)[:36], (FOE_BOOK.x + 4, FOE_BOOK.y + 25), render.WINE)
+    if show_summary:
+        f.draw(surface, foe_summary(report)[:36], (FOE_BOOK.x + 4, FOE_BOOK.y + 25), render.WINE)

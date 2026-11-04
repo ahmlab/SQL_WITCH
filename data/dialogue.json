@@ -23,5 +23,22 @@
   "defeat": [
     "Ada's HP hits zero. The Slime wobbles triumphantly.",
     "Grimoire: Even the best witches overflow sometimes. Again?"
-  ]
+  ],
+  "knight_intro": [
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "LIMIT is yours now, witch. But beyond the Glade, a page that holds only four rows is not enough."},
+    {"scene": "keep", "book": true, "speaker": "", "text": "The Filter Keep. Its gate opens only for what is relevant."},
+    {"scene": "keep", "book": true, "knight": true, "sound": "ward_up", "speaker": "Sir Wherewell", "text": "Halt! I am Sir Wherewell, Knight of the Filter. My Ward of Relevance turns aside every spell that does not matter."},
+    {"scene": "keep", "book": true, "knight": true, "speaker": "Sir Wherewell", "text": "Only what is super-effective may pass. Know thy enemy... if thou canst filter."},
+    {"scene": "keep", "book": true, "knight": true, "speaker": "Ada", "text": "My spells come in whatever order the table gives them. How do I pick the right ones?"},
+    {"scene": "keep", "book": true, "knight": true, "speaker": "Grimoire", "text": "Scry him first: SELECT * FROM enemies. Then read his book. He never casts without a WHERE."}
+  ],
+  "knight_victory": [
+    "Sir Wherewell kneels. His ward lets you through.",
+    "Ada: WHERE. Ask for what you need, and only that."
+  ],
+  "knight_defeat": [
+    "Ada's HP hits zero. The Knight lowers his blade.",
+    "Grimoire: His ward is no wall. Filter for his weakness."
+  ],
+  "end_of_slice": "End of the vertical slice. Thank you for playing!"
 }

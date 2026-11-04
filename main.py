@@ -39,16 +39,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "(default: from the clock)")
     parser.add_argument("--scale", type=int, default=None,
                         help="window size as a multiple of 320x180 (default: largest that fits)")
+    parser.add_argument("--start", choices=["slime", "knight"], default="slime",
+                        help="guardian to start the story at (default: slime)")
     parser.add_argument("--frames", type=int, default=None, help=argparse.SUPPRESS)  # smoke tests
     return parser.parse_args(argv)
 
 
-def run(seed: int, scale: int | None = None, max_frames: int | None = None) -> int:
+def run(seed: int, scale: int | None = None, max_frames: int | None = None,
+        start: str = "slime") -> int:
     init_mixer()                                   # before pygame.init(): low-latency sound
     pygame.init()
     try:
         screen = render.Screen(scale=scale)
-        game = Game(screen.canvas, seed, screen=screen, audio=Audio())
+        game = Game(screen.canvas, seed, screen=screen, audio=Audio(), start=start)
         clock = pygame.time.Clock()
         updates, lag_ms, last = 0, 0.0, time.perf_counter()
         frames = 0
@@ -79,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     seed = args.seed if args.seed is not None else int(time.time())
     print(f"SQL Witch - seed {seed} (replay this battle with --seed {seed})")
-    return run(seed, args.scale, args.frames)
+    return run(seed, args.scale, args.frames, args.start)
 
 
 if __name__ == "__main__":

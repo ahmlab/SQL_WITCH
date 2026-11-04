@@ -7,8 +7,13 @@ Kingdom of Codd, a world that is literally a relational database. Magic is query
 attack is a real SQLite query run against the living tables of the world, and the enemies
 answer with their own real SQL.
 
-This build is the **vertical slice**: title screen, intro dialogue, one full battle against
-the **Asterisk Slime**, and a win/lose screen.
+This build is the **vertical slice**: title screen, the intro story, a battle against the
+**Asterisk Slime** (who teaches `LIMIT`), then the Filter Keep and a battle against
+**Sir Wherewell, Knight of the Filter** (who teaches `WHERE`), with win/lose screens.
+
+Both guardians are rule-based AIs (no machine learning): perception, a state machine written
+with `match`/`case`, goal-driven behaviour and steering behaviours. See
+[`docs/AI.md`](docs/AI.md) for how each requirement maps to the code.
 
 ## The rules in one minute
 
@@ -19,8 +24,11 @@ the **Asterisk Slime**, and a win/lose screen.
   `SELECT * FROM spells` casts four spells and burns the rest of your mana in the margin.
 - A query that returns no spell names is a **free look** (3 per turn): scry before you cast.
 - Power, cost and element always come from the tables. `SELECT name, 9999 AS power` changes nothing.
-- Ada starts knowing only `SELECT` and `FROM`. Watch the Slime's book: when it uses `LIMIT`,
-  the rune glows and Ada can copy it.
+- Ada starts knowing only `SELECT` and `FROM`. Each guardian casts first, so its query is
+  the first thing you read. When its book shows its signature keyword, the rune glows and Ada
+  copies it; she keeps it after the victory.
+- Sir Wherewell's Ward of Relevance turns aside every spell that is not super-effective
+  against him. Scry him (`SELECT * FROM enemies`), then filter for his weakness.
 
 The full design is in [`docs/SQL_Witch_Design_Document.pdf`](docs/) (when present) and the
 sprite brief in [`docs/SPRITES.md`](docs/SPRITES.md).
@@ -50,6 +58,7 @@ python main.py
 |---|---|
 | `--seed N` | Replay exactly the same battle. The seed is printed at start and shown on the result screen. |
 | `--scale K` | Window size as a multiple of 320 × 180 (default: the largest that fits your screen). |
+| `--start knight` | Start the story at the second guardian (with `LIMIT` already learned). |
 
 | Key | Action |
 |---|---|
@@ -67,6 +76,8 @@ In the terminal, no pygame needed. It plays the same battle with the same rules:
 ```bash
 python -m sim.play_cli --seed 7
 ```
+
+Add `--foe knight` to fight Sir Wherewell instead.
 
 Type a query and press Enter. `:help`, `:why` (the Slime's reasoning), `:schema`, `:quit`.
 
@@ -100,8 +111,14 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `magic/rules.py` | Damage, type chart, MP, end of round (pure Python). |
 | `magic/battle.py` | Round and turn order, shared by the window and the terminal. |
 | `ai/` | Foe brains and their SQL styles. **Never imports pygame.** |
-| `ai/fsm.py` | The Asterisk Slime: a probabilistic finite state machine. |
-| `ai/styles.py` | Turns a brain's intent into the Slime's sloppy `SELECT *`. |
+| `ai/perception.py` | What a guardian senses each turn, and its memory of Ada's casts. |
+| `ai/goals.py` | Goal-driven behaviour: atomic and composite goals, the Think arbitrator. |
+| `ai/steering.py` | Steering behaviours: seek, flee, arrive, pursue, evade, wander. |
+| `ai/guardian.py` | The turn loop every guardian shares: perceive, mode, think, act, move. |
+| `ai/fsm.py` | The Asterisk Slime: a probabilistic state machine driving simple goals. |
+| `ai/knight.py` | Sir Wherewell: stance machine and six goal plans. |
+| `ai/styles.py` | Turns an intent into SQL: the Slime's `SELECT *`, the Knight's precise `WHERE`. |
+| `ai/roster.py` | The guardians in order, with their level, runes, brain and style. |
 | `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
 | `assets/audio/` | Sound effects, battle music and `sounds.json`. |
 | `tools/make_sounds.py` | Generates the placeholder chiptune sounds. |
