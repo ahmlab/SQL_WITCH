@@ -35,10 +35,13 @@ block from its centre (where the image is cleanest), keeps the transparency, cro
 figure and merges near-identical shades. For example, Ada's sprite was made with:
 
 ```bash
-python -m tools.pixelize assets/sprites/source_ada_back.webp assets/sprites/ada_back.png --block 15
+python -m tools.pixelize assets/sprites/source_ada_back.webp assets/sprites/ada_back.png --block 30
 ```
 
-`--block` is the approximate size of one pixel in the source image (it searches 1.5 around it);
+`--block` is the approximate size of one sprite pixel in the source image (it searches 1.5
+around it). The source draws Ada with 15 px blocks; `--block 30` reads 2 x 2 of them as one
+pixel, which gives her at half size. `--half` is another way to halve (mode of each 2 x 2
+group, then the outline is redrawn); for Ada it lost the gold trim, so `--block 30` is used.
 `--palette` snaps every colour to the 32-colour palette instead of keeping the image's own.
 
 Base prompt (prepend it to each sprite prompt below):
@@ -98,9 +101,9 @@ Prompt:
 
 ### 3.2 Ada, back view in battle (`ada_back.png`), cell 54 × 60
 
-**Done:** `assets/sprites/ada_back.png` (41 × 83, made from `source_ada_back.webp` with
-`tools/pixelize.py`). It is used in battle (hat and hair above the Grimoire, Pokémon style)
-and standing in the story scenes. Its animation frames below are still to do.
+**Done:** `assets/sprites/ada_back.png` (20 × 41, made from `source_ada_back.webp` with
+`tools/pixelize.py --block 30`). It is used in battle and standing in the story scenes. Its
+animation frames below are still to do.
 
 The protagonist seen from behind (the camera is over her shoulder, Pokémon style). A data
 analyst who wakes up as a witch: pointed violet hat with a golden band, long brown hair,

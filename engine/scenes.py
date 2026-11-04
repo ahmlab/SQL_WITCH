@@ -347,8 +347,8 @@ GUIDE_BUTTON = pygame.Rect(258, 2, 59, 11)        # the clickable "? GUIDE" tab,
 KEY_REPEAT_DELAY = 350       # ms a key must be held before it starts repeating
 KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
 ADA_AT = (24, 58)                                   # where bolts and numbers start/land
-ADA_FEET = (38, 143)                                # battle: hat and hair above the Grimoire
-ADA_STANDING = (60, 118)                            # story scenes: standing on the grass
+ADA_FEET = (42, 100)                                # battle: on the grass, above the Grimoire
+ADA_STANDING = (60, 114)                            # story scenes: standing on the grass
 HOME = {"slime": (250, 50), "knight": (252, 46)}   # each guardian's post
 FRONT = (182, 56)                                   # the striking spot, closer to Ada
 ARENA = pygame.Rect(176, 36, 122, 30)               # where a guardian may walk (clear of panels)
@@ -741,7 +741,7 @@ class BattleScene(Scene):
             home = HOME[self.key]
             pygame.draw.ellipse(canvas, render.MINT, (home[0] - 28, home[1] + 12, 56, 10))
             draw_slime(canvas, self.foe_xy(), self.time, flash, state.foe.exhausted, fainted)
-        # Seen from behind like a Pokemon battle: the Grimoire, drawn later, hides her legs.
+        # Seen from behind, standing at the bottom left of the battlefield.
         draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0)
 
         self._draw_foe_panel(canvas)

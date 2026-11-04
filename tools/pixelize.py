@@ -102,6 +102,34 @@ def snap_to_palette(sprite: np.ndarray) -> np.ndarray:
     return out
 
 
+def halve(sprite: np.ndarray) -> np.ndarray:
+    """Half size, kept crisp: each 2x2 group becomes its most common colour (ties go to the
+    darker one), then the silhouette gets its dark outline back, because thin outlines are
+    what a plain downscale loses first."""
+    h, w = sprite.shape[:2]
+    sprite = np.pad(sprite, ((0, h % 2), (0, w % 2), (0, 0)))
+    out = np.zeros(((h + 1) // 2, (w + 1) // 2, 4), dtype=int)
+    for y in range(out.shape[0]):
+        for x in range(out.shape[1]):
+            cell = sprite[2 * y:2 * y + 2, 2 * x:2 * x + 2].reshape(-1, 4)
+            solid = [tuple(c[:3]) for c in cell if c[3]]
+            if len(solid) >= 2:
+                best = max(set(solid), key=lambda c: (solid.count(c), -sum(c)))
+                out[y, x] = (*best, 255)
+    solid = sprite[:, :, 3] > 0
+    if solid.any():
+        darkest = min((tuple(c) for c in sprite[solid][:, :3]), key=sum)
+        mask = out[:, :, 3] > 0
+        edge = mask & ~(np.roll(mask, 1, 0) & np.roll(mask, -1, 0) &
+                        np.roll(mask, 1, 1) & np.roll(mask, -1, 1))
+        edge[0, :] |= mask[0, :]
+        edge[-1, :] |= mask[-1, :]
+        edge[:, 0] |= mask[:, 0]
+        edge[:, -1] |= mask[:, -1]
+        out[edge, :3] = darkest
+    return out
+
+
 def save(sprite: np.ndarray, path: str) -> None:
     h, w = sprite.shape[:2]
     surface = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -122,6 +150,8 @@ def main(argv=None) -> None:
                         help="merge colours closer than this (0 = keep every shade)")
     parser.add_argument("--palette", action="store_true",
                         help="snap colours to the game's 32-colour palette")
+    parser.add_argument("--half", action="store_true",
+                        help="half size: 2x2 blocks become one pixel, outline redrawn")
     args = parser.parse_args(argv)
     img = load_rgba(args.input)
     low, high = ((args.block - 1.5, args.block + 1.5) if args.block else (6.0, 32.0))
@@ -132,6 +162,8 @@ def main(argv=None) -> None:
         sprite = snap_to_palette(sprite)
     elif args.merge > 0:
         sprite = merge_shades(sprite, args.merge)
+    if args.half:
+        sprite = crop(halve(sprite))
     save(sprite, args.output)
     colours = len(np.unique(sprite[sprite[:, :, 3] > 0][:, :3], axis=0))
     print(f"grid {bx:.2f} x {by:.2f} px (offset {px:.1f}, {py:.1f}) -> "
