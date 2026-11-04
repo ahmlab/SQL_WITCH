@@ -1,6 +1,6 @@
-"""The Asterisk Slime's brain: a probabilistic state machine driving simple goals (design doc 5.3).
+"""The Asterisk Slime's brain: a probabilistic state machine driving simple goals.
 
-Techniques, all rule-based (no learning):
+Techniques, all rule-based (no machine learning):
 - State machine: Millington, "AI for Games", 3rd ed., ch. 5. Its transitions are written as a
   `match` statement and sampled from probabilities with the battle's rng, so the Slime is
   unpredictable but reproducible by seed. Its mood (wobble, overcast, exhausted, careful)

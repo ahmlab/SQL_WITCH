@@ -3,4 +3,4 @@ from magic.guard import run_query, inspect, Miscast
 
 conn = build_db()
 # Try: "SELECT name, mp_cost FROM spells LIMIT 4"
-print(run_query(conn, input()))
+print(run_query("Write here: ", conn, input()))
