@@ -38,7 +38,7 @@ def precise(battle):
 
 # ------------------------------------------------------------------ the round
 
-def test_the_guardian_opens_with_an_attack_and_then_speed_decides():
+def test_the_guardian_opens_with_an_attack_and_turns_then_alternate():
     battle = Battle(seed=1)
     assert battle.whose_turn == "foe"                   # round 1: the Slime casts first
     opening = battle.foe_act()
@@ -46,7 +46,22 @@ def test_the_guardian_opens_with_an_attack_and_then_speed_decides():
     assert opening.report.casts                         # a real attack the player can copy
     assert battle.whose_turn == "ada"
     battle.ada_cast("SELECT name FROM spells")
-    assert battle.state.turn == 2 and battle.whose_turn == "ada"   # Ada speed 5, Slime 3
+    # Ada is faster, but she never gets two turns in a row: round 2 starts with the Slime.
+    assert battle.state.turn == 2 and battle.whose_turn == "foe"
+
+
+def test_nobody_ever_acts_twice_in_a_row():
+    for seed in range(10):
+        battle, sides = Battle(seed=seed), []
+        for _ in range(40):
+            if battle.whose_turn == "over":
+                break
+            sides.append(battle.whose_turn)
+            if battle.whose_turn == "ada":
+                battle.ada_cast("SELECT name FROM spells")
+            else:
+                battle.foe_act()
+        assert all(a != b for a, b in zip(sides, sides[1:]))
 
 
 def test_without_the_opening_the_faster_side_acts_first():

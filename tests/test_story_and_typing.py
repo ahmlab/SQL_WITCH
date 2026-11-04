@@ -176,3 +176,21 @@ def test_effects_expire():
         effects.update(16)
         effects.draw(canvas)
     assert not effects.busy()
+
+
+def test_moving_to_the_next_line_plays_a_sound():
+    game = to_story()
+    game.audio.log.clear()
+    key(game, pygame.K_RETURN)                  # finishes the typewriter: no page turn yet
+    assert ("next", 0) not in game.audio.log
+    key(game, pygame.K_RETURN)                  # next line
+    assert ("next", 0) in game.audio.log
+
+
+def test_adas_hat_is_outlined_against_the_violet_sky():
+    from engine.scenes import draw_backdrop, draw_ada_back
+    canvas = pygame.Surface((320, 180))
+    draw_backdrop(canvas, ground_y=110)
+    draw_ada_back(canvas, 52, 68, False)
+    hat_tip = [canvas.get_at((52 + 22, y))[:3] for y in range(66, 72)]
+    assert render.INK in hat_tip                # a dark edge separates it from the sky

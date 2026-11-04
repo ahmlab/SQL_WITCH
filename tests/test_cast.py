@@ -23,7 +23,8 @@ def battle():
 def test_load_state_reads_the_tables(battle):
     _, state, _ = battle
     assert (state.ada.name, state.ada.hp, state.ada.mp, state.ada.mp_regen) == ("Ada", 60, 30, 5)
-    assert (state.foe.name, state.foe.hp, state.foe.element) == ("Asterisk Slime", 140, "Nature")
+    assert (state.foe.name, state.foe.element) == ("Asterisk Slime", "Nature")
+    assert state.foe.hp == state.foe.max_hp > 0                    # starts at full health
 
 
 def test_split_page_cuts_rows_and_columns():
@@ -45,7 +46,7 @@ def test_select_star_at_level_one_casts_four_and_drains_the_rest(battle):
     assert report.overflow == 8
     assert state.ada.exhausted
     assert report.status_line() == "12 rows | 4 cast | 8 lost | MP 30 -> 0"
-    assert state.foe.hp < 140
+    assert state.foe.hp < state.foe.max_hp
 
 
 def test_a_precise_query_casts_one_spell_and_keeps_mp(battle):
@@ -106,7 +107,7 @@ def test_a_combatant_name_in_the_row_is_the_target(battle):
     report = resolve(conn, state, "SELECT s.name, w.name FROM spells s, witch w "
                      "WHERE s.name = 'Ember'", "ada", rng)
     assert report.casts[0].target == "Ada"        # the contract is honest: she hit herself
-    assert state.ada.hp < 60 and state.foe.hp == 140
+    assert state.ada.hp < 60 and state.foe.hp == state.foe.max_hp
 
 
 def test_heals_and_wards_default_to_the_caster(battle):

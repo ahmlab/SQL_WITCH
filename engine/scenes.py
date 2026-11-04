@@ -183,8 +183,16 @@ def draw_ada_back(canvas: pygame.Surface, x: int, y: int, flash: bool) -> None:
                              (render.VIOLET, render.DUSK, render.LEATHER, render.NIGHT))
     pygame.draw.rect(canvas, robe, (x + 4, y + 30, 28, 12))
     pygame.draw.rect(canvas, hair, (x + 7, y + 16, 22, 18))
+    # The hat is violet like the Glade's sky, so it gets a dark outline and a lit edge:
+    # it must read against any backdrop.
+    cone = [(x + 22, y), (x + 8, y + 15), (x + 28, y + 15)]
+    if not flash:
+        pygame.draw.ellipse(canvas, render.INK, (x - 1, y + 11, 38, 10))
+        pygame.draw.polygon(canvas, render.INK, [(x + 22, y - 2), (x + 6, y + 16), (x + 30, y + 16)])
     pygame.draw.ellipse(canvas, brim, (x, y + 12, 36, 8))
-    pygame.draw.polygon(canvas, hat, [(x + 22, y), (x + 8, y + 15), (x + 28, y + 15)])
+    pygame.draw.polygon(canvas, hat, cone)
+    if not flash:
+        pygame.draw.line(canvas, render.LAVENDER, (x + 21, y + 2), (x + 11, y + 13))   # lit edge
     pygame.draw.rect(canvas, render.GOLD, (x + 9, y + 12, 18, 2))         # hat band
 
 
@@ -265,10 +273,12 @@ class DialogueScene(Scene):
             if self._shown_chars() < len(self.line["text"]):
                 self.line_started = -10 ** 9            # finish the typewriter at once
             elif self.index + 1 < len(self.lines):
+                self.game.audio.play("next")
                 self.index += 1
                 self.line_started = self.time
                 self._start_line()
             else:
+                self.game.audio.play("next")
                 self.game.switch(BattleScene(self.game, self.guardian))
 
     def update(self, dt):

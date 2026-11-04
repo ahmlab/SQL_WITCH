@@ -153,6 +153,10 @@ def make_effects() -> None:
     write("faint.wav", sweep(0.7, 600, 40, duty=0.5, volume=0.4, curve=0.7))
     # Menus.
     write("confirm.wav", notes([(midi(76), 0.04), (midi(83), 0.07)], duty=0.25, volume=0.3))
+    # The next line of dialogue: a soft two-note page turn, gentle enough to hear often.
+    write("next.wav", mix(notes([(midi(79), 0.035), (midi(86), 0.06)], wave_fn=triangle,
+                                volume=0.4),
+                          noise_burst(0.04, 0.06, 20, seed=41, hold=2)))
     # Result jingles.
     write("victory.wav", mix(
         notes([(midi(n), d) for n, d in ((72, .12), (76, .12), (79, .12), (84, .36),

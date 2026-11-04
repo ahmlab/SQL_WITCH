@@ -118,12 +118,12 @@ def test_careful_adds_limit_two():
         "SELECT * FROM foe_spells WHERE foe_id = 1"
 
 
-def test_teaching_guarantee_forces_limit_by_the_third_turn():
+def test_teaching_guarantee_forces_limit_by_the_second_turn():
     _, state = fresh_state()
     wobble = SLIME_INTENTS["wobble"]
-    state.foe_book = [render_slime(wobble, state, 1), render_slime(wobble, state, 2)]
-    third = render_slime(wobble, state, 3)
-    assert "LIMIT" in third and "foe_spells" in third
+    state.foe_book = [render_slime(wobble, state, 1)]
+    second = render_slime(wobble, state, 2)
+    assert "LIMIT" in second and "foe_spells" in second
 
 
 def test_no_forcing_once_limit_has_been_shown():

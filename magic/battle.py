@@ -2,8 +2,8 @@
 
 The battle is a small step machine instead of a loop, so the pygame scene can drive it one
 event at a time and the terminal can drive it with input(). Either way the order is:
-the guardian opens the first round (so the player reads a query before writing one), then
-the faster side acts first; Ada may scry up to SCRY_PER_TURN times, then casts one query;
+the guardian opens the first round (so the player reads a query before writing one), and
+the turns then alternate strictly; Ada may scry up to SCRY_PER_TURN times, then casts one query;
 the foe perceives, decides, writes its SQL and casts it; then the round ends.
 Never imports pygame.
 
@@ -57,6 +57,7 @@ class Battle:
         self.chart = rules.load_type_chart(self.conn)
         self.brain = brain if brain is not None else g.make_brain(self.conn)
         self.foe_opens = foe_opens
+        self.turn_order: list[str] | None = None
         self.foe_turns = 0
         self.winner: str | None = None
         self.queue: list[str] = []
@@ -71,12 +72,17 @@ class Battle:
         return "over" if self.winner else self.queue[0]
 
     def _start_round(self) -> None:
-        if self.foe_opens and self.state.turn == 1:
-            first = "foe"          # the guardian teaches by example: its query comes first
-        else:
-            first = rules.first_mover(self.state, self.rng)
-        self.queue = [first, "foe" if first == "ada" else "ada"]
-        rules.start_turn(self.state, first)
+        # The order is settled once, in round 1, and then strictly alternates. Re-deciding
+        # it every round would let the faster side act twice in a row across the boundary
+        # (last in round 1, first in round 2).
+        if self.turn_order is None:
+            if self.foe_opens:
+                first = "foe"      # the guardian teaches by example: its query comes first
+            else:
+                first = rules.first_mover(self.state, self.rng)
+            self.turn_order = [first, "foe" if first == "ada" else "ada"]
+        self.queue = list(self.turn_order)
+        rules.start_turn(self.state, self.queue[0])
 
     def _advance(self) -> None:
         """The current side is done: check for a winner, then pass the turn or end the round."""

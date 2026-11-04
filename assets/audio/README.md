@@ -37,6 +37,7 @@ going without that sound.
 | `shatter` | A super-effective spell breaks the Ward of Relevance. |
 | `ward_up` | The Knight raises his Ward of Relevance again. |
 | `confirm` | ENTER on the title screen. |
+| `next` | ENTER moves the dialogue on to the next line. |
 | `victory` / `defeat` | The result screen. |
 
 Music: `battle` loops for the whole fight (fades in and out).

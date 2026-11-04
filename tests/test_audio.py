@@ -50,7 +50,7 @@ def play_a_battle(seed=7):
         key(pygame.K_RETURN)
         for _ in range(4):
             game.update(16)
-    for _ in range(400):
+    for _ in range(2000):
         if isinstance(game.scene, ResultScene):
             break
         if isinstance(game.scene, BattleScene) and game.scene.phase == "input":

@@ -15,7 +15,7 @@ from magic.rules import BattleState
 
 SLIME_RUNES = {"WHERE", "LIMIT"}        # the keywords the Slime is able to write
 SLIME_SIGNATURE = "LIMIT"               # the rune the Invitation hands to Ada (design doc 3.6)
-GUARANTEE_TURN = 3                      # the signature appears within the foe's first 3 turns
+GUARANTEE_TURN = 2                      # the signature appears by the foe's 2nd turn
 
 SLIME_ATTACK = "SELECT * FROM foe_spells WHERE foe_id = {foe_id}"
 SLIME_CAREFUL = SLIME_ATTACK + " LIMIT 2"

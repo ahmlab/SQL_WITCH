@@ -17,6 +17,7 @@
     "invitation": {"file": "invitation.wav", "volume": 0.8},
     "faint":      {"file": "faint.wav", "volume": 0.8},
     "confirm":    {"file": "confirm.wav", "volume": 0.5},
+    "next":       {"file": "next.wav", "volume": 0.5},
     "victory":    {"file": "victory.wav", "volume": 0.8},
     "defeat":     {"file": "defeat.wav", "volume": 0.8},
     "typing":     {"files": ["key_1.wav", "key_2.wav", "key_3.wav", "key_4.wav", "key_5.wav", "key_6.wav", "key_7.wav", "key_8.wav"], "volume": 0.35},

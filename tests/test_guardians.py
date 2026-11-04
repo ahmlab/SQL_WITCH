@@ -423,3 +423,33 @@ def test_a_knight_battle_plays_to_its_result_screen_and_he_walks_around():
     game.update(16)
     assert isinstance(game.scene, ResultScene) and game.scene.won
     assert max(xs) - min(xs) > 40                           # he charged and fell back
+
+
+# ------------------------------------------------------------------ learning the rune decides the fight
+
+def slime_novice(battle):
+    return "SELECT name FROM spells"                        # never learns: overflows every turn
+
+
+def slime_learner(battle):
+    ada = battle.state.ada
+    if "LIMIT" not in ada.runes:
+        return "SELECT name FROM spells"
+    k = min(4, ada.mp // 3)                                  # cast only what she can pay for
+    return f"SELECT name FROM spells LIMIT {k}" if k else "SELECT * FROM enemies"
+
+
+def test_the_slime_beats_a_player_who_never_learns_limit_and_loses_to_one_who_does():
+    novice = [fight("slime", slime_novice, seed).winner for seed in range(12)]
+    learner = [fight("slime", slime_learner, seed).winner for seed in range(12)]
+    assert novice.count("ada") == 0
+    assert learner.count("ada") >= 10
+
+
+def test_the_slime_shows_limit_by_its_second_turn():
+    for seed in range(10):
+        battle = Battle(seed=seed)
+        battle.foe_act()
+        battle.ada_cast("SELECT name FROM spells")
+        battle.foe_act()
+        assert "LIMIT" in battle.state.ada.runes

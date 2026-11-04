@@ -50,13 +50,17 @@ visual-only random generator, so seeded battles stay reproducible.
 
 ## Evaluation (design doc 9.1)
 
-Three scripted players, 300 seeded battles each, against Sir Wherewell (200 HP):
+Scripted players, 300 seeded battles each. Turns alternate strictly (the guardian opens round
+1 and nobody ever acts twice in a row), and HP is set so that learning the guardian's rune is
+what wins the fight:
 
-| Player | Ada wins | Rounds | Ada HP left |
-|---|---|---|---|
-| Novice: `SELECT name FROM spells LIMIT 1`, never filters | 0% | 5.3 | 0 |
-| Competent: copies WHERE, casts the first Storm attack | 58% | 6.3 | 10 |
-| Expert: strongest Storm spell, Spark when low on MP, heals when hurt | 100% | 3.2 | 60 |
+| Guardian | Player | Ada wins | Rounds | Ada HP left |
+|---|---|---|---|---|
+| Asterisk Slime (230 HP) | Never learns LIMIT: `SELECT name FROM spells` every turn | 0% | 4.0 | 0 |
+| | Uses LIMIT once the Slime shows it: casts only what she can pay for | 98% | 4.6 | 8 |
+| Sir Wherewell (260 HP) | Never filters: `SELECT name FROM spells LIMIT 1` | 0% | 5.3 | 0 |
+| | Copies WHERE but always casts the weakest Storm spell | 0% | 6.9 | 0 |
+| | Uses WHERE well: strong Storm spells (`AND power > 30`), Spark when low on MP, heals | 100% | 4.2 | 40 |
 
-He beats the player who does not filter and loses to the one who does, which is the lesson
-of his fight. The tests in `tests/test_guardians.py` check this on fixed seeds.
+Each guardian beats the player who does not use its lesson and loses to the one who does.
+The tests in `tests/test_guardians.py` check this on fixed seeds.
