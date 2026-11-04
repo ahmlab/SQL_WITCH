@@ -90,7 +90,11 @@ def test_the_real_mixer_plays_effects_and_music():
 
 def test_f2_mutes_and_unmutes():
     game = Game(pygame.Surface((320, 180)), seed=1, audio=Silent())
-    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_F2, mod=0))
+    press = lambda kind: game.handle(pygame.event.Event(kind, key=pygame.K_F2, mod=0))
+    press(pygame.KEYDOWN)
     assert game.audio.muted
-    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_F2, mod=0))
+    press(pygame.KEYDOWN)                       # still held: a repeat, ignored
+    assert game.audio.muted
+    press(pygame.KEYUP)
+    press(pygame.KEYDOWN)
     assert not game.audio.muted

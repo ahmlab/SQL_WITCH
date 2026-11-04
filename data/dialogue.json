@@ -11,11 +11,12 @@
     {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Your Grimoire. Write a query on my left page. Every row that names a spell will cast it."},
     {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "But my right page holds only four rows. You pay for every spell you summon..."},
     {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "...and only the rows you can read take effect."},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Never written a query? In battle, press F3 or click GUIDE: I will show you what to write, and how to read my pages."},
     {"scene": "glade", "book": true, "speaker": "Ada", "text": "So SELECT * is... a bad idea?"},
     {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Ask the slime."},
     {"scene": "glade", "book": true, "slime": true, "speaker": "", "text": "Something round and green wobbles out of the bushes: the ASTERISK SLIME!"}
   ],
-  "battle_tip": "Look first: SELECT * FROM enemies. CTRL+ENTER casts.",
+  "battle_tip": "New to SQL? Press F3 for the spell guide.",
   "victory": [
     "The Asterisk Slime melts into a puddle of rows.",
     "Ada: One word. LIMIT. And the page behaves."

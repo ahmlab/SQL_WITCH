@@ -151,6 +151,7 @@ def test_f1_toggles_the_debug_overlay():
     key(game, pygame.K_F1)
     assert game.debug
     run(game, 100)                              # draws the overlay without crashing
+    game.handle(pygame.event.Event(pygame.KEYUP, key=pygame.K_F1, mod=0))
     key(game, pygame.K_F1)
     assert not game.debug
 

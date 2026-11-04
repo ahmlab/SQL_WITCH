@@ -131,7 +131,7 @@ class Grimoire:
         elif self.report:
             self._draw_result(surface, now)
 
-        f.draw(surface, "CTRL+ENTER cast  TAB complete  F1 debug", (8, 173), render.BUTTER)
+        f.draw(surface, "CTRL+ENTER cast TAB complete F3 guide", (8, 173), render.BUTTER)
 
     def _draw_status(self, surface: pygame.Surface) -> None:
         box = pygame.Rect(LEFT_PAGE.x, LEFT_PAGE.bottom - 9, LEFT_PAGE.width, 9)

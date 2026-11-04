@@ -396,6 +396,11 @@ class Screen:
         self.canvas = Canvas()
         self.shake = 0           # frames of screen shake left (design doc 7.3)
 
+    def to_logical(self, pos: tuple[int, int]) -> tuple[int, int]:
+        """A window pixel (e.g. a mouse click) -> a canvas pixel, undoing scale and letterbox."""
+        k, (ox, oy) = fit(self.window.get_size())
+        return (pos[0] - ox) // k, (pos[1] - oy) // k
+
     def compose(self) -> tuple[pygame.Surface, int]:
         """The finished frame at window scale: pixel art scaled up, then the sharp text."""
         k, _ = fit(self.window.get_size())

@@ -25,8 +25,9 @@ import pygame
 from engine import fx, render, scenery
 from engine.audio import Audio, Silent
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
-from engine.textinput import (KEYWORD_WORDS, QueryEditor, locked_words, schema_tables,
-                              schema_words)
+from engine.guide import Guide
+from engine.textinput import (KEYWORD_WORDS, QueryEditor, layout, locked_words,
+                              schema_tables, schema_words)
 from ai import steering
 from ai.roster import GUARDIANS, ORDER, next_guardian
 from magic.battle import Battle
@@ -87,6 +88,8 @@ class Game:
         self.dialogue = load_dialogue()
         self.debug = False
         self.running = True
+        self.held: set[int] = set()        # keys down right now (to spot held-key repeats)
+        self.guide_seen = False           # the GUIDE button glows until it is opened once
         self.scene: Scene | None = None
         self.switch(TitleScene(self))
 
@@ -97,12 +100,27 @@ class Game:
         scene.enter()
 
     def handle(self, event: pygame.event.Event) -> None:
+        repeat = False
+        if event.type == pygame.KEYDOWN:
+            repeat = event.key in self.held
+            self.held.add(event.key)
+        elif event.type == pygame.KEYUP:
+            self.held.discard(event.key)
         if event.type == pygame.QUIT:
             self.running = False
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
-            self.debug = not self.debug
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_F2:
-            self.audio.toggle_mute()
+        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_F1, pygame.K_F2, pygame.K_F3):
+            if repeat:
+                return                         # holding F1 must not make it flicker
+            if event.key == pygame.K_F1:
+                self.debug = not self.debug
+            elif event.key == pygame.K_F2:
+                self.audio.toggle_mute()
+            elif hasattr(self.scene, "toggle_guide"):
+                self.scene.toggle_guide()
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            x, y = self.screen.to_logical(event.pos) if self.screen else event.pos
+            if hasattr(self.scene, "click"):
+                self.scene.click(x, y)
         else:
             self.scene.handle(event)
 
@@ -332,6 +350,9 @@ class Popup:
     age: int = 0
 
 
+GUIDE_BUTTON = pygame.Rect(258, 2, 59, 11)        # the clickable "? GUIDE" tab, top right
+KEY_REPEAT_DELAY = 350       # ms a key must be held before it starts repeating
+KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
 ADA_AT = (24, 58)
 HOME = {"slime": (250, 50), "knight": (252, 46)}   # each guardian's post
 FRONT = (182, 56)                                   # the striking spot, closer to Ada
@@ -379,15 +400,21 @@ class BattleScene(Scene):
         self.streak = fx.Streak()
         self.word_glow: tuple[pygame.Rect, int] | None = None
         self._elements: dict[str, str | None] = {}
+        self._last_erase = -1000
+        # The live rune set: the guide's examples unlock as Ada learns runes mid-battle.
+        self.guide = Guide(self.battle.conn, self.battle.state.ada.runes)
         self.say(game.dialogue["battle_tip"], 2500)
         self.phase = "input" if self.battle.whose_turn == "ada" else "wait"
 
     def enter(self):
         pygame.key.start_text_input()
+        # Held keys repeat: after a short pause, Backspace and the arrows keep going.
+        pygame.key.set_repeat(KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL)
         self.game.audio.play_music("battle")
 
     def exit(self):
         pygame.key.stop_text_input()
+        pygame.key.set_repeat(0)
         self.game.audio.stop_music()
 
     # ------------------------------------------------------------ narration
@@ -549,7 +576,25 @@ class BattleScene(Scene):
 
     # ------------------------------------------------------------ input and time
 
+    def toggle_guide(self) -> None:
+        self.guide.toggle()
+        if self.guide.open:
+            self.game.guide_seen = True
+            self.game.audio.play("scry")
+
+    def click(self, x: int, y: int) -> None:
+        if GUIDE_BUTTON.collidepoint(x, y):
+            self.toggle_guide()
+        elif self.guide.open:
+            self.guide.click(x, y)
+
     def handle(self, event):
+        if self.guide.open:                         # the guide takes the keyboard
+            sql = self.guide.handle(event)
+            if sql:
+                self.editor.set_text(layout(sql, self.editor.columns))   # ready to cast
+                self.game.audio.play("rune")
+            return
         if self.phase == "input":
             before = self.editor.text
             sql = self.editor.handle_event(event)
@@ -588,7 +633,9 @@ class BattleScene(Scene):
                 self._finish_word(_last_word(line), x - render.ADVANCE, y)
         elif event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_BACKSPACE, pygame.K_DELETE):
-                self.game.audio.play("erase")
+                if self.time - self._last_erase >= 70:    # held: not 28 sounds a second
+                    self.game.audio.play("erase")
+                    self._last_erase = self.time
                 self.fx.burst(x, y + 3, count=2, colours=(render.GREY, render.SLATE), life=200)
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.game.audio.play("newline")
@@ -718,8 +765,16 @@ class BattleScene(Scene):
         self.grimoire.draw(canvas, self.time, focused=self.phase == "input")
         self._draw_page_heat(canvas)
         self.fx.draw(canvas)
+        self._draw_guide_button(canvas)
         if self.game.debug:
             self._draw_debug(canvas)
+        self.guide.draw(canvas, self.time)
+
+    def _draw_guide_button(self, canvas):
+        f = render.font()
+        glowing = not self.game.guide_seen and (self.time // 400) % 2 == 0
+        render.panel(canvas, GUIDE_BUTTON, fill=render.BUTTER if glowing else render.CREAM)
+        f.draw(canvas, "? GUIDE F3", (GUIDE_BUTTON.x + 4, GUIDE_BUTTON.y + 3), render.VIOLET)
 
     def _draw_page_heat(self, canvas):
         """The left page lights up the faster you type; a finished keyword shines."""

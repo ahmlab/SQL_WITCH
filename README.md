@@ -67,6 +67,8 @@ python main.py
 | `Tab` or `→` | Accept the faded suggestion after the cursor (`SE` → `SELECT`). Tab again cycles through other matches. |
 | `Up` / `Down` | Previous / next query in the history (from the first / last line). |
 | `Ctrl+L` | Clear the query. |
+| Hold `Backspace` / arrows | Keep deleting / moving. `Ctrl+Backspace` deletes a word, `Ctrl+←/→` jump a word. |
+| `F3` or click **? GUIDE** | The spell guide: how to write a query, how to read a table, ready-made queries to try (Enter writes one on the page) and the runes. |
 | `F1` | Debug overlay: what the Slime's brain decided and why. |
 | `F2` | Mute / unmute sound and music. |
 | `Esc` | Skip the intro; quit from the title or result screen. |
@@ -80,6 +82,12 @@ python -m sim.play_cli --seed 7
 Add `--foe knight` to fight Sir Wherewell instead.
 
 Type a query and press Enter. `:help`, `:why` (the Slime's reasoning), `:schema`, `:quit`.
+
+## New to SQL?
+
+Press **F3** in battle (or click **? GUIDE**, top right). The guide explains what a query
+is, what each table holds, how to read a result, and lists queries you can try right now,
+each marked as a free LOOK or a CAST. Its text lives in `data/guide.json`.
 
 ## Sound and music
 

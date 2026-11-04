@@ -109,41 +109,88 @@ def _monitor(canvas: pygame.Surface, t: int, progress: float, dead: bool) -> Non
         canvas.set_at((x, bezel.y - 2), render.VIOLET)
 
 
+def _smooth(x: float) -> float:
+    """Smoothstep: 0 -> 1 with a gentle start and a gentle stop."""
+    x = min(1.0, max(0.0, x))
+    return x * x * (3 - 2 * x)
+
+
+def _lean(drowsy: float, t: int) -> tuple[float, float]:
+    """How far Ada's torso and head lean forward (radians from upright) at this sleepiness.
+    Awake she sits up; drowsy she sags and nods; asleep she folds onto her arms on the desk."""
+    torso = 0.05 + 0.22 * _smooth(drowsy - 1) + 0.70 * _smooth(drowsy - 2)
+    neck = 0.10 * _smooth(drowsy - 0.5) + 0.30 * _smooth(drowsy - 2)   # the head droops more
+    if 1.3 < drowsy < 2.6:                                   # nodding: the head dips and jerks up
+        neck += 0.25 * max(0.0, math.sin(t / 450)) * (1 - _smooth(drowsy - 2.2))
+    return torso, torso + neck
+
+
+HIP = (163.0, 96.0)          # where Ada sits on her chair
+TORSO = 19                   # hip to shoulder
+NECK = 7                     # shoulder to the centre of her head
+
+
+def ada_pose(drowsy: float, t: int) -> tuple[tuple[float, float], ...]:
+    """(hip, shoulder, head centre) of office Ada. The head always hangs NECK pixels from the
+    shoulder, and the shoulder TORSO pixels from the hip: one body, whatever the angle."""
+    torso_angle, head_angle = _lean(drowsy, t)
+    shoulder = (HIP[0] + TORSO * math.sin(torso_angle), HIP[1] - TORSO * math.cos(torso_angle))
+    centre = (shoulder[0] + NECK * math.sin(head_angle), shoulder[1] - NECK * math.cos(head_angle))
+    return HIP, shoulder, centre
+
+
 def _ada_at_desk(canvas: pygame.Surface, t: int, drowsy: float) -> None:
-    """Ada from the side, facing her monitor. drowsy: 0 awake ... 3 asleep on the desk."""
+    """Ada from the side, facing her monitor, drawn as a tiny skeleton: the torso pivots at
+    the hip and the head always sits on the neck, so she slumps as one body (never in pieces).
+    drowsy: 0 awake ... 3 asleep on the desk."""
     pygame.draw.rect(canvas, render.SLATE, (150, 66, 5, 34))                      # chair
     pygame.draw.rect(canvas, render.SLATE, (150, 96, 26, 4))
-    pygame.draw.rect(canvas, render.TEAL, (156, 76, 16, 21))                      # cardigan
-    pygame.draw.rect(canvas, render.WHITE, (169, 76, 3, 3))                       # collar
-    # Head: upright, then sagging and nodding, then resting on the desk.
-    sag = min(drowsy, 2.0)
-    hx, hy = 166 + sag * 1.5, 68 + sag * 2.5
-    if 1.3 < drowsy < 2.6:                                    # nodding off
-        hy += 2 * max(0.0, math.sin(t / 450))
-    if drowsy > 2.3:
-        k = min(1.0, (drowsy - 2.3) / 0.7)                    # slide down onto the desk
-        hx, hy = hx + (184 - hx) * k, hy + (86 - hy) * k
-    hx, hy = render.snap(hx), render.snap(hy)
-    pygame.draw.circle(canvas, render.LEATHER, (hx, hy), 7)                       # hair
-    pygame.draw.rect(canvas, render.LEATHER, (hx - 9, hy, 3, 8))                  # ponytail
-    pygame.draw.circle(canvas, render.PEACH, (hx + 2, hy + 1), 5)                 # face
-    pygame.draw.rect(canvas, render.INK, (hx + 3, hy - 1, 5, 3), 1)               # glasses
-    if drowsy < 0.8:
-        canvas.set_at((hx + 5, hy), render.INK)                                   # open eye
-        if (t // 900) % 4 == 0:
-            canvas.set_at((hx + 6, hy - 1), render.WHITE)                         # glint
-    else:
-        pygame.draw.line(canvas, render.INK, (hx + 4, hy + 1), (hx + 6, hy + 1))  # closed
-    # Arm: typing while awake, slumped on the desk when asleep.
-    if drowsy > 2.3:
-        pygame.draw.line(canvas, render.TEAL, (168, 82), (hx - 2, 90), 3)
-    else:
+    torso_angle, head_angle = _lean(drowsy, t)
+    side = (math.cos(torso_angle), math.sin(torso_angle))                         # her front
+    hip, shoulder, centre = ada_pose(drowsy, t)
+    half = 7.5
+    # The hips stay on the seat (the bottom edge never moves); only the back bends forward.
+    torso = [(hip[0] - half, hip[1]), (hip[0] + half, hip[1]),
+             (shoulder[0] + side[0] * half * 0.9, shoulder[1] + side[1] * half * 0.9),
+             (shoulder[0] - side[0] * half * 0.9, shoulder[1] - side[1] * half * 0.9)]
+    pygame.draw.polygon(canvas, render.TEAL, [(render.snap(x), render.snap(y)) for x, y in torso])
+
+    h_up = (math.sin(head_angle), -math.cos(head_angle))
+    h_fwd = (math.cos(head_angle), math.sin(head_angle))
+
+    def at(dx: float, dy: float) -> tuple[int, int]:
+        """A point on the head: dx towards her face, dy towards her chin."""
+        return (render.snap(centre[0] + dx * h_fwd[0] - dy * h_up[0]),
+                render.snap(centre[1] + dx * h_fwd[1] - dy * h_up[1]))
+
+    asleep = _smooth((drowsy - 2.2) / 0.8)
+    if asleep > 0.5:                                          # arms folded on the desk
+        elbow = (render.snap(shoulder[0] + 2), 90)
+        pygame.draw.line(canvas, render.TEAL, (render.snap(shoulder[0]), render.snap(shoulder[1])),
+                         elbow, 3)
+        pygame.draw.line(canvas, render.TEAL, (elbow[0] - 2, 90), (elbow[0] + 14, 90), 3)
+    else:                                                     # typing
         tap = 1 if drowsy < 1 and (t // 90) % 2 else 0
         hand = (199, 87 - tap)
-        pygame.draw.line(canvas, render.TEAL, (168, 81), hand, 3)
+        pygame.draw.line(canvas, render.TEAL, (render.snap(shoulder[0]), render.snap(shoulder[1]) + 2),
+                         hand, 3)
         pygame.draw.rect(canvas, render.PEACH, (hand[0], hand[1] - 1, 3, 2))
+    pygame.draw.line(canvas, render.PEACH, at(0, 6), at(0, 3), 3)                 # neck
+    pygame.draw.rect(canvas, render.WHITE, (*at(2, 7), 3, 2))                     # collar
+    pygame.draw.line(canvas, render.LEATHER, at(-6, 0), at(-7, 7), 3)             # ponytail
+    pygame.draw.circle(canvas, render.LEATHER, at(0, 0), 7)                       # hair
+    pygame.draw.circle(canvas, render.PEACH, at(2, 1), 5)                         # face
+    pygame.draw.line(canvas, render.INK, at(3, -1), at(7, -1))                    # glasses
+    pygame.draw.line(canvas, render.INK, at(3, 1), at(7, 1))
+    if drowsy < 0.8:
+        canvas.set_at(at(5, 0), render.INK)                                       # open eye
+        if (t // 900) % 4 == 0:
+            canvas.set_at(at(6, -1), render.WHITE)                                # glint
+    else:
+        pygame.draw.line(canvas, render.INK, at(4, 0), at(6, 0))                  # eyes closed
     if 1.8 < drowsy < 2.95:                                   # z z z (they stop with her heart)
         f = render.font()
+        hx, hy = at(0, 0)
         for i in range(3):
             phase = (t / 1400 + i / 3) % 1.0
             f.draw(canvas, "z", (hx + 4 + i * 5 + phase * 6, hy - 10 - phase * 16),

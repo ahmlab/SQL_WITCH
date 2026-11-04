@@ -4,6 +4,8 @@ Typing is the controller, so the editor must feel solid before it feels clever:
 - characters arrive as TEXTINPUT events (pygame.key.start_text_input()), so any keyboard
   layout works; editing keys arrive as KEYDOWN;
 - Enter starts a new line, Ctrl+Enter casts;
+- holding a key repeats it (set by the battle scene); Ctrl+Backspace deletes a word and
+  Ctrl+Left/Right jump a word;
 - Up/Down walk the query history when the cursor is on the first/last line;
 - TAB completes table, column and keyword names (tables and columns from PRAGMA table_info);
   while typing, the most likely completion is shown faded after the cursor, and TAB or the
@@ -103,6 +105,38 @@ def colour_styles(text: str, locked: set[str], names: set[str]) -> list[str]:
     return styles
 
 
+BREAK_BEFORE = ("FROM", "WHERE", "AND", "OR", "ORDER BY", "GROUP BY", "HAVING", "LIMIT")
+
+
+def layout(sql: str, width: int = 36) -> str:
+    """Lay a one-line query out on the page like a person would: it is cut into pieces that
+    each start with a keyword (FROM, WHERE, AND, LIMIT...), and the pieces are packed into
+    lines of at most `width` characters. No piece and no word is ever cut in half."""
+    words, pieces, i = sql.split(), [], 0
+    while i < len(words):
+        two = " ".join(words[i:i + 2]).upper()
+        starts = words[i].upper() in BREAK_BEFORE or two in BREAK_BEFORE
+        if starts or not pieces:
+            pieces.append([])
+        pieces[-1].append(words[i])
+        i += 1
+    lines: list[str] = []
+    for piece in (" ".join(p) for p in pieces):
+        if lines and len(lines[-1]) + 1 + len(piece) <= width:
+            lines[-1] += " " + piece
+            continue
+        indent = "  " if piece.split()[0].upper() in ("AND", "OR") else ""
+        line = indent
+        for word in piece.split():                # a piece longer than a line: wrap by words
+            if line.strip() and len(line) + 1 + len(word) > width:
+                lines.append(line)
+                line = "  " + word
+            else:
+                line = f"{line} {word}" if line.strip() else line + word
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def schema_tables(conn) -> list[str]:
     return [row[0] for row in conn.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
@@ -175,6 +209,43 @@ class QueryEditor:
             self.lines[self.row] = line[:self.col] + line[self.col + 1:]
         elif self.row < len(self.lines) - 1:
             self.lines[self.row] = line + self.lines.pop(self.row + 1)
+
+    def _word_start(self) -> int:
+        """Column where the word before the cursor starts (spaces before it included)."""
+        line, col = self.lines[self.row], self.col
+        while col > 0 and not (line[col - 1].isalnum() or line[col - 1] == "_"):
+            col -= 1
+        while col > 0 and (line[col - 1].isalnum() or line[col - 1] == "_"):
+            col -= 1
+        return col
+
+    def backspace_word(self) -> None:
+        """Ctrl+Backspace: delete the whole word before the cursor."""
+        if self.col == 0:
+            self.backspace()
+            return
+        start = self._word_start()
+        line = self.lines[self.row]
+        self.lines[self.row] = line[:start] + line[self.col:]
+        self.col = start
+
+    def word_left(self) -> None:
+        if self.col == 0:
+            self.move(-1)
+        else:
+            self.col = self._word_start()
+
+    def word_right(self) -> None:
+        line = self.lines[self.row]
+        if self.col == len(line):
+            self.move(+1)
+            return
+        col = self.col
+        while col < len(line) and not (line[col].isalnum() or line[col] == "_"):
+            col += 1
+        while col < len(line) and (line[col].isalnum() or line[col] == "_"):
+            col += 1
+        self.col = col
 
     def move(self, dx: int) -> None:
         if dx < 0 and self.col == 0 and self.row > 0:
@@ -306,13 +377,15 @@ class QueryEditor:
                 return self.submit()
             self.newline()
         elif key == pygame.K_BACKSPACE:
-            self.backspace()
+            self.backspace_word() if ctrl else self.backspace()
         elif key == pygame.K_DELETE:
             self.delete()
         elif key == pygame.K_LEFT:
-            self.move(-1)
+            self.word_left() if ctrl else self.move(-1)
         elif key == pygame.K_RIGHT:
-            if not self.accept_suggestion():       # at the end of a line, -> takes the ghost
+            if ctrl:
+                self.word_right()
+            elif not self.accept_suggestion():     # at the end of a line, -> takes the ghost
                 self.move(+1)
         elif key == pygame.K_UP:
             self.up()

@@ -249,3 +249,37 @@ def test_text_on_the_canvas_is_sharp_at_any_window_scale():
     inked = sum(frame.get_at((x, y))[:3] == render.INK
                 for x in range(40, 40 + 6 * 16) for y in range(40, 68))
     assert inked > 100
+
+
+# ------------------------------------------------------------------ holding keys and word editing
+
+def test_ctrl_backspace_deletes_a_word_and_ctrl_arrows_jump_words():
+    editor = typed(QueryEditor(), "SELECT name FROM spells")
+    editor.handle_event(key(pygame.K_BACKSPACE, pygame.KMOD_LCTRL))
+    assert editor.text == "SELECT name FROM "
+    editor.handle_event(key(pygame.K_LEFT, pygame.KMOD_LCTRL))
+    assert editor.col == len("SELECT name ")
+    editor.handle_event(key(pygame.K_LEFT, pygame.KMOD_LCTRL))
+    assert editor.col == len("SELECT ")
+    editor.handle_event(key(pygame.K_RIGHT, pygame.KMOD_LCTRL))
+    assert editor.col == len("SELECT name")
+
+
+def test_held_backspace_keeps_deleting():
+    # A held key arrives as many KEYDOWN events (pygame.key.set_repeat): each one deletes.
+    editor = typed(QueryEditor(), "SELECT name")
+    for _ in range(5):
+        editor.handle_event(key(pygame.K_BACKSPACE))
+    assert editor.text == "SELECT"
+
+
+def test_the_battle_turns_key_repeat_on_and_off():
+    from engine.scenes import BattleScene, Game, KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL
+    pygame.display.set_mode((320, 180))
+    game = Game(pygame.Surface((320, 180)), seed=1)
+    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, mod=0))
+    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0))
+    assert isinstance(game.scene, BattleScene)
+    assert pygame.key.get_repeat() == (KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL)
+    game.scene.exit()
+    assert pygame.key.get_repeat() == (0, 0)
