@@ -27,6 +27,8 @@ TABLE_TOP = 8                    # the "RESULT" label sits above the table on th
 ROW_H = 11                       # with TEXT_DY, row five's letters are cut in half by the clip
 TEXT_DY = 1                      # text offset inside a row
 INK_MS = 40                      # one result row inks onto the page every 40 ms (design doc 7.3)
+SCROLL_RIGHT = pygame.Rect(RIGHT_PAGE.right - 7, RIGHT_PAGE.y - 1, 7, 8)   # clickable arrows
+SCROLL_LEFT = pygame.Rect(RIGHT_PAGE.right - 15, RIGHT_PAGE.y - 1, 7, 8)
 GAP = render.ADVANCE             # one character between columns, as in magic.cast
 
 
@@ -61,16 +63,35 @@ def column_x(columns: list[str], rows: list[tuple]) -> list[int]:
     return xs
 
 
+SHADE_CAST = render.BUTTER        # a row whose spell took effect
+SHADE_DEFLECTED = render.PARCHMENT  # a row whose spell bounced off a Ward of Relevance
+
+
+def row_shades(report: CastReport) -> dict[int, tuple]:
+    """Which rows of the page to shade: the spells that just took effect stand out."""
+    shades = {}
+    for cast in report.casts:
+        shades[cast.row] = SHADE_DEFLECTED if cast.deflected else SHADE_CAST
+    return shades
+
+
 def draw_table(surface: pygame.Surface, report: CastReport, rows_shown: int,
-               topleft: tuple[int, int]) -> None:
+               topleft: tuple[int, int], scroll_px: int = 0) -> None:
     """Draw the whole result table from topleft. It may be bigger than the page: the caller
-    sets the clip, and the clip is what cuts row five and the columns past the edge."""
+    sets the clip, and the clip is what cuts row five and the columns past the edge.
+    scroll_px slides it left, to read columns past the right edge (looking only: the cast
+    has already been resolved, so scrolling never changes what the Rule of the Page did)."""
     f = render.font()
     columns, rows = report.columns, report.rows
     widths = column_widths(columns, rows)
     xs = column_x(columns, rows)
     total_w = (xs[-1] + widths[-1] * render.ADVANCE) if xs else 1
-    x0, y0 = topleft
+    x0, y0 = topleft[0] - scroll_px, topleft[1]
+    shades = row_shades(report)
+    for i in range(min(rows_shown, PAGE_ROWS + 1, len(rows))):
+        if i in shades:                                         # behind the text
+            pygame.draw.rect(surface, shades[i],
+                             (topleft[0], y0 + TABLE_TOP + i * ROW_H - 1, RIGHT_PAGE.width, ROW_H - 1))
     for name, x in zip(columns, xs):
         f.draw(surface, name, (x0 + x, y0), render.LEATHER)
     pygame.draw.line(surface, render.LEATHER, (x0, y0 + render.GLYPH_H + 1),
@@ -92,6 +113,7 @@ class Grimoire:
         self.miscast: str | None = None
         self.shown_at = 0
         self.looks_left = 3
+        self.scroll_col = 0
 
     EDITOR_AT = (LEFT_PAGE.x, LEFT_PAGE.y + 9)
 
@@ -102,6 +124,35 @@ class Grimoire:
     def show_result(self, report: CastReport, now: int, looks_left: int) -> None:
         self.report, self.miscast, self.shown_at = report, None, now
         self.looks_left = looks_left
+        self.scroll_col = 0                       # a new result starts at its first column
+
+    # ------------------------------------------------------------ sideways scrolling
+
+    def _hidden_width(self) -> int:
+        """How many pixels of the table lie past the right edge at the current scroll."""
+        if not self.report or not self.report.rows:
+            return 0
+        widths = column_widths(self.report.columns, self.report.rows)
+        xs = column_x(self.report.columns, self.report.rows)
+        total = xs[-1] + widths[-1] * render.ADVANCE
+        return max(0, total - xs[self.scroll_col] - RIGHT_PAGE.width)
+
+    def can_scroll(self, step: int) -> bool:
+        return self.scroll_col > 0 if step < 0 else self._hidden_width() > 0
+
+    def scroll(self, step: int) -> bool:
+        """Slide the result one column left (-1) or right (+1). Returns whether it moved."""
+        if not self.can_scroll(step):
+            return False
+        self.scroll_col += 1 if step > 0 else -1
+        return True
+
+    def scroll_button_at(self, x: int, y: int) -> int:
+        """-1 or +1 if (x, y) is on the < or > arrow of the right page, else 0."""
+        for step, rect in ((-1, SCROLL_LEFT), (1, SCROLL_RIGHT)):
+            if rect.collidepoint(x, y):
+                return step
+        return 0
 
     def show_miscast(self, message: str, now: int) -> None:
         self.report, self.miscast, self.shown_at = None, message, now
@@ -139,7 +190,8 @@ class Grimoire:
             return
         report = self.report
         if report.scry and not report.ends_turn:
-            text, border = f"{len(report.rows)} rows | a free look | MP {report.mp_after}", \
+            n = len(report.rows)
+            text, border = f"{n} row{'' if n == 1 else 's'} | a free look | MP {report.mp_after}", \
                 render.TEAL
         else:
             text = report.status_line()
@@ -168,9 +220,11 @@ class Grimoire:
         rows_shown = 1 + (now - self.shown_at) // INK_MS            # ink in, row by row
         clip = pygame.Rect(RIGHT_PAGE.x, RIGHT_PAGE.y + TABLE_TOP,
                            RIGHT_PAGE.width, RIGHT_PAGE.height - TABLE_TOP)
+        scroll_px = column_x(report.columns, report.rows)[self.scroll_col]
         surface.set_clip(clip)
-        draw_table(surface, report, rows_shown, clip.topleft)      # row 5 is cut in half here
+        draw_table(surface, report, rows_shown, clip.topleft, scroll_px)  # row 5 is cut here
         surface.set_clip(None)
+        self._draw_scroll_arrows(surface)
 
         # A gold star in the spine marks every row that cast (design doc 4.4).
         cast_rows = {c.row for c in report.casts}
@@ -182,12 +236,26 @@ class Grimoire:
         if len(report.rows) > PAGE_ROWS and rows_shown > PAGE_ROWS:
             self._draw_drips(surface, now - self.shown_at - PAGE_ROWS * INK_MS)
 
+    def _draw_scroll_arrows(self, surface: pygame.Surface) -> None:
+        """< > at the top right of the page: lit when there are columns to see that way."""
+        f = render.font()
+        left, right = self.can_scroll(-1), self.can_scroll(1)
+        if not (left or right):
+            return
+        f.draw(surface, "SHIFT", (SCROLL_LEFT.x - 22, SCROLL_LEFT.y + 1), render.SAND)
+        for rect, glyph, lit in ((SCROLL_LEFT, "<", left), (SCROLL_RIGHT, ">", right)):
+            pygame.draw.rect(surface, render.GOLD if lit else render.PARCHMENT, rect)
+            f.draw(surface, glyph, (rect.x + 2, rect.y + 1), render.INK if lit else render.SAND)
+
     def _draw_drips(self, surface: pygame.Surface, age_ms: int) -> None:
         """Grey ink keeps running off the bottom edge: the table did not stop (design doc 3.3)."""
         report = self.report
-        xs = column_x(report.columns, report.rows)
+        shift = column_x(report.columns, report.rows)[self.scroll_col]
+        xs = [x - shift for x in column_x(report.columns, report.rows)]
         bottom = RIGHT_PAGE.bottom + 3
         for i, x in enumerate(xs):
+            if x < 0:
+                continue
             if x > RIGHT_PAGE.width - 4:
                 break
             longest = 3 + (i * 5) % 5                                  # fixed, not random
@@ -209,8 +277,10 @@ def foe_summary(report: CastReport | None) -> str:
     if report is None:
         return ""
     if not report.casts:
-        return f"{len(report.rows)} rows - nothing castable."
-    text = f"{len(report.rows)} rows"
+        n = len(report.rows)
+        return f"{n} row{'' if n == 1 else 's'} - nothing castable."
+    n = len(report.rows)
+    text = f"{n} row{'' if n == 1 else 's'}"
     if report.overflow:
         text += f" - {report.overflow} fell off its page"
     return text + f". MP {report.mp_after}" + ("!" if report.mp_after == 0 else ".")

@@ -21,8 +21,8 @@ Out = Callable[[str], None]
 
 KNIGHT_INTRO = """\
 The Filter Keep. A knight in blue armour bars the gate: SIR WHEREWELL, Knight of the Filter.
-His Ward of Relevance turns aside every spell that is not super-effective against him.
-Watch how he casts: he never casts without a WHERE.
+His Ward of Relevance stops every spell that is not super-effective against him.
+Find his weakness first, then watch his book: he never casts without WHERE.
 
   Scry him first:  SELECT * FROM enemies
   Commands:  :help  :why  :schema  :quit
@@ -130,7 +130,7 @@ def narrate(report: CastReport) -> list[str]:
         elif kind == "exhausted":
             lines.append(f"  {event[1]} is EXHAUSTED: the next hit lands 1.5x.")
         elif kind == "deflect":
-            lines.append(f"  {event[2]} bounces off the Ward of Relevance: not relevant!")
+            lines.append(f"  {event[2]} bounces off the Ward of Relevance: not super-effective!")
         elif kind == "shatter":
             lines.append(f"  The Ward of Relevance shatters! Every spell can reach {event[1]} now.")
         elif kind == "relevance":
@@ -142,7 +142,7 @@ def narrate(report: CastReport) -> list[str]:
         elif kind == "scry":
             _, rows_out, ends = event
             lines.append("  Nothing castable here, and no free looks left: the turn is spent."
-                         if ends else f"  A free look ({rows_out} rows). No MP spent.")
+                         if ends else f"  A free look ({rows_out} row{'' if rows_out == 1 else 's'}). No MP spent.")
     lines.append(f"  [{report.status_line()}]")
     return lines
 

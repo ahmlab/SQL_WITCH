@@ -64,10 +64,12 @@ python main.py
 |---|---|
 | `Enter` | Title and dialogue: continue. In the editor: new line. |
 | `Ctrl+Enter` | Cast the query (also fast-forwards the battle narration). |
-| `Tab` or `→` | Accept the faded suggestion after the cursor (`SE` → `SELECT`). Tab again cycles through other matches. |
+| `Tab` or `→` | Accept the shaded suggestion after the cursor: the rest of a word (`SE` → `SELECT`) or the next piece of the query (`SELECT` → `name` → `FROM spells`). |
 | `Up` / `Down` | Previous / next query in the history (from the first / last line). |
 | `Ctrl+L` | Clear the query. |
 | Hold `Backspace` / arrows | Keep deleting / moving. `Ctrl+Backspace` deletes a word, `Ctrl+←/→` jump a word. |
+| `Shift+←/→` or mouse wheel | Scroll the result page sideways to read columns past the edge (looking only). |
+| `F4` or click **TABLES** | Every table and its columns; click a name to write it in the query. |
 | `F3` or click **? GUIDE** | The spell guide: how to write a query, how to read a table, ready-made queries to try (Enter writes one on the page) and the runes. |
 | `F1` | Debug overlay: what the Slime's brain decided and why. |
 | `F2` | Mute / unmute sound and music. |

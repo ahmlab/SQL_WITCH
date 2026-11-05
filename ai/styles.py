@@ -50,12 +50,13 @@ def render_slime(intent: Intent, state: BattleState, turn: int) -> str:
 KNIGHT_RUNES = {"WHERE"}                # AND, OR and comparisons belong to the WHERE rune
 KNIGHT_SIGNATURE = "WHERE"
 
-# One precise filter per intent. Each one matches exactly one row of his book, and it also
-# says how much MP he has: he never asks for a spell he cannot pay for.
+# One precise filter per intent: each one matches exactly one row of his book. They are
+# kept short on purpose, so every query fits his book in three lines and can be copied as is.
+# (His brain already checks he can pay for the spell: ai/perception.py, Percept.can.)
 KNIGHT_FILTERS = {
     "strike":    "kind = 'attack' AND power < 20",
-    "heavy":     "kind = 'attack' AND power >= 20 AND power < 30",
-    "finisher":  "kind = 'attack' AND power >= 30",
+    "heavy":     "kind = 'attack' AND power > 20 AND power < 30",
+    "finisher":  "kind = 'attack' AND power > 30",
     "relevance": "kind = 'relevance'",
     "guard":     "kind = 'ward'",
     "dispel":    "kind = 'dispel'",
@@ -69,4 +70,4 @@ def render_knight(intent: Intent, state: BattleState, turn: int) -> str:
     if intent.action not in KNIGHT_FILTERS:      # resting: he studies his own row
         return f"SELECT name, hp, mp FROM enemies WHERE id = {foe_id}"
     return (f"SELECT name FROM foe_spells WHERE foe_id = {foe_id} "
-            f"AND {KNIGHT_FILTERS[intent.action]} AND mp_cost <= {state.foe.mp}")
+            f"AND {KNIGHT_FILTERS[intent.action]}")
