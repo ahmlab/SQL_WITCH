@@ -230,11 +230,24 @@ def test_mutation_an_empty_filter_makes_the_knight_do_nothing(action):
     assert report.rows == [] and (state.ada.hp, state.foe.mp) == (75, 40)
 
 
-def test_he_never_asks_for_a_spell_he_cannot_pay_for():
-    conn, state = knight_state(mp=5)
-    sql = render_knight(KNIGHT_INTENTS["finisher"], state, 1)        # costs 12
-    assert "mp_cost <= 5" in sql
-    assert resolve(conn, state, sql, "foe", random.Random(0)).rows == []
+def test_he_never_chooses_a_spell_he_cannot_pay_for():
+    from ai.knight import DEFAULT_COSTS
+    for mp in range(0, 41, 3):
+        for seed in range(5):
+            _, state = knight_state(mp=mp, relevance=True)
+            state.ada.hp = 20                                  # tempting him to finish her
+            action = KnightBrain().decide(state, random.Random(seed)).action
+            assert action == "rest" or DEFAULT_COSTS[action] <= mp
+
+
+@pytest.mark.parametrize("action", sorted(KNIGHT_INTENTS))
+def test_every_knight_query_fits_his_book_whole(action):
+    from engine.grimoire import wrap
+    _, state = knight_state()
+    sql = render_knight(KNIGHT_INTENTS[action], state, 1)
+    lines = wrap(sql, 36)
+    assert len(lines) <= 3                                     # his book shows three lines
+    assert not lines[-1].endswith(("AND", "OR", "WHERE"))      # never cut mid-condition
 
 
 # ------------------------------------------------------------------ Sir Wherewell's brain

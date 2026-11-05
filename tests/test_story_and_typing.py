@@ -144,7 +144,7 @@ def test_erase_and_newline_have_their_own_sounds():
 def test_arrow_keys_that_type_nothing_stay_silent():
     game = to_battle()
     key(game, pygame.K_LEFT)
-    key(game, pygame.K_F4)
+    key(game, pygame.K_F5)
     assert game.audio.log == []
 
 

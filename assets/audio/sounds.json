@@ -1,7 +1,9 @@
 {
   "master_volume": 1.0,
   "music": {
-    "battle": {"file": "battle_theme.wav", "volume": 0.45}
+    "battle": {"file": "battle_theme.wav", "volume": 0.45},
+    "slime": {"file": "battle_theme.wav", "volume": 0.45},
+    "knight": {"file": "knight_theme.wav", "volume": 0.45}
   },
   "effects": {
     "hit":        {"file": "hit.wav", "volume": 0.8},

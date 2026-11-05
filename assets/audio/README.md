@@ -40,7 +40,9 @@ going without that sound.
 | `next` | ENTER moves the dialogue on to the next line. |
 | `victory` / `defeat` | The result screen. |
 
-Music: `battle` loops for the whole fight (fades in and out).
+Music: each guardian has its own theme, looping for the whole fight (fades in and out):
+`slime` (A minor, 150 BPM) and `knight` (a D minor march, 112 BPM). A guardian without its own
+entry plays `battle`.
 
 ## The placeholder kit
 

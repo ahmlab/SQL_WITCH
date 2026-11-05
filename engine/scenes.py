@@ -109,13 +109,17 @@ class Game:
             self.held.discard(event.key)
         if event.type == pygame.QUIT:
             self.running = False
-        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_F1, pygame.K_F2, pygame.K_F3):
+        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_F1, pygame.K_F2, pygame.K_F3,
+                                                             pygame.K_F4):
             if repeat:
                 return                         # holding F1 must not make it flicker
             if event.key == pygame.K_F1:
                 self.debug = not self.debug
             elif event.key == pygame.K_F2:
                 self.audio.toggle_mute()
+            elif event.key == pygame.K_F4:
+                if hasattr(self.scene, "toggle_tables"):
+                    self.scene.toggle_tables()
             elif hasattr(self.scene, "toggle_guide"):
                 self.scene.toggle_guide()
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -346,6 +350,8 @@ class Popup:
 
 
 GUIDE_BUTTON = pygame.Rect(258, 2, 59, 11)        # the clickable "? GUIDE" tab, top right
+TABLES_BUTTON = pygame.Rect(LEFT_PAGE.x + 46, LEFT_PAGE.y - 2, 29, 9)   # over the query
+TABLES_PANEL = pygame.Rect(4, 4, 312, 94)
 KEY_REPEAT_DELAY = 350       # ms a key must be held before it starts repeating
 KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
 ADA_AT = (24, 58)                                   # where bolts and numbers start/land
@@ -400,6 +406,10 @@ class BattleScene(Scene):
         self._last_erase = -1000
         # The live rune set: the guide's examples unlock as Ada learns runes mid-battle.
         self.guide = Guide(self.battle.conn, self.battle.state.ada.runes)
+        self.tables_open = False
+        self.table_rows: list[tuple[pygame.Rect, str]] = []   # clickable table names
+        self.schema = [(t, [r[1] for r in conn.execute(f"PRAGMA table_info({t})")])
+                       for t in schema_tables(conn) if t != "relics"]
         self.say(game.dialogue["battle_tip"], 2500)
         self.phase = "input" if self.battle.whose_turn == "ada" else "wait"
 
@@ -407,7 +417,9 @@ class BattleScene(Scene):
         pygame.key.start_text_input()
         # Held keys repeat: after a short pause, Backspace and the arrows keep going.
         pygame.key.set_repeat(KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL)
-        self.game.audio.play_music("battle")
+        # Each guardian has its own theme in sounds.json; "battle" is the fallback.
+        themes = self.game.audio.config.get("music", {})
+        self.game.audio.play_music(self.key if self.key in themes else "battle")
 
     def exit(self):
         pygame.key.stop_text_input()
@@ -507,15 +519,15 @@ class BattleScene(Scene):
                              self._set_shown(self.side_of(name), 1, after),
                              "mp_down" if after < before else "mp_up")
             elif kind == "deflect":
-                self.say(f"{event[2]} bounces off: not relevant!", 750, None, "deflect")
+                self.say(f"{event[2]} bounces off: not super-effective!", 750, None, "deflect")
             elif kind == "shatter":
                 self.say("The Ward of Relevance shatters!", 900, self._show_relevance(False),
                          "shatter")
             elif kind == "relevance":
-                self.say("Ward of Relevance: only the relevant may pass", 1000,
+                self.say("Ward of Relevance is up: only super-effective spells pass", 1000,
                          self._show_relevance(True), "ward_up")
             elif kind == "dispel":
-                self.say(f"{event[2]}: Ada's ward of {event[4]} is gone", 800,
+                self.say(f"{event[2]} removes Ada's ward ({event[4]})", 800,
                          None, "fizzle")
             elif kind == "exhausted":
                 self.say(f"{event[1].split()[-1]} is EXHAUSTED!", 800)
@@ -546,6 +558,10 @@ class BattleScene(Scene):
             self.game.audio.play("miscast")
             return
         self.game.audio.play("scry" if report.scry else "cast")
+        if "weakness" in report.columns and report.rows:
+            weakness = report.rows[0][report.columns.index("weakness")]
+            if weakness:                            # she has seen it: now it can be suggested
+                self.editor.known_weakness = weakness
         looks = SCRY_PER_TURN - self.battle.state.scries_used
         self.grimoire.show_result(report, self.time, looks)
         self.narrate(report)
@@ -573,7 +589,12 @@ class BattleScene(Scene):
 
     # ------------------------------------------------------------ input and time
 
+    def toggle_tables(self) -> None:
+        self.tables_open = not self.tables_open
+        self.game.audio.play("scry")
+
     def toggle_guide(self) -> None:
+        self.tables_open = False
         self.guide.toggle()
         if self.guide.open:
             self.game.guide_seen = True
@@ -582,10 +603,40 @@ class BattleScene(Scene):
     def click(self, x: int, y: int) -> None:
         if GUIDE_BUTTON.collidepoint(x, y):
             self.toggle_guide()
+        elif TABLES_BUTTON.collidepoint(x, y):
+            self.toggle_tables()
+        elif self.tables_open:
+            for rect, table in self.table_rows:
+                if rect.collidepoint(x, y):            # write the table's name in the query
+                    self.editor.insert(table)
+                    self.game.audio.play("rune")
+            self.tables_open = False
         elif self.guide.open:
             self.guide.click(x, y)
+        elif step := self.grimoire.scroll_button_at(x, y):
+            self._scroll_result(step)
+
+    def _scroll_result(self, step: int) -> None:
+        if self.grimoire.scroll(step):
+            self.game.audio.play("scry")
+
+    def _is_scroll_key(self, event) -> int:
+        """Shift + Left/Right slides the result page sideways: -1, +1, or 0 if not."""
+        if event.type == pygame.KEYDOWN and event.mod & pygame.KMOD_SHIFT:
+            return {pygame.K_LEFT: -1, pygame.K_RIGHT: 1}.get(event.key, 0)
+        return 0
 
     def handle(self, event):
+        if not self.guide.open:                     # reading the page works at any time
+            if step := self._is_scroll_key(event):
+                self._scroll_result(step)
+                return
+            if event.type == pygame.MOUSEWHEEL:
+                self._scroll_result(1 if (event.x > 0 or event.y < 0) else -1)
+                return
+        if self.tables_open and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.tables_open = False
+            return
         if self.guide.open:                         # the guide takes the keyboard
             sql = self.guide.handle(event)
             if sql:
@@ -764,9 +815,42 @@ class BattleScene(Scene):
         self._draw_page_heat(canvas)
         self.fx.draw(canvas)
         self._draw_guide_button(canvas)
+        self._draw_tables_button(canvas)
+        if self.tables_open:
+            self._draw_tables(canvas)
         if self.game.debug:
             self._draw_debug(canvas)
         self.guide.draw(canvas, self.time)
+
+    def _draw_tables_button(self, canvas):
+        f = render.font()
+        fill = render.TEAL if self.tables_open else render.FOAM
+        pygame.draw.rect(canvas, render.INK, TABLES_BUTTON)
+        pygame.draw.rect(canvas, fill, TABLES_BUTTON.inflate(-2, -2))
+        f.draw(canvas, "TABLES", (TABLES_BUTTON.x + 3, TABLES_BUTTON.y + 2),
+               render.WHITE if self.tables_open else render.TEAL)
+
+    def _draw_tables(self, canvas):
+        """Every table of this world and its columns, to know what to write after FROM."""
+        f = render.font()
+        render.cover(canvas, TABLES_PANEL, (*render.INK, 255))
+        render.cover(canvas, TABLES_PANEL.inflate(-2, -2), (*render.CREAM, 255))
+        x, y = TABLES_PANEL.x + 4, TABLES_PANEL.y + 4
+        f.draw(canvas, "TABLES  (click a name to write it)", (x, y), render.VIOLET)
+        f.draw(canvas, "F4/ESC close", (TABLES_PANEL.right - 52, y), render.SAND)
+        y += render.LINE_H + 3
+        self.table_rows = []
+        for table, columns in self.schema:
+            rect = pygame.Rect(x - 1, y - 1, f.width(table) + 2, render.GLYPH_H + 2)
+            render.cover(canvas, rect, (*render.FOAM, 255))
+            self.table_rows.append((rect, table))
+            f.draw(canvas, table, (x, y), render.TEAL)
+            room = (TABLES_PANEL.right - 6 - (x + 11 * render.ADVANCE)) // render.ADVANCE
+            for part in wrap(", ".join(columns), room):     # a long list goes on the next line
+                f.draw(canvas, part, (x + 11 * render.ADVANCE, y), render.INK)
+                y += render.LINE_H + 1
+        f.draw(canvas, "A row with a 'name' from spells or items casts it. The rest is a free look.",
+               (x, TABLES_PANEL.bottom - 9), render.WINE)
 
     def _draw_guide_button(self, canvas):
         f = render.font()

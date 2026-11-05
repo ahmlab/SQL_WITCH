@@ -13,7 +13,7 @@ Typing is the controller, so the editor must feel solid before it feels clever:
 - syntax colours come from sqlglot.tokenize(); keywords of locked runes are drawn grey and
   struck through, so the player sees what they cannot use yet.
 
-STATUS: editing, history, TAB completion with a faded suggestion, colouring, locked runes.
+STATUS: editing, history, TAB completion, guided next step, colouring, locked runes.
 """
 
 from __future__ import annotations
@@ -55,6 +55,8 @@ STYLE_COLOURS = {
     "punct": render.SLATE,
 }
 GHOST_COLOUR = (*render.GREY, 170)      # half-transparent: a hint, not text you typed
+GHOST_SHADE = render.PARCHMENT          # the band behind it, so the eye catches it
+HINT_COLOUR = render.SAND               # advice that is not text to insert
 GHOST_MIN = 2                           # letters typed before a suggestion appears
 _PUNCT = {TokenType.COMMA, TokenType.DOT, TokenType.L_PAREN, TokenType.R_PAREN,
           TokenType.SEMICOLON, TokenType.STAR, TokenType.EQ, TokenType.GT, TokenType.LT,
@@ -137,6 +139,67 @@ def layout(sql: str, width: int = 36) -> str:
     return "\n".join(lines)
 
 
+SQL_KEYWORDS = {"SELECT", "FROM", "WHERE", "LIMIT", "AND", "OR"}
+
+
+def next_step(text: str, unlocked: set[str], weakness: str | None = None) -> tuple[str, str]:
+    """Guide a beginner one piece at a time: (text to insert next, advice to show).
+
+    It follows the two queries every fight needs, the free look SELECT * FROM enemies and the
+    cast SELECT name FROM spells, then adds the runes Ada knows (LIMIT, WHERE). The foe's
+    weakness is only offered once the player has looked at the enemies table. Keywords come
+    in the player's own case ("select " -> "name", "from spells")."""
+    if text and not text[-1].isspace():
+        return "", ""                                   # only between words
+    words = text.split()
+    upper = [w.upper().rstrip(",;") for w in words]
+    lowercase = any(w.isalpha() and w.islower() and w.upper() in SQL_KEYWORDS for w in words)
+
+    def say(piece: str) -> str:
+        return " ".join(w.lower() if lowercase and w in SQL_KEYWORDS else w
+                        for w in piece.split())
+
+    cast_hint = ("", "CTRL+ENTER casts")
+    if not words:
+        return say("SELECT"), ""
+    if "SELECT" not in upper:
+        return "", ""
+    last = upper[-1]
+    looks = "*" in upper
+    for rune in ("WHERE", "LIMIT"):
+        if rune in upper and rune not in unlocked:
+            return "", f"{rune} is a rune you have not learned yet"
+    if "FROM" not in upper:
+        if last == "SELECT":
+            return "name", ""                           # the column that casts
+        return say("FROM enemies" if looks else "FROM spells"), ""
+    at = upper.index("FROM")
+    if last == "FROM":
+        return ("enemies" if looks else "spells"), ""
+    table = upper[at + 1] if at + 1 < len(upper) else ""
+    if len(upper) == at + 2:                            # SELECT ... FROM table
+        if table != "SPELLS":
+            return "", "CTRL+ENTER to look"
+        if "WHERE" in unlocked:
+            return say("WHERE element ="), ""
+        if "LIMIT" in unlocked:
+            return say("LIMIT 1"), ""
+        return cast_hint
+    if last == "WHERE":
+        return "element =", ""
+    if last == "=" and len(upper) >= 2 and upper[-2] == "ELEMENT":
+        if weakness:
+            return f"'{weakness}'", ""
+        return "", "his weakness? find it: SELECT * FROM enemies"
+    if last == "LIMIT":
+        return "1", ""
+    if words[-1].endswith("'") and "LIMIT" in unlocked and "LIMIT" not in upper:
+        return say("LIMIT 1"), ""
+    if words[-1].endswith("'") or last.isdigit():
+        return cast_hint
+    return "", ""
+
+
 def schema_tables(conn) -> list[str]:
     return [row[0] for row in conn.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
@@ -167,6 +230,7 @@ class QueryEditor:
         self.columns = columns              # characters per visual line before wrapping
         self.visible_lines = visible_lines
         self._tab: tuple[str, list[str], int] | None = None   # (prefix, matches, index)
+        self.known_weakness: str | None = None   # set once the player has looked at the foe
 
     # ------------------------------------------------------------ text
 
@@ -323,17 +387,43 @@ class QueryEditor:
             found = [w.lower() if w.isupper() else w for w in found]
         return found
 
+    def _at_end(self) -> bool:
+        return self.row == len(self.lines) - 1 and self.col == len(self.lines[self.row])
+
     def suggestion(self) -> str:
-        """The rest of the most likely word, shown faded after the cursor ("SE" -> "LECT").
-        Only at the end of a line, after 2+ letters, and never once the word is complete."""
-        line = self.lines[self.row]
+        """What to show faded after the cursor, ready for TAB or ->:
+        - while a word is being typed, the rest of it ("SE" -> "LECT");
+        - between words, the next piece of a beginner's query ("SELECT " -> "name").
+        Only at the very end of the text."""
+        if not self._at_end() or self._tab:
+            return ""
         prefix = self._word_before_cursor()
-        if self.col != len(line) or len(prefix) < GHOST_MIN or self._tab:
+        if len(prefix) >= GHOST_MIN:
+            matches = self._matches(prefix)
+            if matches and not any(m.lower() == prefix.lower() for m in matches):
+                return matches[0][len(prefix):]           # finish the word being typed
+        if prefix and not self._known_word(prefix):
+            return ""                                     # an unknown word: no guessing
+        return self._next()[0]
+
+    def hint(self) -> str:
+        """Advice shown after the cursor that is not text to insert ("CTRL+ENTER casts")."""
+        if not self._at_end() or self._tab or self.suggestion():
             return ""
-        matches = self._matches(prefix)
-        if not matches or any(m.lower() == prefix.lower() for m in matches):
-            return ""
-        return matches[0][len(prefix):]
+        prefix = self._word_before_cursor()
+        return "" if prefix and not self._known_word(prefix) else self._next()[1]
+
+    def _known_word(self, word: str) -> bool:
+        return (word.upper() in KEYWORD_WORDS or word.isdigit()
+                or word.lower() in {n.lower() for n in self.names})
+
+    def _next(self) -> tuple[str, str]:
+        """The guided next piece; right after a finished word it comes with its space."""
+        text, lead = self.text, ""
+        if text and not text[-1].isspace():
+            text, lead = text + " ", " "
+        step, advice = next_step(text, self.unlocked, self.known_weakness)
+        return (lead + step if step else ""), advice
 
     def accept_suggestion(self) -> bool:
         rest = self.suggestion()
@@ -342,7 +432,10 @@ class QueryEditor:
         return bool(rest)
 
     def complete(self) -> None:
-        """TAB: complete the word before the cursor; TAB again cycles through the matches."""
+        """TAB: complete the word before the cursor; TAB again cycles through the matches.
+        Between words, TAB takes the guided next piece."""
+        if not self._tab and self.accept_suggestion():   # TAB takes what is shown faded
+            return
         before = self.lines[self.row][:self.col]
         if self._tab and before.endswith(self._tab[1][self._tab[2]]):
             prefix, matches, index = self._tab
@@ -403,17 +496,30 @@ class QueryEditor:
 
     # ------------------------------------------------------------ drawing
 
+    def _chunks(self, line: str) -> list[tuple[int, str]]:
+        """Cut a line for the page: between words when possible (a word longer than the
+        whole page is the only thing ever cut)."""
+        width, start, chunks = self.columns, 0, []
+        while len(line) - start > width:
+            space = line.rfind(" ", start, start + width)
+            cut = space + 1 if space > start else start + width
+            chunks.append((start, line[start:cut]))
+            start = cut
+        chunks.append((start, line[start:]))
+        return chunks
+
     def visual_lines(self) -> tuple[list[tuple[int, int, str]], tuple[int, int]]:
-        """Wrap long lines every self.columns characters.
+        """Wrap long lines to the page width, between words.
         Returns [(row, start_col, text)] and the cursor's visual (line, column)."""
-        out, cursor, width = [], (0, 0), self.columns
+        out, cursor = [], (0, 0)
         for r, line in enumerate(self.lines):
-            chunks = [line[s:s + width] for s in range(0, len(line), width)] or [""]
+            chunks = self._chunks(line)
             if r == self.row:
-                # A cursor right after a full chunk stays at the end of that chunk.
-                i = min(self.col // width, len(chunks) - 1)
-                cursor = (len(out) + i, self.col - i * width)
-            out.extend((r, i * width, chunk) for i, chunk in enumerate(chunks))
+                for i, (start, text) in enumerate(chunks):
+                    if self.col < start + len(text) or i == len(chunks) - 1:
+                        cursor = (len(out) + i, self.col - start)
+                        break
+            out.extend((r, start, text) for start, text in chunks)
         return out, cursor
 
     def cursor_xy(self, topleft: tuple[int, int]) -> tuple[int, int]:
@@ -445,11 +551,22 @@ class QueryEditor:
                     x = x0 + i * render.ADVANCE
                     pygame.draw.line(surface, render.RED, (x - 1, y + 2), (x + 3, y + 2))
         ghost = self.suggestion() if focused else ""
-        if ghost and first <= cursor_line < first + self.visible_lines:
+        advice = self.hint() if focused else ""
+        if (ghost or advice) and first <= cursor_line < first + self.visible_lines:
             room = max(0, self.columns - cursor_col)               # stay on the page
-            render.font().draw(surface, ghost[:room],
-                               (x0 + cursor_col * render.ADVANCE,
-                                y0 + (cursor_line - first) * render.LINE_H), GHOST_COLOUR)
+            gx, gy = x0 + cursor_col * render.ADVANCE, y0 + (cursor_line - first) * render.LINE_H
+            if ghost:
+                shown = ghost[:room]
+                lead = len(shown) - len(shown.lstrip())             # no band under a space
+                band = pygame.Rect(gx + lead * render.ADVANCE - 1, gy - 1,
+                                   (len(shown) - lead) * render.ADVANCE + 1, render.GLYPH_H + 1)
+                pygame.draw.rect(surface, GHOST_SHADE, band)
+                render.font().draw(surface, shown, (gx, gy), GHOST_COLOUR)
+            else:
+                lines_left = room if room >= len(advice) + 1 else 0
+                ax, ay = (gx + render.ADVANCE, gy) if lines_left else \
+                    (x0, gy + render.LINE_H)                         # no room: the next line
+                render.font().draw(surface, advice[:self.columns], (ax, ay), HINT_COLOUR)
         if focused and (time_ms // 500) % 2 == 0:                     # blinking cursor
             cx = x0 + cursor_col * render.ADVANCE - 1
             cy = y0 + (cursor_line - first) * render.LINE_H

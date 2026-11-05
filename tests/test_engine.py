@@ -154,11 +154,13 @@ def test_tab_keeps_the_players_case_for_keywords():
     assert (lower.text, upper.text) == ("select", "SELECT")
 
 
-def test_long_lines_wrap_at_the_page_width():
+def test_long_lines_wrap_between_words():
     editor = typed(QueryEditor(columns=10), "SELECT name, element FROM spells")
     lines, cursor = editor.visual_lines()
-    assert [text for _, _, text in lines] == ["SELECT nam", "e, element", " FROM spel", "ls"]
-    assert cursor == (3, 2)
+    assert [text for _, _, text in lines] == ["SELECT ", "name, ", "element ", "FROM ", "spells"]
+    assert cursor == (4, 6)                                   # at the end of "spells"
+    long_word = typed(QueryEditor(columns=4), "abcdefghij")   # only an over-long word is cut
+    assert [text for _, _, text in long_word.visual_lines()[0]] == ["abcd", "efgh", "ij"]
 
 
 # ------------------------------------------------------------------ colouring
@@ -204,7 +206,7 @@ def test_a_faded_suggestion_follows_what_you_type():
 def test_tab_and_right_arrow_accept_the_suggestion():
     editor = typed(QueryEditor(), "SE")
     editor.handle_event(key(pygame.K_TAB))
-    assert editor.text == "SELECT" and editor.suggestion() == ""
+    assert editor.text == "SELECT" and editor.suggestion() == " name"   # the guided next step
     editor = typed(QueryEditor(), "SE")
     editor.handle_event(key(pygame.K_RIGHT))
     assert editor.text == "SELECT"

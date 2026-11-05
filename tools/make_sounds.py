@@ -265,11 +265,12 @@ def lead_events(bars: list[str]) -> list[tuple[int, int, int]]:
     return events
 
 
-def render_voice(total: int, events, wave_fn, duty, volume, release=0.03) -> list[float]:
+def render_voice(total: int, events, wave_fn, duty, volume, release=0.03,
+                 eighth: float = EIGHTH) -> list[float]:
     out = [0.0] * total
     for start, length, n in events:
-        begin = int(start * EIGHTH * RATE)
-        size = int(length * EIGHTH * RATE)
+        begin = int(start * eighth * RATE)
+        size = int(length * eighth * RATE)
         freq, phase = midi(n), 0.0
         for i in range(size):
             if begin + i >= total:
@@ -320,12 +321,72 @@ def make_music() -> None:
     write("battle_theme.wav", [a + b + c + d for a, b, c, d in zip(lead, bass, arp, drums)])
 
 
+# ------------------------------------------------------------------ the Knight's march
+
+KNIGHT_BPM = 112
+KNIGHT_EIGHTH = 60 / KNIGHT_BPM / 2
+KNIGHT_CHORDS = ["Dm", "Bb", "C", "A"]               # i - VI - VII - V in D minor
+KNIGHT_ROOTS = {"Dm": "D2", "Bb": "A#1", "C": "C2", "A": "A1"}
+KNIGHT_PADS = {"Dm": ("F4", "A4"), "Bb": ("D4", "F4"), "C": ("E4", "G4"), "A": ("C#4", "E4")}
+KNIGHT_A = ["D5 - - A4 D5 E5 F5 -", "F5 - E5 D5 - - A#4 -",
+            "C5 - D5 E5 - C5 G4 -", "A4 - - C#5 E5 - A5 -"]
+KNIGHT_B = ["A5 - G5 F5 E5 - D5 -", "D5 - F5 - A#5 - A5 G5",
+            "G5 - E5 - C5 - E5 G5", "A5 - - - E5 C#5 A4 -"]
+KNIGHT_SONG = KNIGHT_A + KNIGHT_B + KNIGHT_A + KNIGHT_B   # 16 bars, about 34 seconds
+
+
+def make_knight_music() -> None:
+    """A slower, solemn march in D minor for the Filter Keep: a brassy square-wave lead,
+    held chords instead of a shimmer, a marching bass and snare rolls."""
+    eighth = KNIGHT_EIGHTH
+    bars = len(KNIGHT_SONG)
+    total = int(bars * 8 * eighth * RATE)
+    lead = render_voice(total, lead_events(KNIGHT_SONG), square, 0.5, 0.18, eighth=eighth)
+    bass_events, pad_events = [], []
+    for bar in range(bars):
+        chord = KNIGHT_CHORDS[bar % 4]
+        root = note(KNIGHT_ROOTS[chord])
+        for beat, n in enumerate((root, root + 7, root + 12, root + 7)):   # march in quarters
+            bass_events.append((bar * 8 + beat * 2, 2, n))
+        low, high = KNIGHT_PADS[chord]
+        pad_events += [(bar * 8, 8, note(low)), (bar * 8, 8, note(high))]  # held chord
+    bass = render_voice(total, bass_events, triangle, 0.5, 0.34, release=0.02, eighth=eighth)
+    pad = render_voice(total, pad_events, triangle, 0.5, 0.07, release=0.05, eighth=eighth)
+
+    drums = [0.0] * total
+    snare = Noise(43)
+
+    def hit(at: float, length: float, volume: float, decay: float) -> None:
+        begin = int(at * RATE)
+        for i in range(int(length * RATE)):
+            if begin + i < total:
+                attack = min(1.0, i / (0.001 * RATE))
+                drums[begin + i] += snare.next() * attack * math.exp(-decay * i / RATE) * volume
+
+    for step in range(bars * 8):
+        at = step * eighth
+        if step % 4 == 0:                       # kick on beats 1 and 3
+            begin = int(at * RATE)
+            for i in range(int(0.14 * RATE)):
+                t = i / RATE
+                drums[begin + i] += math.sin(2 * math.pi * (90 - 380 * t) * t) \
+                    * math.exp(-24 * t) * 0.5
+        if step % 4 == 2:                       # snare on beats 2 and 4
+            hit(at, 0.16, 0.24, 20)
+    for bar in range(1, bars - 1, 2):           # a roll closes every second bar (not the last:
+        for k in range(4):                      # the loop must end in silence)
+            hit((bar * 8 + 6) * eighth + k * eighth / 2, 0.06, 0.12 + 0.03 * k, 45)
+
+    write("knight_theme.wav", [a + b + c + d for a, b, c, d in zip(lead, bass, pad, drums)])
+
+
 def main() -> None:
     print(f"Writing sounds to {OUT}")
     make_effects()
     make_typing_and_story()
     make_knight_sounds()
     make_music()
+    make_knight_music()
 
 
 if __name__ == "__main__":

@@ -148,7 +148,8 @@ class CastReport:
 
     def status_line(self) -> str:
         """The line under the Grimoire page: '11 rows | 4 cast | 7 lost | MP 30 -> 0'."""
-        return (f"{len(self.rows)} rows | {len(self.casts)} cast | {self.overflow} lost | "
+        n = len(self.rows)
+        return (f"{n} row{'' if n == 1 else 's'} | {len(self.casts)} cast | {self.overflow} lost | "
                 f"MP {self.mp_before} -> {self.mp_after}")
 
 
