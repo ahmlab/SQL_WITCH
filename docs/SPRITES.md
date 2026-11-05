@@ -135,14 +135,15 @@ Face of a woman around 30, glasses, brown hair, witch hat cut off by the top edg
 ### 3.4 Battle background: Tutorial Glade (`bg_glade.png`), 320 × 100, no transparency
 
 Night clearing. A sky in horizontal bands from `#1a1423` (top) to `#5b4388` (horizon), a few
-stars, a crescent moon top right. Pine tree line on the horizon (y ≈ 54). Grass in
-`#2e7a4a` / `#5fbf6a`. Two light grass platforms (`#aae696`): one for the Slime around (250, 64)
-and one at the bottom left for Ada. **No characters.** The Grimoire covers from y = 100
-downwards, so nothing important should sit in the bottom 4 px.
+stars, a crescent moon top right. Pine tree line on the horizon (y ≈ 54) in blue-green
+`#1c706c`. Dark grass in `#2e7a4a`: it must stay darker than the Slime (`#5fbf6a`) so the Slime
+stands out. Two shadow patches (`#1c706c`): one for the Slime around (250, 64) and one at the
+bottom left for Ada. **No characters.** The Grimoire covers from y = 100 downwards, so nothing
+important should sit in the bottom 4 px.
 
 > Pixel art night meadow battle background, 320x100 game pixels, horizontal sky bands from
-> very dark purple to violet, few stars, a crescent moon top right, a row of dark green pine
-> trees on the horizon, bright green grass below, two lighter oval grass patches where the
+> very dark purple to violet, few stars, a crescent moon top right, a row of dark blue-green
+> pine trees on the horizon, dark green grass below, two darker oval shadow patches where the
 > fighters stand (one right-centre, one bottom-left). No characters. Pokemon battle style.
 
 ### 3.5 The Grimoire (`grimoire.png`), 320 × 80
@@ -156,8 +157,10 @@ Optional: `ink_drip.png` (3 frames of 4 × 8): a drop of grey ink (`#8a8497`) fa
 
 ### 3.6 Title logo (`logo.png`), about 200 × 40
 
-"SQL WITCH" in thick pixel-art letters, `#ffe08a` with an `#b07020` shadow. Optionally, the
-asterisk of the Slime or a witch hat over the "I". Must read well over the night sky.
+"SQL WITCH" in thick pixel-art letters, `#ffe08a` with an `#b07020` shadow and a dark
+`#1a1423` outline. Letters at least 5 pixels wide, so the W cannot be mistaken for an H.
+Optionally, the asterisk of the Slime or a witch hat over the "I". Must read well over the
+night sky.
 
 ## 4. Later (not needed for the slice)
 

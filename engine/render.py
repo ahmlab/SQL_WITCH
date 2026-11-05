@@ -8,9 +8,10 @@ Text sits on a 4-pixel character grid, so the 146 px right page holds about 36 c
 exactly the PAGE_WIDTH of the Rule of the Page. It is monospaced on purpose: character counts
 and pixels then always agree. The letters themselves are drawn at the window's real resolution
 with a 5x7 font (see Canvas), which keeps them sharp and legible at any scale; the chunky
-3x5 font is kept for big titles and for surfaces that are not the main canvas.
+3x5 font is kept for surfaces that are not the main canvas. Small print packs the same 5x7
+letters on a 3-pixel grid, and big titles draw them as blocks of pixel art.
 
-STATUS: canvas, scaling, palette, sharp text layer (5x7) and chunky 3x5 font, helpers.
+STATUS: canvas, scaling, palette, sharp text layer (5x7), small print, big titles, helpers.
 """
 
 from __future__ import annotations
@@ -71,6 +72,10 @@ ELEMENT_COLOURS = {
 GLYPH_W, GLYPH_H = 3, 6          # 5 rows above the baseline + 1 descender row
 ADVANCE = GLYPH_W + 1            # one pixel of space between characters
 LINE_H = GLYPH_H + 1
+
+# Small print: for text that must stay out of the way (the guardian's book). Its letters keep
+# the height of normal text; only their width and the space between them shrink.
+SMALL_ADVANCE, SMALL_LINE_H = 3, 6
 
 # Each glyph: rows top to bottom, '#' = ink. Rows missing at the end are blank.
 _GLYPHS = {
@@ -228,12 +233,12 @@ _UNKNOWN_5X7 = ["#####", "#...#", "#...#", "#...#", "#...#", "#...#", "#####"]
 FINE_W, FINE_H, FINE_CAP = 5, 9, 7
 
 
-def fine_pixel(k: int) -> int:
+def fine_pixel(k: int, cell: int = ADVANCE) -> int:
     """Size in screen pixels of one dot of the 5x7 font at window scale k.
     It stays a whole number (crisp) and the letter, bold stroke included, keeps at least one
-    pixel of space inside its 4k-pixel cell."""
+    pixel of space inside its cell (4k pixels wide, or 3k for small print)."""
     dot = max(1, round(k * 0.6))
-    while dot > 1 and 5 * dot + bold_px(dot) > 4 * k - 1:
+    while dot > 1 and 5 * dot + bold_px(dot) > cell * k - 1:
         dot -= 1
     return dot
 
@@ -241,6 +246,19 @@ def fine_pixel(k: int) -> int:
 def bold_px(dot: int) -> int:
     """Strokes are widened by half a dot: thin 1-dot strokes are hard to read when small."""
     return max(1, dot // 2)
+
+
+def small_print_dots(k: int) -> tuple[int, int, int]:
+    """(dot width, dot height, bold) of small print at window scale k.
+    The width must fit the 3k-pixel cell; the height stays that of normal text as long as
+    the letter, descender included, fits its line. On small windows the letters are therefore
+    narrower than tall, instead of shrinking to half their size."""
+    dot_x = fine_pixel(k, SMALL_ADVANCE)
+    dot_y = max(dot_x, min(fine_pixel(k), SMALL_LINE_H * k // FINE_H))
+    bold = bold_px(dot_x)
+    if 5 * dot_x + bold > SMALL_ADVANCE * k - 1:      # tiny windows: no room for the bold stroke
+        bold = 0
+    return dot_x, dot_y, bold
 
 
 class Canvas(pygame.Surface):
@@ -260,7 +278,7 @@ class Canvas(pygame.Surface):
 
     def texts(self) -> list[str]:
         """Every string drawn this frame (handy for tests)."""
-        return [op[1] for op in self.ops if op[0] == "text"]
+        return [op[1] for op in self.ops if op[0] in ("text", "small")]
 
 
 class PixelFont:
@@ -277,40 +295,76 @@ class PixelFont:
                                            colour, 1)
         return self._cache[key]
 
-    def fine_glyph(self, char: str, colour: tuple, dot: int) -> pygame.Surface:
-        key = ("hi", char, tuple(colour), dot)
+    def fine_glyph(self, char: str, colour: tuple, dot: int, dot_y: int | None = None,
+                   bold: int | None = None) -> pygame.Surface:
+        """A 5x7 letter with dot x dot_y screen pixels per dot (narrower for small print)."""
+        dot_y = dot if dot_y is None else dot_y
+        bold = bold_px(dot) if bold is None else bold
+        key = ("hi", char, tuple(colour), dot, dot_y, bold)
         if key not in self._cache:
             self._cache[key] = self._build(_GLYPHS_5X7.get(char, _UNKNOWN_5X7), FINE_W,
-                                           FINE_H, colour, dot, bold_px(dot))
+                                           FINE_H, colour, dot, bold, dot_y)
         return self._cache[key]
 
     @staticmethod
-    def _build(rows, w, h, colour, dot, bold=0) -> pygame.Surface:
-        surface = pygame.Surface((w * dot + bold, h * dot), pygame.SRCALPHA)
+    def _build(rows, w, h, colour, dot, bold=0, dot_y=None) -> pygame.Surface:
+        dot_y = dot if dot_y is None else dot_y
+        surface = pygame.Surface((w * dot + bold, h * dot_y), pygame.SRCALPHA)
         for y, row in enumerate(rows):
             for x, bit in enumerate(row):
                 if bit == "#":
-                    surface.fill(colour, (x * dot, y * dot, dot + bold, dot))
+                    surface.fill(colour, (x * dot, y * dot_y, dot + bold, dot_y))
         return surface
 
-    def width(self, text: str, scale: int = 1) -> int:
-        return max(0, len(text) * ADVANCE - 1) * scale
+    def width(self, text: str, scale: int = 1, small: bool = False) -> int:
+        advance = SMALL_ADVANCE if small else ADVANCE
+        return max(0, len(text) * advance - 1) * scale
 
     def draw(self, surface: pygame.Surface, text: str, pos: tuple[float, float],
-             colour: tuple, scale: int = 1, shadow: tuple | None = None) -> int:
+             colour: tuple, scale: int = 1, shadow: tuple | None = None,
+             small: bool = False) -> int:
         """Draw text with its top-left at pos. Returns the width drawn, in logical pixels."""
         x, y = snap(pos[0]), snap(pos[1])
         if shadow is not None:
-            self.draw(surface, text, (x, y + scale), shadow, scale)   # drop shadow
+            self.draw(surface, text, (x, y + scale), shadow, scale, small=small)  # drop shadow
         if isinstance(surface, Canvas) and scale == 1:
-            surface.ops.append(("text", text, x, y, tuple(colour), surface.get_clip()))
-            return self.width(text)
+            kind = "small" if small else "text"
+            surface.ops.append((kind, text, x, y, tuple(colour), surface.get_clip()))
+            return self.width(text, small=small)
+        advance = SMALL_ADVANCE if small else ADVANCE
         for i, char in enumerate(text):
             glyph = self.glyph(char, colour)
             if scale != 1:
                 glyph = pygame.transform.scale(glyph, (GLYPH_W * scale, GLYPH_H * scale))
-            surface.blit(glyph, (x + i * ADVANCE * scale, y))
-        return self.width(text, scale)
+            surface.blit(glyph, (x + i * advance * scale, y))
+        return self.width(text, scale, small)
+
+    # Big titles use the detailed 5x7 letters as pixel art, each dot a dot x dot block.
+    # The 3x5 letters scaled up are too coarse for a title: their W and H differ by one pixel.
+
+    @staticmethod
+    def big_width(text: str, dot: int) -> int:
+        return max(0, len(text) * (FINE_W + 1) - 1) * dot
+
+    def draw_big(self, surface: pygame.Surface, text: str, pos: tuple[float, float],
+                 colour: tuple, dot: int = 3, shadow: tuple | None = None,
+                 outline: tuple | None = None) -> int:
+        """Draw a title with its top-left at pos, straight into the pixel art. A one-pixel
+        outline keeps it readable over any backdrop; the shadow sits one pixel below it."""
+        x, y = snap(pos[0]), snap(pos[1])
+        if outline is not None:
+            for dx, dy in ((-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (1, 1),
+                           (-1, 2), (0, 2), (1, 2)):
+                self.draw_big(surface, text, (x + dx, y + dy), outline, dot)
+        if shadow is not None:
+            self.draw_big(surface, text, (x, y + 1), shadow, dot)
+        for i, char in enumerate(text):
+            key = ("big", char, tuple(colour), dot)
+            if key not in self._cache:
+                self._cache[key] = self._build(_GLYPHS_5X7.get(char, _UNKNOWN_5X7), FINE_W,
+                                               FINE_H, colour, dot)
+            surface.blit(self._cache[key], (x + i * (FINE_W + 1) * dot, y))
+        return self.big_width(text, dot)
 
 
 _FONT: PixelFont | None = None
@@ -330,12 +384,14 @@ def snap(value: float) -> int:
 
 
 def draw_coloured(surface: pygame.Surface, text: str, colours: list[tuple],
-                  pos: tuple[int, int]) -> None:
+                  pos: tuple[int, int], small: bool = False) -> None:
     """Draw text where each character has its own colour (syntax colouring), in runs."""
     f, x, start = font(), pos[0], 0
+    advance = SMALL_ADVANCE if small else ADVANCE
     for i in range(1, len(text) + 1):
         if i == len(text) or colours[i] != colours[start]:
-            f.draw(surface, text[start:i], (x + start * ADVANCE, pos[1]), colours[start])
+            f.draw(surface, text[start:i], (x + start * advance, pos[1]), colours[start],
+                   small=small)
             start = i
 
 
@@ -355,6 +411,8 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
     f = font()
     dot = fine_pixel(k)
     dy = (GLYPH_H - 1) * k // 2 - FINE_CAP * dot // 2      # centre the 5x7 cap on the old one
+    small_dots = small_print_dots(k)
+    small_dy = max(0, (SMALL_LINE_H * k - FINE_H * small_dots[1]) // 2)   # centred in its line
     for op in ops:
         clip = op[-1]
         frame.set_clip(pygame.Rect(clip.x * k, clip.y * k, clip.w * k, clip.h * k))
@@ -364,13 +422,17 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
             box.fill(rgba)
             frame.blit(box, (rect.x * k, rect.y * k))
             continue
-        _, text, x, y, colour, _ = op
+        kind, text, x, y, colour, _ = op
+        small = kind == "small"
+        advance, top = (SMALL_ADVANCE, small_dy) if small else (ADVANCE, dy)
         for i, char in enumerate(text):
-            cx = (x + i * ADVANCE) * k
+            cx = (x + i * advance) * k
             if k == 1:                                       # no room for detail at 1x
                 frame.blit(f.glyph(char, colour), (cx, y))
+            elif small:
+                frame.blit(f.fine_glyph(char, colour, *small_dots), (cx, y * k + top))
             else:
-                frame.blit(f.fine_glyph(char, colour, dot), (cx, y * k + dy))
+                frame.blit(f.fine_glyph(char, colour, dot), (cx, y * k + top))
     frame.set_clip(None)
 
 

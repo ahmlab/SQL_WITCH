@@ -144,6 +144,12 @@ class Game:
 
 # ------------------------------------------------------------------ shared scenery
 
+# The glade's colours. The ground is darker than the Slime (render.GRASS), so it stands out,
+# and the trees are a night blue-green, so the tree line still reads against the grass.
+TREES, GRASS_EDGE, GRASS_FIELD = render.TEAL, render.TEAL, render.FOREST
+GROUND_SHADOW = render.TEAL       # shadows on the grass are darker than the grass
+
+
 def draw_backdrop(canvas: pygame.Surface, ground_y: int = 60) -> None:
     """Night sky in bands, a few stars, the moon and the grass of the Tutorial Glade."""
     bands = [(0, render.INK), (12, render.NIGHT), (28, render.DUSK), (44, render.VIOLET)]
@@ -156,10 +162,10 @@ def draw_backdrop(canvas: pygame.Surface, ground_y: int = 60) -> None:
     pygame.draw.circle(canvas, render.BUTTER, (292, 14), 7)
     pygame.draw.circle(canvas, render.NIGHT, (296, 12), 6)  # the moon's shadow side
     for x in range(0, render.LOGICAL_W, 8):                # a jagged tree line
-        pygame.draw.polygon(canvas, render.FOREST,
+        pygame.draw.polygon(canvas, TREES,
                             [(x, ground_y), (x + 4, ground_y - 6 - (x // 8) % 3), (x + 8, ground_y)])
-    pygame.draw.rect(canvas, render.FOREST, (0, ground_y, render.LOGICAL_W, 180 - ground_y))
-    pygame.draw.rect(canvas, render.GRASS, (0, ground_y + 4, render.LOGICAL_W, 180 - ground_y))
+    pygame.draw.rect(canvas, GRASS_EDGE, (0, ground_y, render.LOGICAL_W, 180 - ground_y))
+    pygame.draw.rect(canvas, GRASS_FIELD, (0, ground_y + 4, render.LOGICAL_W, 180 - ground_y))
 
 
 def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: bool,
@@ -186,6 +192,8 @@ def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
 
 # ------------------------------------------------------------------ title
 
+TITLE_DOT = 3                     # big titles: each dot of a 5x7 letter is a 3x3 block
+
 class TitleScene(Scene):
     def handle(self, event):
         if is_confirm_key(event):
@@ -200,15 +208,15 @@ class TitleScene(Scene):
         f = render.font()
         draw_backdrop(canvas, ground_y=120)
         title = "SQL WITCH"
-        f.draw(canvas, title, ((320 - f.width(title, 4)) // 2, 40), render.BUTTER, scale=4,
-               shadow=render.AMBER)
+        f.draw_big(canvas, title, ((320 - f.big_width(title, TITLE_DOT)) // 2, 38),
+                   render.BUTTER, TITLE_DOT, shadow=render.AMBER, outline=render.INK)
         sub = "a turn-based RPG where your queries are spells"
         f.draw(canvas, sub, ((320 - f.width(sub)) // 2, 74), render.LILAC)
         if (self.time // 500) % 2 == 0:
             prompt = "press ENTER"
             f.draw(canvas, prompt, ((320 - f.width(prompt)) // 2, 140), render.WHITE,
-                   shadow=render.FOREST)
-        f.draw(canvas, f"seed {self.game.seed}", (4, 172), render.FOREST)
+                   shadow=render.INK)
+        f.draw(canvas, f"seed {self.game.seed}", (4, 172), render.GRASS)
 
 
 # ------------------------------------------------------------------ dialogue
@@ -296,7 +304,7 @@ class DialogueScene(Scene):
                 book_at = self.BOOK_AT if name == "glade" else (130, 64)
                 scenery.draw_book(canvas, book_at, self.time,
                                   self.time - self.book_born, speaking,
-                                  shadow=render.FOREST if name == "glade" else render.SLATE)
+                                  shadow=GROUND_SHADOW if name == "glade" else render.SLATE)
             if self.line.get("slime"):
                 draw_slime(canvas, (262, 96), self.time, False, False, False)
             if self.line.get("knight"):
@@ -792,7 +800,7 @@ class BattleScene(Scene):
         else:
             draw_backdrop(canvas)
             home = HOME[self.key]
-            pygame.draw.ellipse(canvas, render.MINT, (home[0] - 28, home[1] + 12, 56, 10))
+            pygame.draw.ellipse(canvas, GROUND_SHADOW, (home[0] - 28, home[1] + 12, 56, 10))
             draw_slime(canvas, self.foe_xy(), self.time, flash, state.foe.exhausted, fainted)
         # Seen from behind, standing at the bottom left of the battlefield.
         draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0)
@@ -975,8 +983,9 @@ class ResultScene(Scene):
         f = render.font()
         draw_backdrop(canvas, ground_y=150)
         headline = "VICTORY" if self.won else "DEFEAT"
-        f.draw(canvas, headline, ((320 - f.width(headline, 4)) // 2, 16),
-               render.BUTTER if self.won else render.RED, scale=4, shadow=render.INK)
+        colour, shade = (render.BUTTER, render.AMBER) if self.won else (render.RED, render.WINE)
+        f.draw_big(canvas, headline, ((320 - f.big_width(headline, TITLE_DOT)) // 2, 14),
+                   colour, TITLE_DOT, shadow=shade, outline=render.INK)
         outcome = "victory" if self.won else "defeat"
         lines = self.game.dialogue.get(f"{self.key}_{outcome}", self.game.dialogue[outcome])
         y = 52
@@ -1008,4 +1017,4 @@ class ResultScene(Scene):
             prompt = "ENTER try again    ESC quit"
         if (self.time // 500) % 2 == 0:
             f.draw(canvas, prompt, ((320 - f.width(prompt)) // 2, 166), render.WHITE,
-                   shadow=render.FOREST)
+                   shadow=render.INK)
