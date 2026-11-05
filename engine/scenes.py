@@ -145,6 +145,8 @@ def draw_backdrop(canvas: pygame.Surface, ground_y: int = 60) -> None:
     bands = [(0, render.INK), (12, render.NIGHT), (28, render.DUSK), (44, render.VIOLET)]
     for y, colour in bands:
         pygame.draw.rect(canvas, colour, (0, y, render.LOGICAL_W, ground_y - y))
+    for y, _ in bands[1:]:                             # one separator per colour change
+        pygame.draw.line(canvas, render.INK, (0, y - 1), (render.LOGICAL_W - 1, y - 1))    
     for i in range(24):                                    # stars on a fixed pattern
         canvas.set_at(((i * 53 + 17) % 320, (i * 29 + 5) % 40), render.LILAC)
     pygame.draw.circle(canvas, render.BUTTER, (292, 14), 7)

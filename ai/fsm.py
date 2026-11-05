@@ -111,7 +111,7 @@ PLAN_MOOD = {"splat": "overcast", "catch_breath": "wobble", "pant": "exhausted",
 
 
 class SlimeBrain(GuardianBrain):
-    technique = "probabilistic FSM + goals (Millington ch. 5, Buckland ch. 9)"
+    technique = "probabilistic FSM + goals"
     start_mode = "opening"
 
     def __init__(self, costs: dict[str, int] | None = None, start: str | None = None):
