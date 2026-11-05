@@ -1,0 +1,45 @@
+{
+  "intro": [
+    {"scene": "office", "sleep": 0, "speaker": "", "text": "11:58 pm. The quarterly report is still running."},
+    {"scene": "office", "sleep": 1, "speaker": "Ada", "text": "Nobody reads these dashboards anyway. SQL is just... busywork."},
+    {"scene": "office", "sleep": 2, "speaker": "Ada", "text": "I'll just close my eyes... until it reaches 100%..."},
+    {"scene": "office", "sleep": 3, "speaker": "", "text": "The progress bar stops at 99%. So does Ada's heart.", "sound": "flatline"},
+    {"scene": "void", "speaker": "", "text": "..."},
+    {"scene": "glade", "speaker": "Ada", "text": "Grass? Why is the sky a table? Why does it have so many columns?"},
+    {"scene": "glade", "book": true, "sound": "book", "speaker": "Grimoire", "text": "Welcome to the Kingdom of Codd, witch. Here the world is a database, and magic is querying."},
+    {"scene": "glade", "book": true, "speaker": "Ada", "text": "A... talking book?"},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Your Grimoire. Write a query on my left page. Every row that names a spell will cast it."},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "But my right page holds only four rows. You pay for every spell you summon..."},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "...and only the rows you can read take effect."},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Never written a query? In battle, press F3 or click GUIDE: I will show you what to write, and how to read my pages."},
+    {"scene": "glade", "book": true, "speaker": "Ada", "text": "So SELECT * is... a bad idea?"},
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "Ask the slime."},
+    {"scene": "glade", "book": true, "slime": true, "speaker": "", "text": "Something round and green wobbles out of the bushes: the ASTERISK SLIME!"}
+  ],
+  "battle_tip": "New to SQL? Press F3 for the spell guide.",
+  "victory": [
+    "The Asterisk Slime melts into a puddle of rows.",
+    "Ada: One word. LIMIT. And the page behaves."
+  ],
+  "defeat": [
+    "Ada's HP hits zero. The Slime wobbles triumphantly.",
+    "Grimoire: Even the best witches overflow sometimes. Again?"
+  ],
+  "knight_intro": [
+    {"scene": "glade", "book": true, "speaker": "Grimoire", "text": "LIMIT is yours, witch. The next guardian is not beaten with fewer spells, but with the right ones."},
+    {"scene": "keep", "book": true, "speaker": "", "text": "The Filter Keep. Its gate opens only for what is relevant."},
+    {"scene": "keep", "book": true, "knight": true, "sound": "ward_up", "speaker": "Sir Wherewell", "text": "Halt! I am Sir Wherewell, Knight of the Filter. My Ward of Relevance stops every spell that does not matter."},
+    {"scene": "keep", "book": true, "knight": true, "speaker": "Sir Wherewell", "text": "Only a spell of the element I am weak to can get through. Do you know which one, witch?"},
+    {"scene": "keep", "book": true, "knight": true, "speaker": "Ada", "text": "I know dozens of spells now. How do I cast only the right ones?"},
+    {"scene": "keep", "book": true, "knight": true, "speaker": "Grimoire", "text": "Look at him first with SELECT * FROM enemies and find his weakness. Then watch his book: he never casts without WHERE."}
+  ],
+  "knight_victory": [
+    "Sir Wherewell kneels and opens the gate.",
+    "Ada: WHERE. Ask only for what you need."
+  ],
+  "knight_defeat": [
+    "Ada's HP hits zero. The Knight lowers his blade.",
+    "Grimoire: Spells that are not super-effective bounce off. Filter for his weakness."
+  ],
+  "end_of_slice": "End of the vertical slice. Thank you for playing!"
+}
