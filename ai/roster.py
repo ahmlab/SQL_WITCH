@@ -4,7 +4,7 @@ Each Guardian bundles what a battle needs: which foe row, Ada's level for the fi
 brain, the SQL style, the runes the guardian can write and the one it teaches.
 Never imports pygame.
 
-STATUS: the Asterisk Slime and Sir Wherewell.
+STATUS: the Asterisk Slime, Sir Wherewell and the tutorial's Training Dummy.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from ai.dummy import DummyBrain, render_dummy
 from ai.fsm import SlimeBrain
 from ai.knight import ACTION_SPELLS, KnightBrain
 from ai.styles import (KNIGHT_RUNES, KNIGHT_SIGNATURE, SLIME_RUNES, SLIME_SIGNATURE,
@@ -50,8 +51,12 @@ GUARDIANS = {
                       render_slime, _slime_brain),
     "knight": Guardian("knight", 2, 2, frozenset(KNIGHT_RUNES), KNIGHT_SIGNATURE,
                        frozenset({"LIMIT"}), render_knight, _knight_brain),
+    # The tutorial's partner. It teaches no rune (an empty signature never matches a query's
+    # runes), so Ada leaves the tutorial knowing exactly what she knew before.
+    "dummy": Guardian("dummy", 3, 1, frozenset(), "", frozenset(), render_dummy,
+                      lambda conn: DummyBrain()),
 }
-ORDER = ["slime", "knight"]
+ORDER = ["slime", "knight"]                 # the story's fights; the dummy is not one of them
 
 
 def next_guardian(key: str) -> str | None:

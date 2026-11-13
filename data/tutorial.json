@@ -9,7 +9,12 @@
     "- 'dummy' is the Training Dummy's speech bubble: 2 lines of 26 characters.",
     "- 'keys' is the reminder at the bottom of the book: 76 characters.",
     "- a quest 'label' is one checklist line: 42 characters.",
-    "- {rows} {cast} {lost} {mp_before} {mp_after} {rune} are filled in by the game.",
+    "- {rows} {cast} {lost} {page} {mp_before} {mp_after} {rune} are filled in by the game.",
+    "",
+    "A LESSON, IN ORDER",
+    "- intro: the Grimoire talks.  Then it types 'example' itself and casts it (the demo).",
+    "- demo_after: it explains its own result.  task: the player writes the same query.",
+    "- success: what it says when the player's query met the 'goal'.",
     "",
     "GHOST (how much of 'example' the page offers as faded text)",
     "- full: the whole query, TAB writes it.   keywords: only SELECT and FROM.",
@@ -47,23 +52,20 @@
       "ghost": "full",
       "keys": "TAB writes the faded text     CTRL+ENTER casts it",
       "intro": [
-        {"say": "A query asks a table for its rows. Watch me ask the table called witch."}
+        {"say": "A query asks a table for its rows. Watch me ask the table called enemies."}
       ],
-      "demo": {
-        "query": "SELECT * FROM witch",
-        "after": [
-          {"say": "One row, one creature: that is you. Each column is one fact about you.",
-           "point": "row:0"}
-        ]
-      },
-      "task": {"say": "Your turn. Look at the dummy:", "write": "SELECT * FROM enemies"},
       "example": "SELECT * FROM enemies",
+      "demo_after": [
+        {"say": "One row, one creature: the dummy. Each column is one fact about it.",
+         "point": "row:0", "dummy": "Take a picture. It lasts longer."}
+      ],
+      "task": {"say": "Your turn. Write the same query:", "write": "SELECT * FROM enemies"},
       "goal": {"look": true, "from": "enemies"},
       "restate": "Ask the table enemies for everything:",
       "off_goal": "A real query! But I asked for the dummy:",
       "success": [
-        {"say": "There it is: one row, one dummy. You just wrote your first query.",
-         "point": "row:0", "dummy": "Take a picture. It lasts longer."}
+        {"say": "There it is again, and this time you asked. Your first query!",
+         "point": "row:0"}
       ]
     },
     {
@@ -75,16 +77,13 @@
         {"say": "My page is narrow: a wide row gets cut at the right edge. So ask for less.",
          "point": "right_edge"}
       ],
-      "demo": {
-        "query": "SELECT name, hp FROM witch",
-        "after": [
-          {"say": "Two names after SELECT, a comma between them: two columns on the page.",
-           "point": "header"}
-        ]
-      },
-      "task": {"say": "Now find what the dummy is weak to:",
-               "write": "SELECT name, weakness FROM enemies"},
       "example": "SELECT name, weakness FROM enemies",
+      "demo_after": [
+        {"say": "Two names after SELECT, a comma between them: two columns on the page.",
+         "point": "header"}
+      ],
+      "task": {"say": "Your turn. Find what the dummy is weak to:",
+               "write": "SELECT name, weakness FROM enemies"},
       "goal": {"look": true, "from": "enemies", "visible": ["weakness"]},
       "restate": "Two columns from enemies, name and weakness:",
       "off_goal": "Good look! But its weakness is not there:",
@@ -100,19 +99,16 @@
       "keys": "CTRL+ENTER casts it     ESC skips the tutorial",
       "reveal": ["ada_panel"],
       "intro": [
-        {"say": "Two looks, and your MP has not moved. Looking is free. So read before you act.",
+        {"say": "All those looks, and your MP has not moved. Looking is free. Read before you act.",
          "point": "mp_bar"}
       ],
-      "demo": {
-        "query": "SELECT kind, amount FROM items",
-        "after": [
-          {"say": "Your satchel. I left out the column name on purpose. You will soon see why.",
-           "point": "header"}
-        ]
-      },
-      "task": {"say": "Read your spells: ask the table spells for element, power and mp_cost."},
-      "hint": "columns: element, power, mp_cost   table: spells",
       "example": "SELECT element, power, mp_cost FROM spells",
+      "demo_after": [
+        {"say": "Your spells. None of them fired: I left out the name column on purpose.",
+         "point": "header"}
+      ],
+      "task": {"say": "Your turn. Read three columns of your spells:"},
+      "hint": "columns: element, power, mp_cost   table: spells",
       "goal": {"look": true, "from": "spells", "visible": ["element"]},
       "restate": "Three columns from the table spells:",
       "off_goal": "Nice, but I want to see each spell's element:",
@@ -128,28 +124,27 @@
       "keys": "CTRL+ENTER casts it     ESC skips the tutorial",
       "reveal": ["foe_panel", "status"],
       "intro": [
-        {"say": "Now the magic. A row that carries a name does not just show it. Watch."}
+        {"say": "Now the magic. A row that carries a spell's name casts that spell. Watch."}
       ],
-      "demo": {
-        "query": "SELECT name FROM items",
-        "after": [
-          {"say": "You drank an Ether and ate a Herb. A name on my page is a trigger.",
-           "point": "cast_rows", "dummy": "Two potions, zero thirst. Bravo."}
-        ]
-      },
-      "task": {"say": "Attack the dummy: ask the table spells for its name column."},
       "example": "SELECT name FROM spells",
+      "demo_after": [
+        {"say": "{cast} spells fired, and Fire hit twice as hard. But read the rest.",
+         "point": "cast_rows", "dummy": "Ow. Ow. Ow. Ow. In that order."},
+        {"say": "My page holds {page} rows. The other {lost} fell off the bottom and fizzled.",
+         "point": "cut_row"},
+        {"say": "Yet I paid for all {rows}: MP {mp_before} to {mp_after}. That is the Rule of the Page.",
+         "point": "status"},
+        {"say": "Here, I refill your mana. Guardians will not be so kind.",
+         "point": "mp_bar", "refill": true}
+      ],
+      "task": {"say": "Your turn. Attack the dummy: ask the table spells for its name column."},
       "goal": {"spells_cast": 1},
       "restate": "Spell names are triggers. Ask for them:",
       "off_goal": "Nothing hit the dummy. Ask spells for name:",
       "success": [
-        {"say": "{cast} spells fired, and Fire hit twice as hard. But read the rest.",
-         "point": "cast_rows", "dummy": "Ow. Ow. Ow. Ow. In that order."},
-        {"say": "My page holds 4 rows. The other {lost} fell off the bottom and fizzled.",
-         "point": "cut_row"},
-        {"say": "Yet you paid for all {rows}: MP {mp_before} to {mp_after}. That is the Rule of the Page.",
-         "point": "status"},
-        {"say": "Here, I refill your mana. Guardians will not be so kind.",
+        {"say": "Real magic! And you overflowed the page, like every witch on day one.",
+         "point": "cut_row", "dummy": "My straw! My only straw!"},
+        {"say": "{cast} hit, {lost} fizzled, {rows} paid for. I refill your mana once more.",
          "point": "mp_bar", "refill": true}
       ]
     }
@@ -196,11 +191,13 @@
     "miscast": "No harm done: a miscast is free. Try this:",
     "locked_rune": "Good instinct! A guardian teaches {rune}.",
     "enter": "ENTER makes a new line. CTRL+ENTER casts.",
+    "cast_hint": "CTRL+ENTER casts it",
     "cast_too_early": "Oops: those names fired spells! That is next.",
     "ghost_word": "Follow the faded word: TAB takes it.",
     "offer": "Stuck? Press TAB and I will write it with you.",
     "refill": "I refill your mana. In here it is free.",
     "practice_miscast": "No harm done. Read the red note and try again.",
+    "looks_spent": "A turn has 3 free looks. In here, have more.",
     "skip": "Skip the tutorial?  ENTER: skip   ESC: stay",
     "continue": "ENTER"
   },

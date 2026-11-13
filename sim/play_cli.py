@@ -12,7 +12,7 @@ import argparse
 import time
 from typing import Callable
 
-from ai.roster import GUARDIANS
+from ai.roster import ORDER
 from magic.battle import Battle, FoeTurn
 from magic.cast import PAGE_ROWS, CastReport, cell_text, column_widths, effect_word
 from magic.guard import Miscast
@@ -240,7 +240,7 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
 def main(argv: list[str] | None = None, read: Callable[[str], str] = input,
          out: Out = print) -> int:
     parser = argparse.ArgumentParser(description="SQL Witch: fight a guardian in SQL.")
-    parser.add_argument("--foe", choices=sorted(GUARDIANS), default="slime",
+    parser.add_argument("--foe", choices=sorted(ORDER), default="slime",
                         help="which guardian to fight (default: slime)")
     parser.add_argument("--seed", type=int, default=None,
                         help="random seed; the same seed replays the same battle")
