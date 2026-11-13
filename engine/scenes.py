@@ -365,7 +365,7 @@ KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
 ADA_AT = (24, 58)                                   # where bolts and numbers start/land
 ADA_FEET = (42, 100)                                # battle: on the grass, above the Grimoire
 ADA_STANDING = (60, 114)                            # story scenes: standing on the grass
-HOME = {"slime": (250, 50), "knight": (252, 46)}   # each guardian's post
+HOME = {"slime": (250, 50), "knight": (252, 46), "dummy": (266, 54)}   # each foe's post
 FRONT = (182, 56)                                   # the striking spot, closer to Ada
 ARENA = pygame.Rect(176, 36, 122, 30)               # where a guardian may walk (clear of panels)
 ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
@@ -373,12 +373,15 @@ ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
 
 class BattleScene(Scene):
     WAIT_MS = 350                          # a short breath between turns
+    FOE_PANEL = pygame.Rect(4, 3, 120, 20)
+    ADA_PANEL = pygame.Rect(196, 70, 120, 27)
 
-    def __init__(self, game, guardian: str = "slime"):
+    def __init__(self, game, guardian: str = "slime", battle: Battle | None = None):
         super().__init__(game)
         self.key = guardian
         runes = set(game.runes) | set(GUARDIANS[guardian].ada_runes)
-        self.battle = Battle(seed=game.seed, guardian=guardian, ada_runes=runes)
+        # A scene may be handed its battle (the tutorial runs its own); otherwise a new one.
+        self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes)
         # The guardian's body on screen, steered towards whatever its brain orders.
         home = steering.Vec(*HOME[guardian])
         self.body = steering.Kinematic(home, max_speed=75 if guardian == "knight" else 55)
@@ -810,14 +813,7 @@ class BattleScene(Scene):
         draw_foe_book(canvas, state.foe.name, self.foe_sql, self.foe_report, glow_word, self.time)
         self._draw_ada_panel(canvas)
 
-        if self.beat is not None and self.beat.text:
-            box = pygame.Rect(64, 80, 128, 17)
-            render.panel(canvas, box)
-            for i, line in enumerate(wrap(self.beat.text, 30)[:2]):
-                f.draw(canvas, line, (box.x + 4, box.y + 3 + i * render.LINE_H), render.INK)
-        for p in self.popups:
-            f.draw(canvas, p.text, (p.pos[0] - f.width(p.text) // 2, p.pos[1] - p.age // 60),
-                   p.colour, shadow=render.INK)
+        self._draw_narration(canvas)
 
         self.grimoire.draw(canvas, self.time, focused=self.phase == "input")
         self._draw_page_heat(canvas)
@@ -829,6 +825,18 @@ class BattleScene(Scene):
         if self.game.debug:
             self._draw_debug(canvas)
         self.guide.draw(canvas, self.time)
+
+    def _draw_narration(self, canvas):
+        """The current beat in its little box, and the floating damage numbers."""
+        f = render.font()
+        if self.beat is not None and self.beat.text:
+            box = pygame.Rect(64, 80, 128, 17)
+            render.panel(canvas, box)
+            for i, line in enumerate(wrap(self.beat.text, 30)[:2]):
+                f.draw(canvas, line, (box.x + 4, box.y + 3 + i * render.LINE_H), render.INK)
+        for p in self.popups:
+            f.draw(canvas, p.text, (p.pos[0] - f.width(p.text) // 2, p.pos[1] - p.age // 60),
+                   p.colour, shadow=render.INK)
 
     def _draw_tables_button(self, canvas):
         f = render.font()
@@ -888,10 +896,12 @@ class BattleScene(Scene):
 
     def _draw_foe_panel(self, canvas):
         f, foe = render.font(), self.battle.state.foe
-        box = pygame.Rect(4, 3, 120, 20)
+        box = pygame.Rect(self.FOE_PANEL)
         render.panel(canvas, box)
         f.draw(canvas, foe.name.upper(), (box.x + 4, box.y + 3), render.INK)
-        f.draw(canvas, f"Lv{ORDER.index(self.key) + 1}", (box.right - 16, box.y + 3), render.SLATE)
+        if self.key in ORDER:                      # the training dummy has no level
+            f.draw(canvas, f"Lv{ORDER.index(self.key) + 1}", (box.right - 16, box.y + 3),
+                   render.SLATE)
         f.draw(canvas, "HP", (box.x + 4, box.y + 11), render.AMBER)
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 11, 100, 5),
                      round(self.bars["foe"][0]), foe.max_hp, render.GOLD)
@@ -903,7 +913,7 @@ class BattleScene(Scene):
 
     def _draw_ada_panel(self, canvas):
         f, ada = render.font(), self.battle.state.ada
-        box = pygame.Rect(196, 70, 120, 27)
+        box = pygame.Rect(self.ADA_PANEL)
         render.panel(canvas, box)
         hp, mp = round(self.bars["ada"][0]), round(self.bars["ada"][1])
         f.draw(canvas, "ADA", (box.x + 4, box.y + 3), render.INK)

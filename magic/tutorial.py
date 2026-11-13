@@ -279,9 +279,13 @@ def ghost_text(example: str, typed: str, mode: str) -> tuple[str, bool]:
     if any(w.isalpha() and w.islower() and any(k.lower().startswith(w) for k in GHOST_KEYWORDS)
            for w in have):
         rest = [w.lower() if w in GHOST_KEYWORDS else w for w in rest]
-    if mode == "keywords":
-        rest = rest[:1] if rest and not partial and rest[0].upper() in GHOST_KEYWORDS else []
-        partial = ""
+    if mode == "keywords":                  # finish or offer a keyword, never a name
+        if partial:
+            rest = []
+            if want[len(have) - 1].upper() not in GHOST_KEYWORDS:
+                partial = ""
+        else:
+            rest = rest[:1] if rest and rest[0].upper() in GHOST_KEYWORDS else []
     elif mode == "word":
         rest = [] if partial else rest[:1]
     elif mode != "full":
@@ -658,12 +662,11 @@ class Tutorial:
         """The player chose to skip: the tutorial ends at once."""
         if self.phase == "done":
             return
-        if self.lesson is not None:
-            self._record("skipped")
+        self._record("skipped")
         self.phase, self.step, self.coach = "done", None, None
 
     def _record(self, result: str) -> None:
         self.records.append({
-            "lesson": self.lesson["id"], "result": result, "seconds": round(self._ms / 1000, 1),
+            "lesson": self.lesson["id"] if self.lesson else "opening", "result": result, "seconds": round(self._ms / 1000, 1),
             "miscasts": self._miscasts, "off_goal": self._off_goal,
             "hint_level": self._level, "queries": list(self._queries), "seed": self.seed})

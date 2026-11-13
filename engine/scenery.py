@@ -281,6 +281,37 @@ def draw_book(canvas: pygame.Surface, centre: tuple[int, int], t: int, age: int,
 
 # ------------------------------------------------------------------ the Filter Keep
 
+def draw_dummy(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: bool) -> None:
+    """The Training Dummy: a straw sack on a post, a painted target, stitched eyes.
+    When hit it flashes and rocks on its post."""
+    cx, cy = centre
+    rock = (-1, 1, -1, 0)[(t // 60) % 4] if flash else 0
+    straw, sack, wood, rope = ((render.WHITE,) * 4 if flash else
+                               (render.BUTTER, render.SAND, render.BARK, render.LEATHER))
+    pygame.draw.rect(canvas, wood, (cx - 1, cy + 4, 3, 13))                 # the post
+    pygame.draw.rect(canvas, wood, (cx - 6, cy + 16, 13, 2))                # its foot
+    cx += rock
+    pygame.draw.rect(canvas, rope, (cx - 13, cy - 3, 27, 3))                # the arms
+    for x in (cx - 14, cx + 14):                                            # straw hands
+        pygame.draw.line(canvas, straw, (x, cy - 4), (x, cy))
+    pygame.draw.ellipse(canvas, wood, (cx - 9, cy - 7, 19, 18))             # the sack
+    pygame.draw.ellipse(canvas, sack, (cx - 8, cy - 6, 17, 16))
+    pygame.draw.line(canvas, rope, (cx - 7, cy + 4), (cx + 7, cy + 4))      # the belt
+    if not flash:
+        pygame.draw.circle(canvas, render.RED, (cx, cy), 4)                 # a painted target
+        pygame.draw.circle(canvas, render.CREAM, (cx, cy), 2)
+        canvas.set_at((cx, cy), render.RED)
+    pygame.draw.circle(canvas, wood, (cx, cy - 11), 6)                      # the head
+    pygame.draw.circle(canvas, straw, (cx, cy - 11), 5)
+    if not flash:
+        for x in (cx - 2, cx + 2):                                          # stitched eyes
+            canvas.set_at((x - 1, cy - 13), render.INK)
+            canvas.set_at((x, cy - 12), render.INK)
+        pygame.draw.line(canvas, render.INK, (cx - 2, cy - 9), (cx + 2, cy - 9))
+        for x in (cx - 3, cx + 3):                                          # straw sticking out
+            canvas.set_at((x, cy - 17), render.AMBER)
+
+
 def draw_keep(canvas: pygame.Surface, t: int, ground_y: int = 60) -> None:
     """The courtyard of the Filter Keep at dusk: battlements, a gate, banners and torches."""
     pygame.draw.rect(canvas, render.NIGHT, (0, 0, 320, ground_y))

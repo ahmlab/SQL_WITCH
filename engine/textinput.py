@@ -18,6 +18,8 @@ STATUS: editing, history, TAB completion, guided next step, colouring, locked ru
 
 from __future__ import annotations
 
+from typing import Callable
+
 import pygame
 import sqlglot
 from sqlglot.errors import TokenError
@@ -231,6 +233,9 @@ class QueryEditor:
         self.visible_lines = visible_lines
         self._tab: tuple[str, list[str], int] | None = None   # (prefix, matches, index)
         self.known_weakness: str | None = None   # set once the player has looked at the foe
+        # Optional: text -> (faded text, advice), or None for the usual help. The tutorial uses
+        # it to offer exactly as much of a lesson's query as the lesson allows.
+        self.guide: Callable[[str], tuple[str, str] | None] | None = None
 
     # ------------------------------------------------------------ text
 
@@ -397,6 +402,9 @@ class QueryEditor:
         Only at the very end of the text."""
         if not self._at_end() or self._tab:
             return ""
+        guided = self.guide(self.text) if self.guide else None
+        if guided is not None:
+            return guided[0]
         prefix = self._word_before_cursor()
         if len(prefix) >= GHOST_MIN:
             matches = self._matches(prefix)
@@ -410,6 +418,9 @@ class QueryEditor:
         """Advice shown after the cursor that is not text to insert ("CTRL+ENTER casts")."""
         if not self._at_end() or self._tab or self.suggestion():
             return ""
+        guided = self.guide(self.text) if self.guide else None
+        if guided is not None:
+            return guided[1]
         prefix = self._word_before_cursor()
         return "" if prefix and not self._known_word(prefix) else self._next()[1]
 

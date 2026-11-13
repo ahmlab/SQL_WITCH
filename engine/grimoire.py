@@ -30,6 +30,9 @@ INK_MS = 40                      # one result row inks onto the page every 40 ms
 SCROLL_RIGHT = pygame.Rect(RIGHT_PAGE.right - 7, RIGHT_PAGE.y - 1, 7, 8)   # clickable arrows
 SCROLL_LEFT = pygame.Rect(RIGHT_PAGE.right - 15, RIGHT_PAGE.y - 1, 7, 8)
 GAP = render.ADVANCE             # one character between columns, as in magic.cast
+STATUS_BOX = pygame.Rect(LEFT_PAGE.x, LEFT_PAGE.bottom - 9, LEFT_PAGE.width, 9)
+LOOKS_AT = pygame.Rect(LEFT_PAGE.right - 29, LEFT_PAGE.y - 1, 30, 8)
+FOOTER = "CTRL+ENTER cast TAB complete F3 guide"
 
 
 def wrap(text: str, width: int) -> list[str]:
@@ -114,6 +117,10 @@ class Grimoire:
         self.shown_at = 0
         self.looks_left = 3
         self.scroll_col = 0
+        # The tutorial hides these until a lesson introduces them (progressive disclosure).
+        self.show_looks = True
+        self.show_status = True
+        self.footer = FOOTER
 
     EDITOR_AT = (LEFT_PAGE.x, LEFT_PAGE.y + 9)
 
@@ -157,6 +164,60 @@ class Grimoire:
     def show_miscast(self, message: str, now: int) -> None:
         self.report, self.miscast, self.shown_at = None, message, now
 
+    def clear(self) -> None:
+        """A blank right page."""
+        self.report, self.miscast, self.scroll_col = None, None, 0
+
+    # ------------------------------------------------------------ where things are
+
+    def spot(self, kind: str, column: str = "", row: int = 0) -> pygame.Rect | None:
+        """Where something is on the pages, on the canvas, so the tutorial can circle it.
+        kind: right_edge | status | header | row | cut_row | cast_rows | cell | column.
+        None when it is not on the page (no result, no such column, scrolled away)."""
+        top = RIGHT_PAGE.y + TABLE_TOP                   # the header line of the table
+        if kind == "right_edge":
+            return pygame.Rect(RIGHT_PAGE.right - 2, top, 5, RIGHT_PAGE.bottom - top)
+        if kind == "status":
+            return STATUS_BOX.copy()
+        report = self.report
+        if report is None or not report.rows:
+            return None
+
+        def rows_rect(first: int, last: int) -> pygame.Rect:
+            y = top + TABLE_TOP + first * ROW_H - 1
+            return pygame.Rect(RIGHT_PAGE.x - 1, y, RIGHT_PAGE.width + 2,
+                               (last - first + 1) * ROW_H)
+
+        if kind == "header":
+            rect = pygame.Rect(RIGHT_PAGE.x - 1, top - 1, RIGHT_PAGE.width + 2, render.GLYPH_H + 3)
+        elif kind in ("row", "cut_row"):
+            index = PAGE_ROWS if kind == "cut_row" else row
+            if index >= len(report.rows):
+                return None
+            rect = rows_rect(index, index)
+        elif kind == "cast_rows":
+            rows = sorted({c.row for c in report.casts if c.row < PAGE_ROWS})
+            if not rows:
+                return None
+            rect = rows_rect(rows[0], rows[-1])
+        elif kind in ("cell", "column"):
+            names = [c.lower() for c in report.columns]
+            if column.lower() not in names:
+                return None
+            i = names.index(column.lower())
+            xs = column_x(report.columns, report.rows)
+            width = column_widths(report.columns, report.rows)[i] * render.ADVANCE
+            x = RIGHT_PAGE.x + xs[i] - xs[self.scroll_col] - 1
+            if kind == "cell":
+                rect = pygame.Rect(x, rows_rect(row, row).y, width + 2, ROW_H)
+            else:
+                shown = min(len(report.rows), PAGE_ROWS)
+                rect = pygame.Rect(x, top - 1, width + 2, TABLE_TOP + shown * ROW_H)
+        else:
+            return None
+        rect = rect.clip(RIGHT_PAGE.inflate(2, 2))      # what the page really shows
+        return rect if rect.width > 2 and rect.height > 2 else None
+
     # ------------------------------------------------------------ drawing
 
     def draw(self, surface: pygame.Surface, now: int, focused: bool) -> None:
@@ -170,10 +231,12 @@ class Grimoire:
 
         # Left page: the query being written.
         f.draw(surface, "YOUR QUERY", (LEFT_PAGE.x, LEFT_PAGE.y), render.VIOLET)
-        looks = f"looks {self.looks_left}"
-        f.draw(surface, looks, (LEFT_PAGE.right - f.width(looks), LEFT_PAGE.y), render.SAND)
+        if self.show_looks:
+            looks = f"looks {self.looks_left}"
+            f.draw(surface, looks, (LEFT_PAGE.right - f.width(looks), LEFT_PAGE.y), render.SAND)
         self.editor.draw(surface, self.EDITOR_AT, now, focused)
-        self._draw_status(surface)
+        if self.show_status:
+            self._draw_status(surface)
 
         # Right page: the result, cut by the page.
         f.draw(surface, "RESULT", (RIGHT_PAGE.x, RIGHT_PAGE.y), render.VIOLET)
@@ -182,10 +245,10 @@ class Grimoire:
         elif self.report:
             self._draw_result(surface, now)
 
-        f.draw(surface, "CTRL+ENTER cast TAB complete F3 guide", (8, 173), render.BUTTER)
+        f.draw(surface, self.footer, (8, 173), render.BUTTER)
 
     def _draw_status(self, surface: pygame.Surface) -> None:
-        box = pygame.Rect(LEFT_PAGE.x, LEFT_PAGE.bottom - 9, LEFT_PAGE.width, 9)
+        box = STATUS_BOX
         if self.report is None:
             return
         report = self.report
