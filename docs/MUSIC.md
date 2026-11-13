@@ -2,7 +2,7 @@
 
 Six pieces, all synthesised by `tools/make_music.py` with the Python standard library: five
 battle themes, so two fights in a row do not sound alike, and one danger theme for when Ada is
-nearly dead. Every file is generated the same way each time (byte for byte):
+nearly dead: the same battle, suddenly faster and more aggressive. Every file is generated the same way each time (byte for byte):
 
 ```bash
 python -m tools.make_music                 # write all six
@@ -27,8 +27,8 @@ python -m tools.make_music --sheet         # print the score sheets below
 - **Mix.** Each group of instruments is set relative to the lead: plucked strings -8 dB, bass
   -9 dB, percussion -8 dB, bells -9 dB, drone -15 dB. Every instrument is first brought to the
   same loudness, so "velocity 1" means the same thing on a recorder and a shawm. Every battle
-  theme is mastered to the same loudness (-18.8 dBFS RMS); the danger theme is 2.6 dB quieter
-  on purpose: its tension comes from harmony and rhythm.
+  theme is mastered to the same loudness (-18.8 dBFS RMS); the danger theme is a little louder
+  (-18.1 dBFS), so the fight feels like it escalates.
 - **Seamless loops.** Rendering is circular: what still rings after the last bar (a lute note,
   the echo) is added to the first bars. The jump at the seam is no bigger than the steps the
   music already makes around it.
@@ -44,7 +44,7 @@ python -m tools.make_music --sheet         # print the score sheets below
 | Hurdy-gurdy | many harmonics, two voices 4 cents apart, a slow swell (it trembles in the danger theme) | the drone under everything |
 | Tabor, field drum, tambourine | a falling sine "thump" plus filtered noise for the skin, the snares or the jingles; rolls of four strokes | the pulse, fills at the end of every section |
 | Bell | a sine with inharmonic partials (2.76, 5.4, 8.93), each fading at its own speed | the magic colour, used sparingly |
-| Heartbeat | a muffled low thump, twice, then silence | the danger theme |
+| Heartbeat | a muffled low thump, twice, racing | the opening of the danger theme |
 
 ## Where each piece plays
 
@@ -193,23 +193,23 @@ A Dorian, 6/8, dotted quarter = 150. 78 bars, 62.4 s. File: `theme_saltarello.wa
 
 ### Last Candle
 
-E Phrygian, 4/4, quarter = 72. 12 bars, 40.0 s. File: `danger_last_candle.wav`.
+E Phrygian, 4/4, quarter = 176. 28 bars, 38.2 s. File: `danger_last_candle.wav`.
 
-**Motif:** E6 F6 E6 . F6 (the bell circles the half step and never settles)
+**Motif:** E5 . F5 E5 G5 . F5 E5 | D5 . E5 F5 E5 (a stabbing half step, again and again)
 
 | Role | Instrument |
 |---|---|
-| lead | recorder, low, in fragments that rise by step and break off |
-| accompaniment | lute tolling E and F low in the middle bars |
-| bed | a trembling hurdy-gurdy drone on E and B |
-| percussion | a heartbeat: two soft thumps, then space |
-| colour | the bell ostinato on E and F |
+| lead | shawm attacking, doubled a fifth below; the fiddle answers with nervous tremolos |
+| accompaniment | lute hammering E-F in sixteenths; lute bass on every beat |
+| bed | hurdy-gurdy drone on E and B |
+| percussion | racing heartbeat, field drum and tabor without a pause, rolls into every section |
+| colour | bells clashing E against F in the final charge |
 
 | Bars | Section | Who plays | What the listener should feel |
 |---|---|---|---|
-| 1-2 | embers | the trembling drone and the heartbeat alone | the room goes quiet; you can hear your own heart |
-| 3-4 | flicker | the bell ostinato enters: E and F, circling | something is wrong, and it will not resolve |
-| 5-8 | fragments | the recorder tries a phrase, rising, and is cut short | every attempt breaks off a little higher: nerves |
-| 9-10 | closing in | lute tolls E and F low; the recorder climbs higher | the walls close in; the texture thickens |
-| 11-12 | held breath | the drone, a last low F, the heartbeat | the phrase hangs on F, unresolved, and the circle starts again |
+| 1-2 | alarm | a racing heartbeat, the drone, the lute starts hammering E-F | your heart jumps: the fight has just turned against you |
+| 3-10 | assault | shawm attacks the motif over hammering lute, bass and every drum | the enemy presses: fast, relentless, no room to think |
+| 11-18 | counterattack | the fiddle takes the motif higher, the shawm stabs back in fifths; tambourine | you fight back, but it is not enough yet |
+| 19-22 | breaking point | drums, drone and the fiddle trembling upwards; a long roll | everything tightens: one more hit and it is over |
+| 23-28 | final charge | fullest: shawm in fifths, fiddle an octave up, hammering lute, all drums, clashing bells | all or nothing |
 

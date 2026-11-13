@@ -35,7 +35,7 @@ from tools.make_sounds import OUT, RATE, Noise, midi
 
 FORBIDDEN = {1, 3, 8}                       # pitch classes C#, D#/Eb, G#/Ab
 TAIL_S = 4.0                                # rendered past the end, then folded onto the start
-TARGET_RMS = {"battle": 0.115, "danger": 0.085}
+TARGET_RMS = {"battle": 0.115, "danger": 0.125}
 LIMIT = 0.92                                # soft limiter ceiling (full scale is 1.0)
 
 # ------------------------------------------------------------------ pitch
@@ -1065,46 +1065,98 @@ def saltarello() -> Arrangement:
 # ------------------------------------------------------------------ danger: Last Candle
 
 def last_candle() -> Arrangement:
-    """E Phrygian, slow 4/4: the same world, getting dangerous. Tension from the half step
-    E-F and from what is left unsaid, never from loudness or speed."""
-    arr = Arrangement("last_candle", "Last Candle", "E Phrygian", "4/4", "quarter = 72",
-                      60 / 72 / 2, 8, 2, scale("E", "phrygian"), kind="danger")
-    # Here the bed, the bell and the heartbeat carry the piece; the recorder only interjects.
-    arr.levels.update({"drone": -4.0, "bell": -5.0, "perc": -3.0, "bass": -6.0})
-    arr.motif = "E6 F6 E6 . F6 (the bell circles the half step and never settles)"
-    arr.instruments = {"lead": "recorder, low, in fragments that rise by step and break off",
-                       "accompaniment": "lute tolling E and F low in the middle bars",
-                       "bed": "a trembling hurdy-gurdy drone on E and B",
-                       "percussion": "a heartbeat: two soft thumps, then space",
-                       "colour": "the bell ostinato on E and F"}
-    HEART = "H+h . . . H+h . . ."
-    BELL = ("E6 . F6 . . E6 . . | . . F6 . E6 . . . | E6 . F6 . . . E6 . | . F6 . . E6 . . .")
+    """E Phrygian, fast 4/4: the battle turns desperate. The half step E-F is the threat: the
+    lute hammers it in sixteenths, the shawm attacks in fifths, the fiddle trembles on it, the
+    drums never let up, and every phrase ends on the Phrygian cadence F -> E, which never rests."""
+    arr = Arrangement("last_candle", "Last Candle", "E Phrygian", "4/4", "quarter = 176",
+                      60 / 176 / 2, 8, 2, scale("E", "phrygian"), kind="danger")
+    # The drums and the hammering lute carry the urgency, close behind the lead.
+    arr.levels.update({"perc": -4.0, "pluck": -6.0, "bass": -7.0, "drone": -11.0, "bell": -8.0})
+    arr.motif = "E5 . F5 E5 G5 . F5 E5 | D5 . E5 F5 E5 (a stabbing half step, again and again)"
+    arr.instruments = {"lead": "shawm attacking, doubled a fifth below; the fiddle answers "
+                               "with nervous tremolos",
+                       "accompaniment": "lute hammering E-F in sixteenths; lute bass on every beat",
+                       "bed": "hurdy-gurdy drone on E and B",
+                       "percussion": "racing heartbeat, field drum and tabor without a pause, "
+                                     "rolls into every section",
+                       "colour": "bells clashing E against F in the final charge"}
 
-    s = arr.section("embers", 2, "the trembling drone and the heartbeat alone",
-                    "the room goes quiet; you can hear your own heart")
-    arr.drone(s, 12, ["E2", "B2"], 1.0, inst="gurdy_tremble")
-    arr.drums("heart", s, " | ".join([HEART] * 2), 0.8)
-    s = arr.section("flicker", 2, "the bell ostinato enters: E and F, circling",
-                    "something is wrong, and it will not resolve")
-    arr.drums("heart", s, " | ".join([HEART] * 2), 0.85)
-    arr.play("bell", s, BELL.rsplit("|", 2)[0], 0.4)
-    s = arr.section("fragments", 4, "the recorder tries a phrase, rising, and is cut short",
-                    "every attempt breaks off a little higher: nerves")
-    arr.drums("heart", s, " | ".join([HEART] * 4), 0.9)
-    arr.play("bell", s, BELL, 0.42)
-    arr.play("recorder", s, "E4 - - F4 G4 - . . | . . . . . . . . |"
-                            "F4 - - G4 A4 - . . | . . . . . . . .", 0.7)
-    s = arr.section("closing in", 2, "lute tolls E and F low; the recorder climbs higher",
-                    "the walls close in; the texture thickens")
-    arr.drums("heart", s, " | ".join([HEART] * 2), 1.0)
-    arr.play("bell", s, BELL.rsplit("|", 2)[0], 0.45)
-    arr.play("lutebass", s, "E3 - - - F3 - - - | E3 - - - F3 - - -", 0.7)
-    arr.play("recorder", s, "G4 - - A4 B4 - C5 . | B4 - - - A4 . . .", 0.75)
-    s = arr.section("held breath", 2, "the drone, a last low F, the heartbeat",
-                    "the phrase hangs on F, unresolved, and the circle starts again")
-    arr.drums("heart", s, " | ".join([HEART] * 2), 0.85)
-    arr.play("lutebass", s, "F3 - - - - - - - | . . . . . . . .", 0.55)
+    def hammer(chords: str) -> str:
+        """The lute's ostinato, bar by bar: the chord's root struck in sixteenths, with the
+        half step above it (F over E is the alarm)."""
+        bars = []
+        for name in chords.split():
+            root = chord(name, 3)[0]
+            upper = diatonic(root, 1, arr.pcs)
+            r, u = _name(root), _name(upper)
+            bars.append(f"{r}+{r} {u}+{r} {r}+{r} {u}+{r} {r}+{r} {u}+{r} {u}+{u} {r}+{r}")
+        return " | ".join(bars)
+
+    def drive(bar: int, bars: int, vel: float = 1.0) -> None:
+        arr.drums("field", bar, " | ".join(["K s S s K K S s"] * (bars - 1) + ["K s S s R R R R"]),
+                  vel)
+        arr.drums("tabor", bar, " | ".join(["t+t t T t+t t+t t T t+t"] * bars), vel * 0.8)
+
+    ASSAULT = ("E5 - F5 E5 G5 - F5 E5 | D5 - E5 F5 E5 - - . | E5 - F5 E5 A5 - G5 F5 |"
+               "G5 - F5 E5 F5 - E5 - | B5 - C6 B5 A5 - G5 F5 | G5 - A5 G5 F5 - E5 D5 |"
+               "E5 - F5 G5 A5 G5 F5 E5 | F5 - - - E5 - - .")
+    ASSAULT_CH = "Em F Am F Em C F F,Em"
+    STABS = ("E5 . E5 . F5 . E5 . | E5 . E5 . F5 . E5 . | G5 . G5 . A5 . G5 . | F5 . F5 . E5 . - . |"
+             "E5 . E5 . F5 . E5 . | A5 . A5 . G5 . F5 . | E5 . F5 . G5 . A5 . | F5 - - - E5 - - .")
+    TREMOLO = ("F5+E5 F5+E5 F5+E5 F5+E5 F5+E5 F5+E5 F5+E5 F5+E5 |"
+               "G5+F5 G5+F5 G5+F5 G5+F5 G5+F5 G5+F5 G5+F5 G5+F5 |"
+               "A5+G5 A5+G5 A5+G5 A5+G5 B5+A5 B5+A5 B5+A5 B5+A5 |"
+               "C6+B5 C6+B5 C6+B5 C6+B5 F5 - E5 -")
+
+    s = arr.section("alarm", 2, "a racing heartbeat, the drone, the lute starts hammering E-F",
+                    "your heart jumps: the fight has just turned against you")
+    arr.drone(s, 28, ["E2", "B2"], 0.9)
+    arr.drums("heart", s, "H+h . H+h . H+h . H+h . | H+h . H+h . H+h . . .", 0.9)
+    arr.drums("field", s, ". . . . . . . . | . . . . . . R R", 0.8)
+    arr.play("lute", s, hammer("Em F"), 0.8)
+    arr.chords("lutebass", s + 1, "F", "0 . 0 . 0 . 0 .", 2, 0.8)
+    s = arr.section("assault", 8, "shawm attacks the motif over hammering lute, bass and "
+                    "every drum", "the enemy presses: fast, relentless, no room to think")
+    arr.play("shawm", s, ASSAULT)
+    arr.play("lute", s, hammer(ASSAULT_CH.replace(",Em", "")), 0.8)
+    arr.chords("lutebass", s, ASSAULT_CH, "0 . 0 . 0 . 0 .", 2)
+    drive(s, 8)
+    s = arr.section("counterattack", 8, "the fiddle takes the motif higher, the shawm stabs "
+                    "back in fifths; tambourine", "you fight back, but it is not enough yet")
+    arr.play("fiddle", s, ASSAULT, 0.9, octave=0, double=2)
+    arr.play("shawm", s, STABS, 0.8)
+    arr.play("shawm", s, STABS, 0.45, double=-4)
+    arr.play("lute", s, hammer("Em F Am F Em Am F F"), 0.8)
+    arr.chords("lutebass", s, "Em F Am F Em Am F F,Em", "0 . 0 . 0 . 0 .", 2)
+    drive(s, 8)
+    arr.drums("tamb", s, " | ".join(["J j J j J j J j"] * 8), 0.6)
+    s = arr.section("breaking point", 4, "drums, drone and the fiddle trembling upwards; a "
+                    "long roll", "everything tightens: one more hit and it is over")
+    arr.play("fiddle", s, TREMOLO, 0.85)
+    arr.play("lute", s, hammer("Em F Am C"), 0.6)
+    arr.chords("lutebass", s, "Em F Am C,F", "0 . 0 . 0 . 0 .", 2)
+    arr.drums("field", s, "K . K . K . K . | K . K . K . K . | K s K s K s K s | R R R R R R R R",
+              0.9)
+    s = arr.section("final charge", 6, "fullest: shawm in fifths, fiddle an octave up, "
+                    "hammering lute, all drums, clashing bells", "all or nothing")
+    charge = ASSAULT.split("|")
+    charge = " | ".join(charge[:4] + charge[6:8])                # six bars, the climax kept
+    arr.play("shawm", s, charge)
+    arr.play("shawm", s, charge, 0.5, double=-4)
+    arr.play("fiddle", s, charge, 0.6, octave=1)
+    arr.play("lute", s, hammer("Em F Am F F Em"), 0.85)
+    arr.chords("lutebass", s, "Em F Am F F Em", "0 . 0 . 0 . 0 .", 2)
+    drive(s, 6)
+    arr.drums("tamb", s, " | ".join(["J j J j J j J j"] * 6), 0.7)
+    arr.play("bell", s, "E6 . . . F6 . . . | . . . . . . . . | E6 . . . F6 . . . |"
+                        ". . . . . . . . | F6 . . . . . . . | E6 . . . . . . .", 0.6)
     return arr
+
+
+def _name(m: int) -> str:
+    """A midi note as a score token (sharps, except Bb)."""
+    names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+    return f"{names[m % 12]}{m // 12 - 1}"
 
 
 # ------------------------------------------------------------------ the catalogue

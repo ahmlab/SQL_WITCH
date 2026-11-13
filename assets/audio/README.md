@@ -61,7 +61,7 @@ just played.
 | `theme_estampie.wav` | Estampie of Sparks: G Mixolydian 3/4 with hemiolas, fiddle and harp, heroic. |
 | `theme_lantern.wav` | Lantern over Codd: E Aeolian, recorder over a harp ostinato, calm. |
 | `theme_saltarello.wav` | Saltarello of the Spire: A Dorian 6/8, recorder and shawm in call and response, fast. |
-| `danger_last_candle.wav` | Last Candle: E Phrygian, heartbeat, a bell circling E and F. |
+| `danger_last_candle.wav` | Last Candle: E Phrygian at 176, the lute hammering E-F, the shawm attacking in fifths, drums without a pause: the fight turns desperate. |
 
 They are made by `python -m tools.make_music` (score sheets in `docs/MUSIC.md`). A file of your
 own works the same way: put it here and list it in `sounds.json`. Loops are seamless if the
