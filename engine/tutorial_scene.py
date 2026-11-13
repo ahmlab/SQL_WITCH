@@ -165,6 +165,7 @@ class TutorialScene(BattleScene):
 
     def _show(self, report) -> None:
         self.game.audio.play("scry" if report.scry else "cast")
+        self._ada_casts(report)
         self.grimoire.show_result(report, self.time, 3 - self.battle.state.scries_used)
         self.narrate(report)
 
@@ -258,6 +259,7 @@ class TutorialScene(BattleScene):
         self.time += dt
         self._update_beats(dt)
         self._update_visuals(dt)
+        self._update_ada(dt)
         self._update_body(dt)
         self.fx.update(dt)
         if self.beat is None and not self.beats:
@@ -312,7 +314,8 @@ class TutorialScene(BattleScene):
                            self.flash["foe"] > 0 and (self.time // 40) % 2 == 0)
         if t.phase == "ending" and t.step is not None and t.step.narrator:
             draw_slime(canvas, (304, 50), self.time, False, False, False)   # it peeks in
-        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0)
+        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0,
+                 anim=self.ada)
         if "foe_panel" in revealed:
             self._draw_foe_panel(canvas)
         if "ada_panel" in revealed:

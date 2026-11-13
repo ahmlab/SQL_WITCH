@@ -158,6 +158,7 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `ai/dummy.py` | The tutorial's Training Dummy: a brain that stands still. |
 | `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
 | `engine/tutorial_scene.py` | The tutorial on screen: a battle scene with a Grimoire that teaches. |
+| `engine/ada_anim.py` | Ada's animation from her one sprite, moved row by row: breathing, typing, casting, hit, hurt, fainting. |
 | `assets/audio/` | Sound effects, battle music and `sounds.json`. |
 | `tools/make_sounds.py` | Generates the chiptune sound effects. |
 | `tools/make_music.py` | Generates the battle music and the danger theme (see `docs/MUSIC.md`). |

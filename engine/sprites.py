@@ -3,7 +3,8 @@
 Pixel-art sprites are made at game size (one sprite pixel = one canvas pixel); see
 docs/SPRITES.md for sizes and tools/pixelize.py to bring an AI-generated image to that size.
 
-STATUS: Ada seen from behind, with its white hit-flash silhouette.
+STATUS: Ada seen from behind, with its white hit-flash silhouette, animated row by row
+(engine/ada_anim.py).
 """
 
 from __future__ import annotations
@@ -34,9 +35,22 @@ def sprite(name: str, flash: bool = False) -> pygame.Surface:
     return _cache[key]
 
 
-def draw_ada(canvas: pygame.Surface, feet: tuple[int, int], flash: bool = False) -> pygame.Rect:
-    """Ada seen from behind, standing with her feet centred on `feet`."""
+def draw_ada(canvas: pygame.Surface, feet: tuple[int, int], flash: bool = False,
+             anim=None) -> pygame.Rect:
+    """Ada seen from behind, standing with her feet centred on `feet`. With an AdaAnimator,
+    each pixel row is drawn at its own small offset (breathing, casting, fainting...)."""
     image = sprite("ada_back", flash)
     rect = image.get_rect(midbottom=feet)
-    canvas.blit(image, rect)
+    if anim is None:
+        canvas.blit(image, rect)
+        return rect
+    width = image.get_width()
+    # Bottom row first: when the body folds, the rows above are drawn over the ones below.
+    for y, (dx, dy) in reversed(list(enumerate(anim.pose()))):
+        canvas.blit(image, (rect.x + dx, rect.y + y + dy), (0, y, width, 1))
+    for x, y, colour, size in anim.glows():
+        cx, cy = rect.x + x, rect.y + y
+        for ox, oy in ((-size, 0), (size, 0), (0, -size), (0, size)):   # a twinkling cross
+            canvas.set_at((cx + ox, cy + oy), colour)
+        canvas.set_at((cx, cy), (251, 247, 239))                        # a white-hot core
     return rect

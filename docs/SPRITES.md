@@ -44,6 +44,13 @@ pixel, which gives her at half size. `--half` is another way to halve (mode of e
 group, then the outline is redrawn); for Ada it lost the gold trim, so `--block 30` is used.
 `--palette` snaps every colour to the 32-colour palette instead of keeping the image's own.
 
+Ada is animated in code from her single sprite (`engine/ada_anim.py`): the sprite is drawn one
+pixel row at a time and groups of rows move by a pixel or two (she breathes, bows over the book
+while typing, steps forward when casting, recoils when hit, hunches when her HP is red and
+collapses when she faints). A new `ada_back.png` keeps all of that working as long as it stays
+20 x 41 with the same parts at the same rows: hat 0-12, hair 13-21, shoulders and hands 22-27
+(hands on row 25), robe 28-38, feet 39-40.
+
 Base prompt (prepend it to each sprite prompt below):
 
 > Pixel art sprite, 16-bit SNES style, flat colours only, no anti-aliasing, no gradients,

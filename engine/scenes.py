@@ -27,6 +27,7 @@ from engine import fx, render, scenery
 from engine.audio import Audio, Silent, pick_track
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
 from engine.guide import Guide
+from engine.ada_anim import AdaAnimator
 from engine.sprites import draw_ada
 from engine.textinput import (KEYWORD_WORDS, QueryEditor, layout, locked_words,
                               schema_tables, schema_words)
@@ -258,6 +259,7 @@ class DialogueScene(Scene):
         self.book_born: int | None = None
         self.void_since = 0
         self.line_started = 2 * self.FADE_MS
+        self.ada = AdaAnimator()
         self._start_line()
 
     @property
@@ -296,6 +298,7 @@ class DialogueScene(Scene):
 
     def update(self, dt):
         super().update(dt)
+        self.ada.update(dt)
         target = float(self.line.get("sleep", self.drowsy))
         step = 0.6 * dt / 1000                        # Ada drifts off slowly, never at once
         self.drowsy = target if abs(target - self.drowsy) <= step else \
@@ -314,7 +317,7 @@ class DialogueScene(Scene):
                 draw_backdrop(canvas, ground_y=110)
             else:
                 scenery.draw_keep(canvas, self.time, ground_y=110)
-            draw_ada(canvas, ADA_STANDING)            # full length, in front of the book
+            draw_ada(canvas, ADA_STANDING, anim=self.ada)   # in front of the book, breathing
             if self.book_born is not None and self.line.get("book"):
                 speaking = (self.line["speaker"] == "Grimoire"
                             and self._shown_chars() < len(self.line["text"]))
@@ -434,6 +437,7 @@ class BattleScene(Scene):
         self.fx = fx.Effects(game.vfx)          # sparks and lightning: looks only
         self.streak = fx.Streak()
         self.word_glow: tuple[pygame.Rect, int] | None = None
+        self.ada = AdaAnimator()
         self._elements: dict[str, str | None] = {}
         self._last_erase = -1000
         # The live rune set: the guide's examples unlock as Ada learns runes mid-battle.
@@ -501,6 +505,8 @@ class BattleScene(Scene):
                                                                  render.LILAC))
             self.shown[side][0] = max(0, self.shown[side][0] - damage)
             self.flash[side] = 160
+            if side == "ada":
+                self.ada.hit()
             x, y = (self.foe_xy()[0], self.foe_xy()[1] - 28) if side == "foe" \
                 else (ADA_AT[0] + 18, ADA_AT[1] - 6)
             self.popups.append(Popup(str(damage), (x, y), render.GOLD if crit else render.WHITE))
@@ -607,6 +613,7 @@ class BattleScene(Scene):
             self.game.audio.play("miscast")
             return
         self.game.audio.play("scry" if report.scry else "cast")
+        self._ada_casts(report)
         if "weakness" in report.columns and report.rows:
             weakness = report.rows[0][report.columns.index("weakness")]
             if weakness:                            # she has seen it: now it can be suggested
@@ -617,6 +624,20 @@ class BattleScene(Scene):
         self._tell_round_end()
         if report.ends_turn:
             self.phase, self.idle = "wait", 0
+
+    def _ada_casts(self, report: CastReport) -> None:
+        """Ada steps forward and her hands glow in the colour of her first spell."""
+        if report.casts:
+            self.ada.cast(render.ELEMENT_COLOURS.get(report.casts[0].element, render.LILAC))
+
+    def _update_ada(self, dt: int) -> None:
+        """Ada's body follows what the bars show: hurt when red, down when empty."""
+        self.ada.update(dt)
+        ada = self.battle.state.ada
+        shown = self.bars["ada"][0]
+        self.ada.set_low(0 < shown < ada.max_hp * render.HP_DANGER)
+        if shown <= 0 and ada.hp <= 0:
+            self.ada.faint()
 
     def foe_turn(self) -> None:
         turn = self.battle.foe_act()
@@ -716,6 +737,7 @@ class BattleScene(Scene):
         pentatonic scale; finishing a keyword makes its rune glow and chime."""
         if self.editor.text == before:
             return                                   # arrows, Home, F-keys: nothing typed
+        self.ada.typed()
         x, y = self.grimoire.cursor_xy()
         self.streak.hit(self.time)
         heat = self.streak.level(self.time)
@@ -768,6 +790,7 @@ class BattleScene(Scene):
         self._update_beats(dt)
         self._update_visuals(dt)
         self._update_danger()
+        self._update_ada(dt)
         self._update_body(dt)
         self.fx.update(dt)
         resting = self.beat is None and not self.beats
@@ -845,7 +868,8 @@ class BattleScene(Scene):
             pygame.draw.ellipse(canvas, GROUND_SHADOW, (home[0] - 28, home[1] + 12, 56, 10))
             draw_slime(canvas, self.foe_xy(), self.time, flash, state.foe.exhausted, fainted)
         # Seen from behind, standing at the bottom left of the battlefield.
-        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0)
+        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0,
+                 anim=self.ada)
 
         self._draw_foe_panel(canvas)
         glow_word = self.glow[0] if self.glow and self.time - self.glow[1] < 4000 else None
