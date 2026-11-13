@@ -494,6 +494,20 @@ def panel(surface: pygame.Surface, rect: pygame.Rect, fill=CREAM, border=INK,
                      (rect.right - 2, rect.bottom - 2))
 
 
+# HP bars change colour as they empty, so danger reads at a glance (same rule for both sides).
+HP_WARN, HP_DANGER = 0.5, 0.25           # below half: orange; below a quarter: red
+
+
+def hp_colour(value: float, maximum: float) -> tuple:
+    """Green from full down to half, orange below half, red below a quarter."""
+    ratio = value / maximum if maximum else 0.0
+    if ratio < HP_DANGER:
+        return RED
+    if ratio < HP_WARN:
+        return GOLD
+    return GRASS
+
+
 def meter(surface: pygame.Surface, rect: pygame.Rect, value: int, maximum: int,
           colour: tuple, back=SLATE) -> None:
     """An HP or MP bar. The filled width is a whole number of pixels."""

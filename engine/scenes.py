@@ -918,8 +918,9 @@ class BattleScene(Scene):
             f.draw(canvas, f"Lv{ORDER.index(self.key) + 1}", (box.right - 16, box.y + 3),
                    render.SLATE)
         f.draw(canvas, "HP", (box.x + 4, box.y + 11), render.AMBER)
-        render.meter(canvas, pygame.Rect(box.x + 14, box.y + 11, 100, 5),
-                     round(self.bars["foe"][0]), foe.max_hp, render.GOLD)
+        hp = round(self.bars["foe"][0])           # the gliding bar: its colour changes as it drops
+        render.meter(canvas, pygame.Rect(box.x + 14, box.y + 11, 100, 5), hp, foe.max_hp,
+                     render.hp_colour(hp, foe.max_hp))
         if foe.exhausted:
             f.draw(canvas, "EXHAUSTED", (box.right + 4, box.y + 3), render.RED, shadow=render.INK)
         if self.shown_relevance:
@@ -936,7 +937,7 @@ class BattleScene(Scene):
         f.draw(canvas, f"Lv{self.battle.guardian.level}", (box.right - 16, box.y + 3), render.SLATE)
         f.draw(canvas, "HP", (box.x + 4, box.y + 11), render.AMBER)
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 11, 100, 5), hp, ada.max_hp,
-                     render.GRASS)
+                     render.hp_colour(hp, ada.max_hp))
         f.draw(canvas, "MP", (box.x + 4, box.y + 18), render.BLUE)
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 18, 70, 5), mp, ada.max_mp,
                      render.SKY)

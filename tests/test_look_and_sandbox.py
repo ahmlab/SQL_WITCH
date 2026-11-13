@@ -120,3 +120,27 @@ def test_the_sandbox_answers_reads_and_refuses_writes_without_crashing():
     assert "refused to listen" in run.stdout
     assert "does not understand" in run.stdout
     assert "(12,)" in run.stdout                                  # the DROP changed nothing
+
+
+# ------------------------------------------------------------------ HP bars change colour
+
+@pytest.mark.parametrize("hp, colour", [
+    (100, render.GRASS), (60, render.GRASS), (50, render.GRASS),    # full down to half: green
+    (49, render.GOLD), (25, render.GOLD),                           # below half: orange
+    (24, render.RED), (1, render.RED), (0, render.RED),              # below a quarter: red
+])
+def test_hp_bars_go_green_orange_red(hp, colour):
+    assert render.hp_colour(hp, 100) == colour
+
+
+def test_both_sides_bars_use_the_colour_of_their_hp():
+    from engine.scenes import BattleScene
+    game = Game(pygame.Surface((320, 180)), seed=1)
+    scene = BattleScene(game, "slime")
+    canvas = render.Canvas()
+    scene.bars["ada"][0] = scene.battle.state.ada.max_hp * 0.2         # Ada nearly down
+    scene.bars["foe"][0] = scene.battle.state.foe.max_hp * 0.4         # the Slime hurt
+    scene.draw(canvas)
+    ada, foe = scene.ADA_PANEL, scene.FOE_PANEL
+    assert canvas.get_at((ada.x + 16, ada.y + 13))[:3] == render.RED
+    assert canvas.get_at((foe.x + 16, foe.y + 13))[:3] == render.GOLD
