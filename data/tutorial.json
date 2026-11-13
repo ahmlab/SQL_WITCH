@@ -1,0 +1,231 @@
+{
+  "_help": [
+    "The whole script of the tutorial. Edit the wording freely; tests measure every line.",
+    "",
+    "WHERE TEXT GOES (and how long it may be)",
+    "- 'say' is spoken by the Grimoire in its strip: 2 lines of 46 characters,",
+    "  or 1 line when the same step also has a 'write'.",
+    "- 'write' is a query shown under 'say' in query colours: 44 characters.",
+    "- 'dummy' is the Training Dummy's speech bubble: 2 lines of 26 characters.",
+    "- 'keys' is the reminder at the bottom of the book: 76 characters.",
+    "- a quest 'label' is one checklist line: 42 characters.",
+    "- {rows} {cast} {lost} {page} {mp_before} {mp_after} {rune} are filled in by the game.",
+    "",
+    "A LESSON, IN ORDER",
+    "- intro: the Grimoire talks.  Then it types 'example' itself and casts it (the demo).",
+    "- demo_after: it explains its own result.  task: the player writes the same query.",
+    "- success: what it says when the player's query met the 'goal'.",
+    "",
+    "GHOST (how much of 'example' the page offers as faded text)",
+    "- full: the whole query, TAB writes it.   keywords: only SELECT and FROM.",
+    "- hint: nothing faded, a hint line instead.   none: nothing.",
+    "",
+    "GOAL (a lesson passes on what the query DID, never on how it was typed)",
+    "- look: true        a free look: nothing was cast or used",
+    "- from: 'enemies'   the table the query read",
+    "- visible: [...]    columns that must be readable on the page (not cut off)",
+    "- spells_cast: 1    at least this many of Ada's spells took effect",
+    "",
+    "POINT (what the Grimoire circles while it talks)",
+    "- row:0  cell:weakness:0  column:element  header  right_edge  cast_rows",
+    "- cut_row  status  mp_bar  foe_hp  tables_button  guide_button  ready_button",
+    "",
+    "REVEAL (parts of the screen that stay hidden until a lesson shows them)",
+    "- ada_panel  foe_panel  status  looks  tables_button  guide_button"
+  ],
+
+  "hints": {
+    "_help": "A stuck player climbs one level when EITHER number is reached. Level 1 restates the goal and shows the query, level 2 fades in the next word, level 3 offers to write it together.",
+    "idle_ms": [20000, 35000, 50000],
+    "failed_tries": [2, 3, 4]
+  },
+
+  "opening": [
+    {"say": "Before any guardian: practice. This straw dummy cannot hurt you. Nothing here can.",
+     "dummy": "I can judge you, though."}
+  ],
+
+  "lessons": [
+    {
+      "id": "look",
+      "title": "LOOK",
+      "ghost": "full",
+      "keys": "TAB writes the faded text     CTRL+ENTER casts it",
+      "intro": [
+        {"say": "A query asks a table for its rows. Watch me ask the table called enemies."}
+      ],
+      "example": "SELECT * FROM enemies",
+      "demo_after": [
+        {"say": "One row, one creature: the dummy. Each column is one fact about it.",
+         "point": "row:0", "dummy": "Take a picture. It lasts longer."}
+      ],
+      "task": {"say": "Your turn. Write the same query:", "write": "SELECT * FROM enemies"},
+      "goal": {"look": true, "from": "enemies"},
+      "restate": "Ask the table enemies for everything:",
+      "off_goal": "A real query! But I asked for the dummy:",
+      "success": [
+        {"say": "There it is again, and this time you asked. Your first query!",
+         "point": "row:0"}
+      ]
+    },
+    {
+      "id": "columns",
+      "title": "CHOOSE",
+      "ghost": "keywords",
+      "keys": "TAB finishes a word     CTRL+ENTER casts it",
+      "intro": [
+        {"say": "My page is narrow: a wide row gets cut at the right edge. So ask for less.",
+         "point": "right_edge"}
+      ],
+      "example": "SELECT name, weakness FROM enemies",
+      "demo_after": [
+        {"say": "Two names after SELECT, a comma between them: two columns on the page.",
+         "point": "header"}
+      ],
+      "task": {"say": "Your turn. Find what the dummy is weak to:",
+               "write": "SELECT name, weakness FROM enemies"},
+      "goal": {"look": true, "from": "enemies", "visible": ["weakness"]},
+      "restate": "Two columns from enemies, name and weakness:",
+      "off_goal": "Good look! But its weakness is not there:",
+      "success": [
+        {"say": "Fire. Remember it: a foe's weakness takes double damage.",
+         "point": "cell:weakness:0", "dummy": "Rude. That was private."}
+      ]
+    },
+    {
+      "id": "read",
+      "title": "READ",
+      "ghost": "hint",
+      "keys": "CTRL+ENTER casts it     ESC skips the tutorial",
+      "reveal": ["ada_panel"],
+      "intro": [
+        {"say": "All those looks, and your MP has not moved. Looking is free. Read before you act.",
+         "point": "mp_bar"}
+      ],
+      "example": "SELECT element, power, mp_cost FROM spells",
+      "demo_after": [
+        {"say": "Your spells. None of them fired: I left out the name column on purpose.",
+         "point": "header"}
+      ],
+      "task": {"say": "Your turn. Read three columns of your spells:"},
+      "hint": "columns: element, power, mp_cost   table: spells",
+      "goal": {"look": true, "from": "spells", "visible": ["element"]},
+      "restate": "Three columns from the table spells:",
+      "off_goal": "Nice, but I want to see each spell's element:",
+      "success": [
+        {"say": "The first spell is Fire, and the dummy is weak to Fire. Only 3 MP, too.",
+         "point": "cell:element:0", "dummy": "I do not like where this is going."}
+      ]
+    },
+    {
+      "id": "cast",
+      "title": "CAST",
+      "ghost": "none",
+      "keys": "CTRL+ENTER casts it     ESC skips the tutorial",
+      "reveal": ["foe_panel", "status"],
+      "intro": [
+        {"say": "Now the magic. A row that carries a spell's name casts that spell. Watch."}
+      ],
+      "example": "SELECT name FROM spells",
+      "demo_after": [
+        {"say": "{cast} spells fired, and Fire hit twice as hard. But read the rest.",
+         "point": "cast_rows", "dummy": "Ow. Ow. Ow. Ow. In that order."},
+        {"say": "My page holds {page} rows. The other {lost} fell off the bottom and fizzled.",
+         "point": "cut_row"},
+        {"say": "Yet I paid for all {rows}: MP {mp_before} to {mp_after}. That is the Rule of the Page.",
+         "point": "status"},
+        {"say": "Here, I refill your mana. Guardians will not be so kind.",
+         "point": "mp_bar", "refill": true}
+      ],
+      "task": {"say": "Your turn. Attack the dummy: ask the table spells for its name column."},
+      "goal": {"spells_cast": 1},
+      "restate": "Spell names are triggers. Ask for them:",
+      "off_goal": "Nothing hit the dummy. Ask spells for name:",
+      "success": [
+        {"say": "Real magic! And you overflowed the page, like every witch on day one.",
+         "point": "cut_row", "dummy": "My straw! My only straw!"},
+        {"say": "{cast} hit, {lost} fizzled, {rows} paid for. I refill your mana once more.",
+         "point": "mp_bar", "refill": true}
+      ]
+    }
+  ],
+
+  "practice": {
+    "id": "practice",
+    "title": "PLAY",
+    "keys": "F5 READY     F4 TABLES     CTRL+ENTER casts     ESC skips",
+    "reveal": ["looks", "tables_button"],
+    "intro": [
+      {"say": "Free practice. Nothing can go wrong here. TABLES (F4) lists what you can ask.",
+       "point": "tables_button"}
+    ],
+    "task": {"say": "Try these if you like. Press F5 when you feel READY."},
+    "quests": [
+      {"id": "element", "label": "Put your own element on the page",
+       "goal": {"look": true, "from": "witch", "visible": ["element"]},
+       "done": {"say": "Arcane. Neither strong nor weak against anything. Like a spreadsheet.",
+                "point": "cell:element:0"}},
+      {"id": "book", "label": "Read the dummy's spell book",
+       "goal": {"look": true, "from": "foe_spells"},
+       "done": {"say": "Empty: it knows no spells. A guardian's book will not be. Read it.",
+                "dummy": "Straw does not retain much."}},
+      {"id": "log", "label": "Read the world's diary: query_log",
+       "goal": {"look": true, "from": "query_log"},
+       "done": {"say": "Every query ever cast here, yours included. This world forgets nothing.",
+                "dummy": "I remember EVERYTHING."}}
+    ],
+    "all_done": {"say": "All three! You read tables better than most witches. F5 when READY."}
+  },
+
+  "ending": [
+    {"say": "One thing should bother you: you wanted ONE spell, and you paid for all of them."},
+    {"say": "There is a rune for that. The next guardian knows it. Watch its book."},
+    {"say": "All I showed you is in the GUIDE (F3). Open it whenever you are lost.",
+     "point": "guide_button", "reveal": ["guide_button"]},
+    {"say": "Something round and green wobbles out of the bushes: the ASTERISK SLIME!",
+     "dummy": "Not my problem. Good luck!", "narrator": true}
+  ],
+
+  "coach": {
+    "_help": "One-line reactions. The game adds the lesson's query under them, so the player always sees what to type next.",
+    "miscast": "No harm done: a miscast is free. Try this:",
+    "locked_rune": "Good instinct! A guardian teaches {rune}.",
+    "enter": "ENTER makes a new line. CTRL+ENTER casts.",
+    "cast_hint": "CTRL+ENTER casts it",
+    "cast_too_early": "Oops: those names fired spells! That is next.",
+    "ghost_word": "Follow the faded word: TAB takes it.",
+    "offer": "Stuck? Press TAB and I will write it with you.",
+    "refill": "I refill your mana. In here it is free.",
+    "practice_miscast": "No harm done. Read the red note and try again.",
+    "looks_spent": "A turn has 3 free looks. In here, have more.",
+    "skip": "Skip the tutorial?  ENTER: skip   ESC: stay",
+    "continue": "ENTER"
+  },
+
+  "dummy": {
+    "_help": "The dummy's own lines. One is picked each time (never the same twice in a row).",
+    "name": "Training Dummy",
+    "looked_at": [
+      "Stop staring. I am shy.",
+      "Yes, that is all of me.",
+      "My good side is the left.",
+      "Read me like a book. Ha."
+    ],
+    "hit": [
+      "Ow. I am a prop, you know.",
+      "My straw! My only straw!",
+      "I felt that in my seams.",
+      "Was that really necessary?"
+    ],
+    "miscast": [
+      "Even I could spell that.",
+      "I felt nothing. Literally.",
+      "The grammar hurt, though."
+    ],
+    "restuffed": "*stuffs its straw back in*",
+    "idle": [
+      "Take your time. I am straw.",
+      "I am not going anywhere."
+    ]
+  }
+}
