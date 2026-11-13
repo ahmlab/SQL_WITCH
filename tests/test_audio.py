@@ -32,11 +32,14 @@ def test_every_configured_sound_is_a_real_wav_file():
 
 
 def test_the_battle_music_loops_without_a_click():
-    with wave.open(str(AUDIO_DIR / config()["music"]["battle"]["file"])) as w:
-        frames = w.readframes(w.getnframes())
-    first = int.from_bytes(frames[:2], "little", signed=True)
-    last = int.from_bytes(frames[-2:], "little", signed=True)
-    assert abs(first) < 200 and abs(last) < 200
+    # The new themes loop by continuing their waveform across the seam (rendered in a
+    # circle), so the check is the jump at the seam, not silence at both ends.
+    for name in config()["music"]["battle"]["files"]:
+        with wave.open(str(AUDIO_DIR / name)) as w:
+            frames = w.readframes(w.getnframes())
+        first = int.from_bytes(frames[:2], "little", signed=True)
+        last = int.from_bytes(frames[-2:], "little", signed=True)
+        assert abs(first - last) < 1000, name
 
 
 def play_a_battle(seed=7):

@@ -116,7 +116,13 @@ All sounds live in [`assets/audio/`](assets/audio/), and
 [`assets/audio/sounds.json`](assets/audio/sounds.json) says which file plays for each event
 (damage, HP/MP bars going down or up, casting, fizzling, the battle music...). Swap in your own
 files by editing that JSON; see [`assets/audio/README.md`](assets/audio/README.md). The
-current sounds are placeholder chiptunes made by `python -m tools.make_sounds`.
+sound effects are chiptunes made by `python -m tools.make_sounds`.
+
+The music is five medieval battle themes and a danger theme, made by
+`python -m tools.make_music` (lute, harp, recorder, shawm, fiddle, hurdy-gurdy, drums and
+bells, all synthesised). Each fight picks one of its themes; when Ada's HP bar drops below a
+quarter the music cross-fades to **Last Candle**, and back when she recovers. Score sheets and
+the rules behind them: [`docs/MUSIC.md`](docs/MUSIC.md).
 
 ## Tests
 
@@ -153,7 +159,8 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
 | `engine/tutorial_scene.py` | The tutorial on screen: a battle scene with a Grimoire that teaches. |
 | `assets/audio/` | Sound effects, battle music and `sounds.json`. |
-| `tools/make_sounds.py` | Generates the placeholder chiptune sounds. |
+| `tools/make_sounds.py` | Generates the chiptune sound effects. |
+| `tools/make_music.py` | Generates the battle music and the danger theme (see `docs/MUSIC.md`). |
 | `sim/play_cli.py` | The terminal battle. |
 | `data/` | CSV game data, dialogue and the tutorial script (see `data/README.md`). |
 | `tests/` | pytest suite. |

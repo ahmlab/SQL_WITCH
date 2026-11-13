@@ -24,7 +24,7 @@ from typing import Callable
 import pygame
 
 from engine import fx, render, scenery
-from engine.audio import Audio, Silent
+from engine.audio import Audio, Silent, pick_track
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
 from engine.guide import Guide
 from engine.sprites import draw_ada
@@ -94,6 +94,7 @@ class Game:
         self.running = True
         self.held: set[int] = set()        # keys down right now (to spot held-key repeats)
         self.guide_seen = False           # the GUIDE button glows until it is opened once
+        self.last_music: str | None = None   # so a retry does not replay the same track
         self.scene: Scene | None = None
         self.switch(TitleScene(self))
 
@@ -134,6 +135,7 @@ class Game:
 
     def update(self, dt: int) -> None:
         self.scene.update(dt)
+        self.audio.update(dt)                     # music fades move on with the game's clock
 
     def draw(self) -> None:
         if isinstance(self.canvas, render.Canvas):
@@ -376,6 +378,9 @@ GUIDE_BUTTON = pygame.Rect(258, 2, 59, 11)        # the clickable "? GUIDE" tab,
 TABLES_BUTTON = pygame.Rect(LEFT_PAGE.x + 46, LEFT_PAGE.y - 2, 29, 9)   # over the query
 TABLES_PANEL = pygame.Rect(4, 4, 312, 94)
 KEY_REPEAT_DELAY = 350       # ms a key must be held before it starts repeating
+# The danger theme starts when Ada's HP bar drops below a quarter and stops once it is back
+# above 35%: the gap keeps it from flapping on and off around a single threshold.
+DANGER_OFF_ABOVE = render.HP_DANGER + 0.10
 KEY_REPEAT_INTERVAL = 35     # ms between repeats (about 28 per second)
 ADA_AT = (24, 58)                                   # where bolts and numbers start/land
 ADA_FEET = (42, 100)                                # battle: on the grass, above the Grimoire
@@ -388,6 +393,7 @@ ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
 
 class BattleScene(Scene):
     WAIT_MS = 350                          # a short breath between turns
+    DANGER_MUSIC = True                    # the tutorial turns this off: nothing is at stake
     FOE_PANEL = pygame.Rect(4, 3, 120, 20)
     ADA_PANEL = pygame.Rect(196, 70, 120, 27)
 
@@ -443,9 +449,26 @@ class BattleScene(Scene):
         pygame.key.start_text_input()
         # Held keys repeat: after a short pause, Backspace and the arrows keep going.
         pygame.key.set_repeat(KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL)
-        # Each guardian has its own theme in sounds.json; "battle" is the fallback.
-        themes = self.game.audio.config.get("music", {})
-        self.game.audio.play_music(self.key if self.key in themes else "battle")
+        self._start_music()
+
+    def _start_music(self) -> None:
+        """Each guardian lists its themes in sounds.json ("battle" is the fallback). One is
+        picked with the visual random generator, never the battle's: same seed, same fight."""
+        audio = self.game.audio
+        name = self.key if self.key in audio.config.get("music", {}) else "battle"
+        choice = pick_track(audio.music_files(name), self.game.last_music, self.game.vfx)
+        self.game.last_music = audio.play_music(name, choice) or self.game.last_music
+
+    def _update_danger(self) -> None:
+        """Only Ada's HP counts, as the bar shows it (after the narration has caught up)."""
+        if not self.DANGER_MUSIC:
+            return
+        ada = self.battle.state.ada
+        shown = self.bars["ada"][0] / ada.max_hp if ada.max_hp else 1.0
+        if shown < render.HP_DANGER:
+            self.game.audio.set_danger(True)
+        elif shown > DANGER_OFF_ABOVE:
+            self.game.audio.set_danger(False)
 
     def exit(self):
         pygame.key.stop_text_input()
@@ -744,6 +767,7 @@ class BattleScene(Scene):
         super().update(dt)
         self._update_beats(dt)
         self._update_visuals(dt)
+        self._update_danger()
         self._update_body(dt)
         self.fx.update(dt)
         resting = self.beat is None and not self.beats

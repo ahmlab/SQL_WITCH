@@ -212,4 +212,5 @@ def test_each_guardian_plays_its_own_theme(guardian):
     game, scene = to_battle(guardian)
     assert game.audio.music == guardian
     themes = json.loads((DATA_DIR.parent / "assets" / "audio" / "sounds.json").read_text())["music"]
-    assert themes["slime"]["file"] != themes["knight"]["file"]
+    assert set(themes["slime"]["files"]) != set(themes["knight"]["files"])
+    assert game.audio.music_file in themes[guardian]["files"]
