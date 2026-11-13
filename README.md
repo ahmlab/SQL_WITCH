@@ -7,8 +7,8 @@ Kingdom of Codd, a world that is literally a relational database. Magic is query
 attack is a real SQLite query run against the living tables of the world, and the enemies
 answer with their own real SQL.
 
-This build is the **vertical slice**: title screen, the intro story, a battle against the
-**Asterisk Slime** (who teaches `LIMIT`), then the Filter Keep and a battle against
+This build is the **vertical slice**: title screen, the intro story, a hands-on **tutorial**
+against a Training Dummy, a battle against the **Asterisk Slime** (who teaches `LIMIT`), then the Filter Keep and a battle against
 **Sir Wherewell, Knight of the Filter** (who teaches `WHERE`), with win/lose screens.
 
 Both guardians are rule-based AIs (no machine learning): perception, a state machine written
@@ -58,6 +58,8 @@ python main.py
 |---|---|
 | `--seed N` | Replay exactly the same battle. The seed is printed at start and shown on the result screen. |
 | `--scale K` | Window size as a multiple of 320 × 180 (default: the largest that fits your screen). |
+| `--start tutorial` | The default: intro, then the tutorial, then the Slime. |
+| `--start slime` | Skip the tutorial: the intro leads straight to the Slime. |
 | `--start knight` | Start the story at the second guardian (with `LIMIT` already learned). |
 
 | Key | Action |
@@ -73,7 +75,8 @@ python main.py
 | `F3` or click **? GUIDE** | The spell guide: how to write a query, how to read a table, ready-made queries to try (Enter writes one on the page) and the runes. |
 | `F1` | Debug overlay: what the Slime's brain decided and why. |
 | `F2` | Mute / unmute sound and music. |
-| `Esc` | Skip the intro; quit from the title or result screen. |
+| `F5` or click **READY** | Tutorial: leave free practice for the first guardian. |
+| `Esc` | Skip the intro; skip the tutorial (it asks first); quit from the title or result screen. |
 
 In the terminal, no pygame needed. It plays the same battle with the same rules:
 
@@ -87,7 +90,23 @@ Type a query and press Enter. `:help`, `:why` (the Slime's reasoning), `:schema`
 
 ## New to SQL?
 
-Press **F3** in battle (or click **? GUIDE**, top right). The guide explains what a query
+Just play: after the intro, the Grimoire walks you through your first queries against a
+Training Dummy that cannot hurt you (3 to 5 minutes, no way to lose).
+
+| Lesson | The Grimoire shows it, then you write it | What you learn |
+|---|---|---|
+| LOOK | `SELECT * FROM enemies` | A query asks a table for rows; one row is one creature. |
+| CHOOSE | `SELECT name, weakness FROM enemies` | Ask only for the columns you need: the page is narrow. |
+| READ | `SELECT element, power, mp_cost FROM spells` | Looking is free; read before you act. |
+| CAST | `SELECT name FROM spells` | A spell's name casts it, and the Rule of the Page has a price. |
+| PLAY | anything | Free practice with three small quests, then READY. |
+
+Help fades as you go: lesson 1 offers the whole query faded (TAB, then CTRL+ENTER), lesson 2
+only the keywords, lesson 3 a hint line, lesson 4 nothing. If you get stuck, the help comes
+back on its own. Any query that does the job passes, not only the one shown.
+The wording lives in `data/tutorial.json` (see [`docs/TUTORIAL.md`](docs/TUTORIAL.md)).
+
+In battle, press **F3** (or click **? GUIDE**, top right). The guide explains what a query
 is, what each table holds, how to read a result, and lists queries you can try right now,
 each marked as a free LOOK or a CAST. Its text lives in `data/guide.json`.
 
@@ -120,6 +139,7 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `magic/cast.py` | Page split and the casting contract. |
 | `magic/rules.py` | Damage, type chart, MP, end of round (pure Python). |
 | `magic/battle.py` | Round and turn order, shared by the window and the terminal. |
+| `magic/tutorial.py` | The tutorial's lessons: pass conditions, coaching, hint ladder (no pygame). |
 | `ai/` | Foe brains and their SQL styles. **Never imports pygame.** |
 | `ai/perception.py` | What a guardian senses each turn, and its memory of Ada's casts. |
 | `ai/goals.py` | Goal-driven behaviour: atomic and composite goals, the Think arbitrator. |
@@ -129,11 +149,13 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `ai/knight.py` | Sir Wherewell: stance machine and six goal plans. |
 | `ai/styles.py` | Turns an intent into SQL: the Slime's `SELECT *`, the Knight's precise `WHERE`. |
 | `ai/roster.py` | The guardians in order, with their level, runes, brain and style. |
+| `ai/dummy.py` | The tutorial's Training Dummy: a brain that stands still. |
 | `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
+| `engine/tutorial_scene.py` | The tutorial on screen: a battle scene with a Grimoire that teaches. |
 | `assets/audio/` | Sound effects, battle music and `sounds.json`. |
 | `tools/make_sounds.py` | Generates the placeholder chiptune sounds. |
 | `sim/play_cli.py` | The terminal battle. |
-| `data/` | CSV game data and dialogue (see `data/README.md`). |
+| `data/` | CSV game data, dialogue and the tutorial script (see `data/README.md`). |
 | `tests/` | pytest suite. |
 
 A foe's brain only chooses an *intent*. The style layer writes it as SQL, the intent is thrown

@@ -9,7 +9,8 @@ and game.vfx for screen shake and wandering, so visual effects can never change 
 The guardian walks around the battlefield by steering (ai/steering.py) towards whatever its
 brain ordered: the brain decides, the scene only integrates the motion.
 
-STATUS: title, story, Slime and Knight battles with steering, narration, sounds, F1; results.
+STATUS: title, story, tutorial hand-off, Slime and Knight battles with steering, narration,
+sounds, F1; results.
 """
 
 from __future__ import annotations
@@ -80,7 +81,9 @@ class Game:
     def __init__(self, canvas: pygame.Surface, seed: int, screen=None,
                  audio: Audio | None = None, start: str = "slime"):
         self.canvas = canvas
-        self.start = start                # which guardian the story begins with
+        # Where the story begins: "tutorial", "slime" or "knight". main.py starts at the
+        # tutorial; the default here stays "slime" so a bare Game() is the classic slice.
+        self.start = start
         self.runes: set[str] = set()      # runes Ada keeps after each victory
         self.screen = screen              # optional: only used for screen shake
         self.audio = audio if audio is not None else Silent()
@@ -194,12 +197,22 @@ def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
 
 TITLE_DOT = 3                     # big titles: each dot of a 5x7 letter is a 3x3 block
 
+def next_scene(game: "Game", key: str) -> Scene:
+    """The scene a story beat leads to: the tutorial, or a guardian's battle."""
+    if key == "tutorial":
+        # Imported here: the tutorial scene is built on BattleScene, defined in this module.
+        from engine.tutorial_scene import TutorialScene
+        return TutorialScene(game)
+    return BattleScene(game, key)
+
+
 class TitleScene(Scene):
     def handle(self, event):
         if is_confirm_key(event):
             self.game.audio.play("confirm")
             start = self.game.start
-            key = "intro" if start == "slime" else f"{start}_intro"
+            # The story begins with the intro unless it starts at a later guardian.
+            key = "intro" if start in ("tutorial", "slime") else f"{start}_intro"
             self.game.switch(DialogueScene(self.game, key, start))
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.game.running = False
@@ -232,8 +245,10 @@ class DialogueScene(Scene):
 
     def __init__(self, game, key: str = "intro", guardian: str = "slime"):
         super().__init__(game)
-        self.lines = game.dialogue[key]
-        self.guardian = guardian             # the battle that follows
+        self.guardian = guardian             # what follows: "tutorial" or a guardian's battle
+        # A line marked only_before is said only when this scene leads to that place.
+        self.lines = [line for line in game.dialogue[key]
+                      if line.get("only_before", guardian) == guardian]
         self.index = 0
         self.backdrop = self.lines[0].get("scene", "glade")
         self.fade_from, self.fade_at = "black", 0     # the story fades in from black
@@ -264,7 +279,7 @@ class DialogueScene(Scene):
 
     def handle(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self.game.switch(BattleScene(self.game, self.guardian))
+            self.game.switch(next_scene(self.game, self.guardian))
         elif is_confirm_key(event):
             if self._shown_chars() < len(self.line["text"]):
                 self.line_started = -10 ** 9            # finish the typewriter at once
@@ -275,7 +290,7 @@ class DialogueScene(Scene):
                 self._start_line()
             else:
                 self.game.audio.play("next")
-                self.game.switch(BattleScene(self.game, self.guardian))
+                self.game.switch(next_scene(self.game, self.guardian))
 
     def update(self, dt):
         super().update(dt)

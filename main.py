@@ -39,14 +39,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "(default: from the clock)")
     parser.add_argument("--scale", type=int, default=None,
                         help="window size as a multiple of 320x180 (default: largest that fits)")
-    parser.add_argument("--start", choices=["slime", "knight"], default="slime",
-                        help="guardian to start the story at (default: slime)")
+    parser.add_argument("--start", choices=["tutorial", "slime", "knight"], default="tutorial",
+                        help="where the story starts: the tutorial, or straight at a guardian "
+                             "(default: tutorial)")
     parser.add_argument("--frames", type=int, default=None, help=argparse.SUPPRESS)  # smoke tests
     return parser.parse_args(argv)
 
 
 def run(seed: int, scale: int | None = None, max_frames: int | None = None,
-        start: str = "slime") -> int:
+        start: str = "tutorial") -> int:
     init_mixer()                                   # before pygame.init(): low-latency sound
     pygame.init()
     try:

@@ -269,3 +269,61 @@ def test_every_screen_of_the_tutorial_draws_without_text_off_the_canvas():
             press(game, pygame.K_RETURN)
         wait(game, 30)
     assert seen > 15
+
+
+# ------------------------------------------------------------------ the flow: title, intro, tutorial
+
+from engine.scenes import DialogueScene, load_dialogue  # noqa: E402
+import main  # noqa: E402
+
+
+def story(start):
+    game = Game(pygame.Surface((320, 180)), seed=1, start=start)
+    press(game, pygame.K_RETURN)                              # leave the title
+    assert isinstance(game.scene, DialogueScene)
+    return game
+
+
+def test_the_intro_leads_to_the_tutorial_and_the_tutorial_to_the_slime():
+    game = story("tutorial")
+    for _ in range(80):
+        if isinstance(game.scene, TutorialScene):
+            break
+        press(game, pygame.K_RETURN)
+        wait(game, 30)
+    assert isinstance(game.scene, TutorialScene)
+
+
+def test_esc_skips_the_intro_into_the_tutorial_not_past_it():
+    game = story("tutorial")
+    press(game, pygame.K_ESCAPE)
+    assert isinstance(game.scene, TutorialScene)
+
+
+def test_the_intro_no_longer_explains_what_the_tutorial_teaches():
+    lines = " ".join(line["text"] for line in story("tutorial").scene.lines)
+    assert "four rows" not in lines and "F3" not in lines and "SLIME" not in lines
+    assert "straw" in lines
+
+
+def test_starting_at_the_slime_keeps_the_short_rules_and_the_slime():
+    game = story("slime")
+    lines = " ".join(line["text"] for line in game.scene.lines)
+    assert "four rows" in lines and "ASTERISK SLIME" in lines and "straw" not in lines
+    press(game, pygame.K_ESCAPE)
+    assert isinstance(game.scene, BattleScene) and game.scene.key == "slime"
+
+
+def test_starting_at_the_knight_is_unchanged():
+    game = story("knight")
+    assert game.scene.lines[0]["text"] == load_dialogue()["knight_intro"][0]["text"]
+    press(game, pygame.K_ESCAPE)
+    assert isinstance(game.scene, BattleScene) and game.scene.key == "knight"
+
+
+def test_main_starts_at_the_tutorial_by_default():
+    assert main.parse_args([]).start == "tutorial"
+    assert main.parse_args(["--start", "slime"]).start == "slime"
+    assert main.parse_args(["--start", "knight"]).start == "knight"
+    with pytest.raises(SystemExit):
+        main.parse_args(["--start", "dummy"])                  # the dummy is not a story stop
