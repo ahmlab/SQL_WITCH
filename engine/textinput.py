@@ -10,10 +10,10 @@ Typing is the controller, so the editor must feel solid before it feels clever:
 - TAB completes table, column and keyword names (tables and columns from PRAGMA table_info);
   while typing, the most likely completion is shown faded after the cursor, and TAB or the
   right arrow accepts it;
-- syntax colours come from sqlglot.tokenize(); keywords of locked runes are drawn grey and
-  struck through, so the player sees what they cannot use yet.
+- syntax colours come from sqlglot.tokenize(). Keywords are never drawn as locked any more:
+  since the Codex (plan §4.2), every technique may be used at any time.
 
-STATUS: editing, history, TAB completion, guided next step, colouring, locked runes.
+STATUS: editing, history, TAB completion, guided next step, colouring (nothing is locked).
 """
 
 from __future__ import annotations
@@ -66,12 +66,10 @@ _PUNCT = {TokenType.COMMA, TokenType.DOT, TokenType.L_PAREN, TokenType.R_PAREN,
 
 
 def locked_words(unlocked: set[str]) -> set[str]:
-    """Every keyword that belongs to a rune Ada has not learned yet."""
-    words = set()
-    for rune, spelled in RUNE_WORDS.items():
-        if rune not in unlocked:
-            words |= spelled
-    return words
+    """Keywords Ada may not write. Since the Codex replaced the rune gate (plan §4.2) there are
+    none: every keyword is written in its normal colour and may be suggested. What Ada knows
+    (`unlocked`) still guides next_step's faded suggestions, it just never forbids."""
+    return set()
 
 
 def _tokens(text: str):
@@ -168,9 +166,6 @@ def next_step(text: str, unlocked: set[str], weakness: str | None = None) -> tup
         return "", ""
     last = upper[-1]
     looks = "*" in upper
-    for rune in ("WHERE", "LIMIT"):
-        if rune in upper and rune not in unlocked:
-            return "", f"{rune} is a rune you have not learned yet"
     if "FROM" not in upper:
         if last == "SELECT":
             return "name", ""                           # the column that casts

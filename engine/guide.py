@@ -46,8 +46,9 @@ class Guide:
     # ------------------------------------------------------------ what is shown
 
     def examples(self) -> list[dict]:
-        """Every example, each marked whether Ada can cast it with her runes right now."""
-        return [dict(e, ready=set(e["needs"]) <= self.runes) for e in self.content["examples"]]
+        """Every example. Since the Codex replaced the rune gate, every one is ready: "needs"
+        only says which technique it shows (the RUNES page lists the ones Ada has used)."""
+        return [dict(e, ready=True) for e in self.content["examples"]]
 
     def toggle(self) -> None:
         self.open = not self.open

@@ -5,12 +5,19 @@ guard.inspect() -> guard.run_query() -> split_page() -> casting contract -> reso
 Power, cost and element always come from the tables, never from the query, so the only way
 to hurt someone is to make a real query return a real spell name.
 
-STATUS: step 2 done - page split, casting contract, Rule of the Page, scrying, query_log.
+Since sandbox v2 the player may change those tables (plan §4.1). The contract reads them
+defensively: a missing table means an empty spellbook, a row whose numbers make no sense is
+ignored, costs and powers are never negative (no MP from a spell that costs -100). A query that
+changes the world (write, schema, transaction) and casts nothing is an action, not a free look:
+it ends the turn.
+
+STATUS: page split, casting contract, Rule of the Page, scrying, writes, rage, query_log.
 """
 
 from __future__ import annotations
 
 import random
+import sqlite3
 from dataclasses import dataclass, field
 
 from magic import guard, rules
@@ -80,22 +87,46 @@ class Item:
     qty: int
 
 
+def _number(value) -> int | None:
+    """A table cell as a whole, non-negative number, or None if it is not a number at all."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return max(0, int(value))
+
+
 def spellbook(conn, state: BattleState, caster: str) -> dict[str, Spell]:
-    """The spells this caster knows, read from the canonical table (contract clause 4)."""
-    if caster == "ada":
-        rows = conn.execute("SELECT name, element, power, mp_cost, kind FROM spells")
-    else:
-        rows = conn.execute("SELECT name, element, power, mp_cost, kind FROM foe_spells "
-                            "WHERE foe_id = ?", (state.foe_id,))
-    return {row[0]: Spell(*row) for row in rows}
+    """The spells this caster knows, read from the canonical table (contract clause 4).
+    A dropped or broken table is an empty book; a row without real numbers is not a spell."""
+    try:
+        if caster == "ada":
+            rows = conn.execute("SELECT name, element, power, mp_cost, kind FROM spells").fetchall()
+        else:
+            rows = conn.execute("SELECT name, element, power, mp_cost, kind FROM foe_spells "
+                                "WHERE foe_id = ?", (state.foe_id,)).fetchall()
+    except sqlite3.Error:
+        return {}
+    book = {}
+    for name, element, power, cost, kind in rows:
+        power, cost = _number(power), _number(cost)
+        if isinstance(name, str) and power is not None and cost is not None:
+            book[name] = Spell(name, element, power, cost, kind)
+    return book
 
 
 def satchel(conn, caster: str) -> dict[str, Item]:
     """Items belong to Ada; foes have none in this build."""
     if caster != "ada":
         return {}
-    rows = conn.execute("SELECT name, kind, amount, qty FROM items")
-    return {row[0]: Item(*row) for row in rows}
+    try:
+        rows = conn.execute("SELECT name, kind, amount, qty FROM items").fetchall()
+    except sqlite3.Error:
+        return {}
+    out = {}
+    for name, kind, amount, qty in rows:
+        amount, qty = _number(amount), _number(qty)
+        if isinstance(name, str) and amount is not None and qty is not None:
+            out[name] = Item(name, kind, amount, qty)
+    return out
 
 
 # ------------------------------------------------------------------ the report
@@ -141,6 +172,14 @@ class CastReport:
     scry: bool = False
     ends_turn: bool = True
     events: list[tuple] = field(default_factory=list)
+    kind: str = "read"                 # read | write | schema | transaction (guard.inspect)
+    statements: tuple = ()             # the guard's reading of each statement
+    outcome: object = None             # guard.Outcome: rolled back, committed, rows changed
+    # Filled in by the battle once the world has been assessed (magic/world.py):
+    reactions: list = field(default_factory=list)
+    tricks: list = field(default_factory=list)
+    codex: list = field(default_factory=list)        # techniques whose page just unlocked
+    integrity: str = "intact"
 
     @property
     def mp_after(self) -> int:
@@ -204,10 +243,11 @@ def _cost(plan: _Row) -> int:
 
 
 def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
-                 rng: random.Random, report: CastReport) -> None:
+                 rng: random.Random, report: CastReport, rage: float = 1.0) -> None:
     spell = plan.spell
     if spell.kind in ("attack", "area"):
-        hit = rules.damage(spell.power, spell.element, target, chart, rng)
+        # An enraged foe (the player wrecked her own side of the world) hits harder.
+        hit = rules.damage(round(spell.power * rage), spell.element, target, chart, rng)
         rules.apply_hit(target, hit)
         report.casts.append(Cast(plan.index, spell.name, target.name, spell.kind,
                                  damage=hit.amount, crit=hit.crit, effective=hit.multiplier,
@@ -265,14 +305,16 @@ def resolve(conn, state: BattleState, sql: str, caster: str, rng: random.Random,
     Raises guard.Miscast for a rejected query; nothing changes in that case.
     """
     me = state.side(caster)
-    runes = guard.inspect(sql, me.runes)
-    columns, rows = guard.run_query(conn, sql)
+    runes = guard.inspect(sql)
+    outcome = guard.Outcome()
+    columns, rows = guard.run_query(conn, sql, outcome=outcome)
     page = split_page(columns, rows)
     chart = chart if chart is not None else rules.load_type_chart(conn)
 
     report = CastReport(sql=sql, caster=caster, columns=columns, rows=rows,
                         visible=len(page.visible_rows), visible_columns=page.visible_columns,
-                        runes=runes, mp_before=me.mp)
+                        runes=runes, mp_before=me.mp, kind=runes.kind,
+                        statements=runes.statements, outcome=outcome)
     if caster == "foe":
         state.foe_book.append(sql)
 
@@ -280,8 +322,11 @@ def resolve(conn, state: BattleState, sql: str, caster: str, rng: random.Random,
     names = {state.ada.name: "ada", state.foe.name: "foe"}
     plans = [p for i, row in enumerate(rows) if (p := _read_row(i, row, book, items, names))]
 
-    if not plans:
+    if not plans and report.kind == "read":
         _scry(state, caster, report)
+    elif not plans:
+        # It changed the world: an action, not a look. It ends the turn.
+        report.events.append(("write", runes.kind))
     else:
         _cast(conn, state, caster, plans, page, chart, rng, report)
 
@@ -326,7 +371,8 @@ def _cast(conn, state, caster, plans, page, chart, rng, report) -> None:
         elif plan.item:
             _use_item(conn, plan, state.side(target_side), report)
         else:
-            _apply_spell(plan, me, state.side(target_side), chart, rng, report)
+            rage = RAGE_MULT if (caster == "foe" and state.foe_rage) else 1.0
+            _apply_spell(plan, me, state.side(target_side), chart, rng, report, rage)
         if readable:
             seen.add(pair)
 
@@ -347,21 +393,31 @@ def _used(report: CastReport, name: str) -> int:
 # ------------------------------------------------------------------ the world's memory
 
 def _log(conn, state: BattleState, me: Combatant, report: CastReport) -> None:
-    conn.execute(
-        "INSERT INTO query_log (turn, caster, sql, clauses, rows_out, rows_cast, seed) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (state.turn, me.name, report.sql, ",".join(sorted(report.runes)), len(report.rows),
-         len(report.casts), state.rng_seed))
+    try:
+        conn.execute(
+            "INSERT INTO query_log (turn, caster, sql, clauses, rows_out, rows_cast, seed) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (state.turn, me.name, report.sql, ",".join(sorted(report.runes)), len(report.rows),
+             len(report.casts), state.rng_seed))
+    except sqlite3.Error:
+        pass                       # the player dropped or reshaped the log: the world goes on
 
 
 def sync_state(conn, state: BattleState) -> None:
-    """Copy HP, MP and wards back into the tables, so the next query reads the truth."""
+    """Copy HP, MP and wards back into the tables, so the next query reads the truth.
+    The battle state is the authority: a player who writes UPDATE witch SET hp = 999 sees the
+    world correct it after the query. Missing tables or columns are skipped, never fatal."""
     ada, foe = state.ada, state.foe
-    conn.execute("UPDATE witch SET hp = ?, mp = ?, ward = ? WHERE name = ?",
-                 (ada.hp, ada.mp, ada.ward, ada.name))
-    conn.execute("UPDATE enemies SET hp = ?, mp = ? WHERE id = ?",
-                 (foe.hp, foe.mp, state.foe_id))
-    conn.commit()
+    for sql, values in (("UPDATE witch SET hp = ?, mp = ?, ward = ? WHERE name = ?",
+                         (ada.hp, ada.mp, ada.ward, ada.name)),
+                        ("UPDATE enemies SET hp = ?, mp = ? WHERE id = ?",
+                         (foe.hp, foe.mp, state.foe_id))):
+        try:
+            conn.execute(sql, values)
+        except sqlite3.Error:
+            pass
+    if conn.in_transaction:
+        conn.commit()
 
 
 def load_state(conn, foe_id: int = 1, seed: int = 0) -> BattleState:
@@ -377,3 +433,14 @@ def load_state(conn, foe_id: int = 1, seed: int = 0) -> BattleState:
     foe = Combatant(fname, fhp if fhp is not None else fmax_hp, fmax_hp, fmp, fmax_mp,
                     rules.FOE_MP_REGEN, fspeed, felement, fweak)
     return BattleState(ada=ada, foe=foe, rng_seed=seed, foe_id=foe_id)
+
+
+# How much harder an enraged foe hits: data/world.json, rage_multiplier.
+def _rage_multiplier() -> float:
+    import json
+    from magic.db import DATA_DIR
+    with open(DATA_DIR / "world.json", encoding="utf-8") as f:
+        return float(json.load(f).get("rage_multiplier", 1.5))
+
+
+RAGE_MULT = _rage_multiplier()

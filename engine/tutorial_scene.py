@@ -195,6 +195,12 @@ class TutorialScene(BattleScene):
         if "tables_button" in self.tutorial.revealed:
             super().toggle_tables()
 
+    def toggle_rewind(self) -> None:
+        """No Rewind in practice: the tutorial already puts the world back after every query."""
+
+    def save_scroll(self) -> None:
+        """Scrolls are for real fights; the tutorial's queries are not memorised."""
+
     def toggle_guide(self) -> None:
         if "guide_button" in self.tutorial.revealed:
             super().toggle_guide()

@@ -36,7 +36,10 @@ from ai.roster import GUARDIANS, ORDER, next_guardian
 from magic.battle import Battle
 from magic.cast import SCRY_PER_TURN, CastReport, effect_word
 from magic.db import DATA_DIR
+from magic.battle import _summary
 from magic.guard import Miscast
+from i18n import t
+from story.codex import Codex
 
 
 def _last_word(text: str) -> str:
@@ -96,6 +99,8 @@ class Game:
         self.held: set[int] = set()        # keys down right now (to spot held-key repeats)
         self.guide_seen = False           # the GUIDE button glows until it is opened once
         self.last_music: str | None = None   # so a retry does not replay the same track
+        self.codex = Codex()                 # what the player has learned (plan §4.2)
+        self.scrolls: dict[str, str] = {}    # saved queries: name -> SQL (plan §4.4)
         self.scene: Scene | None = None
         self.switch(TitleScene(self))
 
@@ -367,6 +372,7 @@ class Beat:
     ms: int = 700
     effect: Callable[[], None] | None = None
     sounds: tuple[str, ...] = ()          # event names in assets/audio/sounds.json
+    speaker: str = ""                     # set: someone talks (a reaction), in a wider box
 
 
 @dataclass
@@ -405,7 +411,8 @@ class BattleScene(Scene):
         self.key = guardian
         runes = set(game.runes) | set(GUARDIANS[guardian].ada_runes)
         # A scene may be handed its battle (the tutorial runs its own); otherwise a new one.
-        self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes)
+        self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes,
+                                       codex=game.codex, scrolls=game.scrolls)
         # The guardian's body on screen, steered towards whatever its brain orders.
         home = steering.Vec(*HOME[guardian])
         self.body = steering.Kinematic(home, max_speed=75 if guardian == "knight" else 55)
@@ -448,6 +455,10 @@ class BattleScene(Scene):
                        for t in schema_tables(conn) if t != "relics"]
         self.say(game.dialogue["battle_tip"], 2500)
         self.phase = "input" if self.battle.whose_turn == "ada" else "wait"
+        self.rewind_open = False                    # the Rewind page (F6)
+        self.rewind_choice = 0
+        self.last_cast: str | None = None           # the query F7 would save as a Scroll
+        self._last_thud = -1000
 
     def enter(self):
         pygame.key.start_text_input()
@@ -481,8 +492,8 @@ class BattleScene(Scene):
 
     # ------------------------------------------------------------ narration
 
-    def say(self, text: str, ms: int = 700, effect=None, *sounds: str) -> None:
-        self.beats.append(Beat(text, ms, effect, sounds))
+    def say(self, text: str, ms: int = 700, effect=None, *sounds: str, speaker: str = "") -> None:
+        self.beats.append(Beat(text, ms, effect, sounds, speaker))
 
     def side_of(self, name: str) -> str:
         return "ada" if name == self.battle.state.ada.name else "foe"
@@ -590,6 +601,31 @@ class BattleScene(Scene):
                 self.say(f"{event[1]} faints!", 1000, None, "faint")
             elif kind == "scry":
                 self.say("A free look." if not event[2] else "Nothing castable: turn spent.", 600)
+            elif kind == "write":
+                key, args = _summary(report)
+                self.say(t("ui.write.done", summary=t(key, **args)), 900, None, "cast")
+            elif kind == "confused":
+                self.say(t("world.forgets", foe=event[1]), 900, None, "fizzle")
+            elif kind == "rewind":
+                self.say(t("reaction.rewind_grimoire", turn=event[1]), 1100,
+                         self._sync_shown, "invitation", speaker="Grimoire")
+
+    def _speaker(self, who: str) -> str:
+        return {"foe": self.battle.state.foe.name, "grimoire": "Grimoire",
+                "ada": self.battle.state.ada.name}.get(who, who)
+
+    def _tell_world(self, report: CastReport) -> None:
+        """What the world said about the last query: reactions, tricks, new Codex pages."""
+        for reaction in list(report.reactions) + list(report.tricks):
+            if reaction.effect == "refuse":
+                continue                              # a refusal is shown as a miscast
+            args = dict(reaction.args, foe=self.battle.state.foe.name)
+            sound = "deflect" if reaction.effect in ("foe_rages", "fight_ends_confused") \
+                else "invitation" if reaction in report.tricks else "next"
+            self.say(t(reaction.line_key, **args), 2200, None, sound,
+                     speaker=self._speaker(reaction.speaker))
+        for page in report.codex:
+            self.say(t("codex.unlocked", technique=page), 900, None, "rune")
 
     def _tell_round_end(self) -> None:
         end = self.battle.last_round
@@ -614,6 +650,7 @@ class BattleScene(Scene):
             return
         self.game.audio.play("scry" if report.scry else "cast")
         self._ada_casts(report)
+        self.last_cast = sql
         if "weakness" in report.columns and report.rows:
             weakness = report.rows[0][report.columns.index("weakness")]
             if weakness:                            # she has seen it: now it can be suggested
@@ -621,6 +658,10 @@ class BattleScene(Scene):
         looks = SCRY_PER_TURN - self.battle.state.scries_used
         self.grimoire.show_result(report, self.time, looks)
         self.narrate(report)
+        self._tell_world(report)
+        if self.battle.spellbook.can_save(sql):
+            from magic.spellbook import SCROLL_THRESHOLD
+            self.say(t("ui.scroll.can_save", count=SCROLL_THRESHOLD), 1400, None, "rune")
         self._tell_round_end()
         if report.ends_turn:
             self.phase, self.idle = "wait", 0
@@ -647,6 +688,10 @@ class BattleScene(Scene):
         name = self.battle.state.foe.name.split()[-1]
         self.say(f"{name} casts!", 650, None, "scry" if turn.report.scry else "cast")
         self.narrate(turn.report)
+        self._tell_world(turn.report)
+        if turn.acknowledged:                          # she already used it: no lesson needed
+            self.say(t("codex.acknowledged", foe=name, technique=turn.acknowledged), 1400,
+                     None, "rune", speaker=self.battle.state.foe.name)
         if turn.invitation:
             rune = turn.invitation
 
@@ -696,7 +741,60 @@ class BattleScene(Scene):
             return {pygame.K_LEFT: -1, pygame.K_RIGHT: 1}.get(event.key, 0)
         return 0
 
+    # ------------------------------------------------------------ Rewind and Scrolls
+
+    def toggle_rewind(self) -> None:
+        if self.phase != "input" and not self.rewind_open:
+            self._thud()
+            return
+        self.rewind_open = not self.rewind_open
+        self.rewind_choice = max(0, len(self.battle.world.snapshots) - 1)
+        self.game.audio.play("scry")
+
+    def _rewind_key(self, event) -> None:
+        count = len(self.battle.world.snapshots)
+        if event.key in (pygame.K_ESCAPE, pygame.K_F6):
+            self.rewind_open = False
+        elif event.key == pygame.K_UP and count:
+            self.rewind_choice = max(0, self.rewind_choice - 1)
+        elif event.key == pygame.K_DOWN and count:
+            self.rewind_choice = min(count - 1, self.rewind_choice + 1)
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and count:
+            self.rewind_open = False
+            report = self.battle.rewind(self.rewind_choice)
+            self.grimoire.clear()
+            self.narrate(report)
+            self._tell_world(report)
+            self._tell_round_end()
+            self.phase, self.idle = "wait", 0
+
+    def save_scroll(self) -> None:
+        book = self.battle.spellbook
+        if self.phase != "input" or not self.last_cast or not book.can_save(self.last_cast):
+            self._thud()
+            return
+        view = book.save(self.last_cast)
+        self.game.scrolls = dict(book.scrolls)
+        self.editor.names.append(view)                # TAB completes it from now on
+        self.say(t("ui.scroll.saved", name=view), 1600, None, "invitation")
+
+    def _thud(self) -> None:
+        """The book is closed: a soft sound, at most a few times a second (keys can repeat)."""
+        if self.time - self._last_thud > 250:
+            self.game.audio.play("locked")
+            self._last_thud = self.time
+
     def handle(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F6:
+            self.toggle_rewind()
+            return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F7:
+            self.save_scroll()
+            return
+        if self.rewind_open:                        # the Rewind page takes the keyboard
+            if event.type == pygame.KEYDOWN:
+                self._rewind_key(event)
+            return
         if not self.guide.open:                     # reading the page works at any time
             if step := self._is_scroll_key(event):
                 self._scroll_result(step)
@@ -725,10 +823,12 @@ class BattleScene(Scene):
             return
         if is_cast_key(event):                      # Ctrl+Enter while waiting: fast-forward
             self.beat_left = 0
-        elif self.phase != "end":
-            before = self.editor.text
-            self.editor.handle_event(event)         # typing ahead is fine, casting is not
-            self._typing_feedback(event, before)
+        elif event.type == pygame.TEXTINPUT or (event.type == pygame.KEYDOWN and
+                                                event.key not in (pygame.K_LCTRL, pygame.K_RCTRL,
+                                                                  pygame.K_LSHIFT, pygame.K_RSHIFT)):
+            # Turn lock (plan §4.3): the book is closed outside Ada's turn. Keys are dropped,
+            # never buffered for later, with one soft sound.
+            self._thud()
 
     # ------------------------------------------------------------ the magic of typing
 
@@ -878,6 +978,7 @@ class BattleScene(Scene):
 
         self._draw_narration(canvas)
 
+        self.grimoire.closed = None if self.phase == "input" else self._closed_reason()
         self.grimoire.draw(canvas, self.time, focused=self.phase == "input")
         self._draw_page_heat(canvas)
         self.fx.draw(canvas)
@@ -885,14 +986,61 @@ class BattleScene(Scene):
         self._draw_tables_button(canvas)
         if self.tables_open:
             self._draw_tables(canvas)
+        if self.rewind_open:
+            self._draw_rewind(canvas)
         if self.game.debug:
             self._draw_debug(canvas)
         self.guide.draw(canvas, self.time)
 
+    def _closed_reason(self) -> str:
+        whose = self.battle.whose_turn
+        if whose == "over":
+            return t("ui.book_closed.over")
+        if whose == "foe":
+            return t("ui.book_closed.foe_turn", foe=self.battle.state.foe.name)
+        return t("ui.book_closed.animating")
+
+    def _draw_rewind(self, canvas):
+        """F6: the snapshots of this fight, oldest first; ENTER turns the world back."""
+        f = render.font()
+        box = TABLES_PANEL
+        render.cover(canvas, box, (*render.INK, 255))
+        render.cover(canvas, box.inflate(-2, -2), (*render.CREAM, 255))
+        x, y = box.x + 4, box.y + 4
+        f.draw(canvas, t("ui.rewind.title"), (x, y), render.VIOLET)
+        y += render.LINE_H + 3
+        entries = self.battle.world.entries()
+        if not entries:
+            for line in wrap(t("ui.rewind.empty"), 74):
+                f.draw(canvas, line, (x, y), render.SLATE)
+                y += render.LINE_H
+        first = max(0, self.rewind_choice - 7)
+        for i, (turn, key, args) in enumerate(entries[first:first + 9], start=first):
+            text = t("world.rewind_entry", turn=turn, summary=t(key, **args))
+            if i == self.rewind_choice:
+                render.cover(canvas, pygame.Rect(x - 2, y - 1, box.width - 6, render.LINE_H + 1),
+                             (*render.BUTTER, 255))
+            f.draw(canvas, text[:74], (x, y), render.INK)
+            y += render.LINE_H + 1
+        f.draw(canvas, t("ui.rewind.help"), (x, box.bottom - 9), render.WINE)
+
     def _draw_narration(self, canvas):
         """The current beat in its little box, and the floating damage numbers."""
         f = render.font()
-        if self.beat is not None and self.beat.text:
+        if self.beat is not None and self.beat.text and self.beat.speaker:
+            # Someone speaks (a reaction, a trick): a wide box with their name on a tag.
+            box = pygame.Rect(4, 70, 312, 28)
+            # cover, not panel: the panels behind have text on the text layer, which a plain
+            # pixel box would not hide.
+            render.cover(canvas, box, (*render.INK, 255))
+            render.cover(canvas, box.inflate(-2, -2), (*render.CREAM, 255))
+            tag = pygame.Rect(8, 63, f.width(self.beat.speaker) + 8, 10)
+            render.cover(canvas, tag, (*render.INK, 255))
+            render.cover(canvas, tag.inflate(-2, -2), (*render.LAVENDER, 255))
+            f.draw(canvas, self.beat.speaker, (tag.x + 4, tag.y + 3), render.WHITE)
+            for i, line in enumerate(wrap(self.beat.text, 76)[:3]):
+                f.draw(canvas, line, (box.x + 4, box.y + 4 + i * render.LINE_H), render.INK)
+        elif self.beat is not None and self.beat.text:
             box = pygame.Rect(64, 80, 128, 17)
             render.panel(canvas, box)
             for i, line in enumerate(wrap(self.beat.text, 30)[:2]):
@@ -990,7 +1138,7 @@ class BattleScene(Scene):
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 18, 70, 5), mp, ada.max_mp,
                      render.SKY)
         f.draw(canvas, f"{mp}/{ada.max_mp}", (box.x + 88, box.y + 18), render.NAVY)
-        runes = "RUNES: " + (", ".join(sorted(ada.runes)) or "none")
+        runes = f"CODEX: {len(self.battle.codex.pages)}"
         f.draw(canvas, runes, (box.x, box.y - 8), render.GOLD, shadow=render.INK)
         if ada.exhausted:
             f.draw(canvas, "EXHAUSTED", (box.right - f.width("EXHAUSTED"), box.y - 8),
@@ -1023,10 +1171,14 @@ class ResultScene(Scene):
         super().__init__(game)
         self.battle = battle
         self.won = battle.winner == "ada"
+        self.confused = battle.winner == "confused"     # the world broke: nobody won
         conn = battle.conn
-        self.queries, self.casts = conn.execute(
-            "SELECT COUNT(*), COALESCE(SUM(rows_cast), 0) FROM query_log WHERE caster = ?",
-            (battle.state.ada.name,)).fetchone()
+        try:
+            self.queries, self.casts = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(rows_cast), 0) FROM query_log WHERE caster = ?",
+                (battle.state.ada.name,)).fetchone()
+        except Exception:                                # the player dropped the log
+            self.queries, self.casts = len(battle.state.ada_casts), 0
         # The Codex records the guardian's own query as the example for the rune (design doc 3.6).
         self.key = battle.guardian.key
         self.rune = battle.guardian.signature
@@ -1056,11 +1208,12 @@ class ResultScene(Scene):
     def draw(self, canvas):
         f = render.font()
         draw_backdrop(canvas, ground_y=150)
-        headline = "VICTORY" if self.won else "DEFEAT"
-        colour, shade = (render.BUTTER, render.AMBER) if self.won else (render.RED, render.WINE)
+        headline = "VICTORY" if self.won else "CONFUSION" if self.confused else "DEFEAT"
+        colour, shade = (render.BUTTER, render.AMBER) if self.won else \
+            (render.LAVENDER, render.DUSK) if self.confused else (render.RED, render.WINE)
         f.draw_big(canvas, headline, ((320 - f.big_width(headline, TITLE_DOT)) // 2, 14),
                    colour, TITLE_DOT, shadow=shade, outline=render.INK)
-        outcome = "victory" if self.won else "defeat"
+        outcome = "victory" if self.won else "confused" if self.confused else "defeat"
         lines = self.game.dialogue.get(f"{self.key}_{outcome}", self.game.dialogue[outcome])
         y = 52
         for line in lines:

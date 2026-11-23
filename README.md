@@ -24,9 +24,12 @@ with `match`/`case`, goal-driven behaviour and steering behaviours. See
   `SELECT * FROM spells` casts four spells and burns the rest of your mana in the margin.
 - A query that returns no spell names is a **free look** (3 per turn): scry before you cast.
 - Power, cost and element always come from the tables. `SELECT name, 9999 AS power` changes nothing.
-- Ada starts knowing only `SELECT` and `FROM`. Each guardian casts first, so its query is
-  the first thing you read. When its book shows its signature keyword, the rune glows and Ada
-  copies it; she keeps it after the victory.
+- **Any SQL works.** `INSERT`, `DROP`, `CREATE VIEW`, triggers, transactions: the world reacts
+  in character (drop your own spells and the Slime laughs and hits harder). **F6 rewinds** the
+  world to before any of your queries, at the cost of a turn. Details: [`docs/FREEDOM.md`](docs/FREEDOM.md).
+- Nothing is locked. Each guardian casts first and demonstrates its technique (`LIMIT`,
+  `WHERE`); the first time you or a guardian use a technique, its page opens in the **Codex**.
+- A query you cast well three times can be saved as a **Scroll** (F7): a real SQL view.
 - Sir Wherewell's Ward of Relevance turns aside every spell that is not super-effective
   against him. Scry him (`SELECT * FROM enemies`), then filter for his weakness.
 
@@ -73,6 +76,8 @@ python main.py
 | `Shift+←/→` or mouse wheel | Scroll the result page sideways to read columns past the edge (looking only). |
 | `F4` or click **TABLES** | Every table and its columns; click a name to write it in the query. |
 | `F3` or click **? GUIDE** | The spell guide: how to write a query, how to read a table, ready-made queries to try (Enter writes one on the page) and the runes. |
+| `F6` | Rewind: the snapshots of this fight; ENTER turns the world back (costs the turn). |
+| `F7` | Save the last query as a Scroll (after three successful casts of it). |
 | `F1` | Debug overlay: what the Slime's brain decided and why. |
 | `F2` | Mute / unmute sound and music. |
 | `F5` or click **READY** | Tutorial: leave free practice for the first guardian. |
@@ -141,10 +146,14 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `main.py` | Entry point: arguments, fixed 60 Hz timestep, scene manager. |
 | `magic/` | The SQL layer and the rules. **Never imports pygame.** |
 | `magic/db.py` | Builds the in-memory battle database from `data/`. |
-| `magic/guard.py` | Parser, rune gate, forgery ward, read-only sandbox. |
+| `magic/guard.py` | Sandbox v2: statement splitting and kinds, forgery ward, program-safety limits. |
 | `magic/cast.py` | Page split and the casting contract. |
 | `magic/rules.py` | Damage, type chart, MP, end of round (pure Python). |
 | `magic/battle.py` | Round and turn order, shared by the window and the terminal. |
+| `magic/world.py` | Snapshots, Rewind, the integrity check, reactions and tricks. |
+| `magic/spellbook.py` | Scrolls: saved queries as SQL views. |
+| `story/codex.py` | The Codex: the techniques the player has used or seen. |
+| `i18n/` | The text catalog (`data/i18n/`), ICU plurals and gender. |
 | `magic/tutorial.py` | The tutorial's lessons: pass conditions, coaching, hint ladder (no pygame). |
 | `ai/` | Foe brains and their SQL styles. **Never imports pygame.** |
 | `ai/perception.py` | What a guardian senses each turn, and its memory of Ada's casts. |

@@ -1,0 +1,5 @@
+{
+  "_help": "Scrolls: saved queries. threshold: how many successful casts before a query may be saved (the memorisation threshold). Names: a letter, then letters, digits or _, up to max_name characters; the view is called scroll_<name>.",
+  "threshold": 3,
+  "max_name": 24
+}

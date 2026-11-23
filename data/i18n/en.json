@@ -1,0 +1,132 @@
+{
+  "_help": "English is the source catalog. Keys are grouped by system; placeholders are ICU MessageFormat: {name}, {count, plural, one {# row} other {# rows}}, {gender, select, feminine {...} masculine {...} other {...}}. Apostrophes are plain text. SQL keywords, table and column names stay in English in every language.",
+
+  "miscast": {
+    "gibberish": "Ada: Mmm that was NOT the right way of making the spell.",
+    "empty": "Ada: An empty page casts nothing.",
+    "one_at_a_time": "Ada: Hahaha no. Put the semicolon down: one spell per cast, or one BEGIN ... COMMIT block.",
+    "not_understood": "Ada: That's not a spell the Grimoire knows. It looked at it, sighed, and closed itself.",
+    "forgery": "Ada: Ink cannot conjure names. Pick them from a table.",
+    "attach": "Ada: ATTACH another database? Absolutely not. We have enough monsters here.",
+    "detach": "Ada: DETACH? Nothing here is attached, and nothing will be.",
+    "vacuum": "Grimoire: VACUUM? I am a book, not a broom.",
+    "pragma": "Grimoire: *Angry noises*. Only a few PRAGMAs are allowed: table_info, table_list, index_list, index_info, foreign_key_list.",
+    "too_slow": "Ada: That spell collapsed under its own weight. The grimoire is still smoking.",
+    "too_big": "Grimoire: My pages are full. Whatever you were building, it is too big for this world.",
+    "denied": "Grimoire: That reaches outside the world. Some doors stay shut, even for witches.",
+    "not_understood_error": "Ada: The world does not understand that. ({error})",
+    "refused_constraint": "Grimoire: The world refused it: {error}.",
+    "duplicate_name": "Grimoire: There is already something called {name} in this world. Names are unique here, or spells would not know whom to hit.",
+    "witch_row": "Grimoire: You are not a row I will let you delete.",
+    "transaction_left_open": "Grimoire: You opened a transaction and never closed it. I tore that page out (ROLLBACK)."
+  },
+
+  "world": {
+    "summary": {
+      "insert": "you added rows to {table}",
+      "replace": "you replaced rows in {table}",
+      "update": "you changed {table}",
+      "delete": "you deleted rows from {table}",
+      "drop": "you dropped {table}",
+      "create": "you created {table}",
+      "alter": "you altered {table}",
+      "transaction": "you ran a transaction",
+      "cast": "you cast a spell",
+      "read": "you looked at the world"
+    },
+    "rewind_entry": "turn {turn}: {summary}",
+    "integrity": {
+      "intact": "The world is intact.",
+      "altered": "The world has been altered.",
+      "damaged": "The world is damaged.",
+      "broken": "The world is broken."
+    },
+    "rage": "{foe} is enraged: its spells hit harder until the world is put back.",
+    "forgets": "{foe} has forgotten its spells.",
+    "confused_end": "The fight dissolves into confusion. There is nothing left to win."
+  },
+
+  "reaction": {
+    "drop_spells": "Hahaha! Your spellbook is gone, witch. Now I can hit you as hard as I like.",
+    "empty_spells": "Not a single spell left? This will be quick.",
+    "drop_foe_spells": "My book... where is my book? I cannot remember a single spell.",
+    "empty_foe_spells": "Every page of my book is blank. What did you do?",
+    "delete_foe_row": "I... am not in the enemies table any more. Am I still here?",
+    "drop_enemies": "There are no enemies any more. Not even me. What is this fight about?",
+    "delete_witch_row": "You are not a row I will let you delete.",
+    "drop_witch": "You are not a table I will let you drop.",
+    "drop_items": "Your satchel just fell into the void. Gone, all of it.",
+    "drop_type_chart": "Fire, water, storm... it is all the same now. Nothing is strong against anything.",
+    "rename_foe_column": "The words in my book have moved. I can no longer read my own spells!",
+    "alter_spells": "You rewrote your own spells? Cheating, witch. I can cheat too.",
+    "insert_spell": "A spell from nowhere. Clever. I will remember that.",
+    "core_lookalike": "A table that looks like {table}? I will not be fooled... I think.",
+    "rollback_no_transaction": "ROLLBACK what? There is nothing to undo. You have to BEGIN first.",
+    "commit": "COMMIT. Done is done: there is no ROLLBACK for that any more.",
+    "rewind": "Back again, are we? Time is a page you can turn, it seems.",
+    "rewind_grimoire": "I turned the world back to turn {turn}. It cost you this turn."
+  },
+
+  "trick": {
+    "shadow_book": "Wait... that is not my book. It is your view of my book! Well played, witch.",
+    "read_my_mind": "You read my own query from query_log before I cast it again? Clever."
+  },
+
+  "codex": {
+    "unlocked": "Codex: {technique}",
+    "acknowledged": "{foe}: You already know {technique}? Then show me.",
+    "page": {
+      "WHERE": {"title": "WHERE: ask only for what you need", "text": "WHERE keeps the rows that pass a test: WHERE element = 'Fire'.", "dialects": "Same in PostgreSQL and MySQL."},
+      "ORDER BY": {"title": "ORDER BY: put rows in order", "text": "ORDER BY power DESC puts the strongest first.", "dialects": "Same everywhere; NULLs sort first in SQLite and MySQL, last in PostgreSQL."},
+      "LIMIT": {"title": "LIMIT: only the first rows", "text": "LIMIT 1 keeps one row: cast one spell, pay for one spell.", "dialects": "PostgreSQL and MySQL: LIMIT too. SQL Server: TOP; the SQL standard: FETCH FIRST."},
+      "JOIN": {"title": "JOIN: match two tables", "text": "JOIN puts rows of two tables side by side when a condition matches.", "dialects": "Same; SQLite has no RIGHT or FULL JOIN before version 3.39."},
+      "GROUP BY": {"title": "GROUP BY: one row per group", "text": "GROUP BY element, with COUNT(*), counts the spells of each element.", "dialects": "PostgreSQL is stricter: every selected column must be grouped or aggregated."},
+      "HAVING": {"title": "HAVING: filter the groups", "text": "HAVING COUNT(*) > 2 keeps the groups with more than two rows.", "dialects": "Same everywhere."},
+      "DISTINCT": {"title": "DISTINCT: no repeats", "text": "SELECT DISTINCT element lists each element once.", "dialects": "PostgreSQL also has DISTINCT ON."},
+      "SUBQUERY": {"title": "Subqueries: an answer inside an answer", "text": "WHERE power > (SELECT AVG(power) FROM spells) compares with a computed value.", "dialects": "Same everywhere."},
+      "WITH": {"title": "WITH: name a step", "text": "WITH strong AS (SELECT ...) SELECT ... FROM strong reads like a recipe.", "dialects": "MySQL needs version 8 for WITH."},
+      "IS NULL": {"title": "IS NULL: the missing value", "text": "NULL is not equal to anything, not even NULL: test it with IS NULL.", "dialects": "Same everywhere."},
+      "COALESCE": {"title": "COALESCE: a value instead of nothing", "text": "COALESCE(hp, 0) gives 0 when hp is NULL.", "dialects": "Same; MySQL also has IFNULL, SQL Server ISNULL."},
+      "UNION": {"title": "UNION: one list from two", "text": "SELECT name FROM spells UNION SELECT name FROM items joins two results, without repeats.", "dialects": "Same; UNION ALL keeps the repeats."},
+      "EXCEPT": {"title": "EXCEPT: what one has and the other lacks", "text": "The rows of the first result that are not in the second.", "dialects": "MySQL needs version 8.0.31 for EXCEPT."},
+      "INTERSECT": {"title": "INTERSECT: what both share", "text": "The rows that appear in both results.", "dialects": "MySQL needs version 8.0.31 for INTERSECT."},
+      "INSERT": {"title": "INSERT: bring something into the world", "text": "INSERT INTO items (name, kind, amount, qty) VALUES (...) adds a row.", "dialects": "Same; PostgreSQL adds RETURNING, SQLite has it too since 3.35."},
+      "UPDATE": {"title": "UPDATE: correct the world", "text": "UPDATE ... SET ... WHERE ... changes rows. Forget the WHERE and you change them all.", "dialects": "Same everywhere."},
+      "DELETE": {"title": "DELETE: let go, carefully", "text": "DELETE FROM ... WHERE ... removes rows. Without WHERE it removes every row.", "dialects": "Same; TRUNCATE in PostgreSQL and MySQL empties a table faster."},
+      "DROP": {"title": "DROP: remove a whole table", "text": "DROP TABLE removes the table and everything in it. Only a backup brings it back.", "dialects": "Same; PostgreSQL can undo it inside a transaction."},
+      "CREATE TABLE": {"title": "CREATE TABLE: a new place for data", "text": "CREATE TABLE notes (text TEXT) makes an empty table.", "dialects": "Types are strict in PostgreSQL, loose in SQLite."},
+      "CREATE VIEW": {"title": "CREATE VIEW: a saved question", "text": "A view is a query with a name; reading it runs the query. Your Scrolls are views.", "dialects": "Same everywhere."},
+      "CREATE INDEX": {"title": "CREATE INDEX: find rows fast", "text": "An index is a sorted copy of a column, so searches do not read every row.", "dialects": "Same; each database chooses when to use it."},
+      "CREATE TRIGGER": {"title": "CREATE TRIGGER: a trap in the data", "text": "A trigger runs its own statements when rows are inserted, updated or deleted.", "dialects": "PostgreSQL triggers call a function; MySQL's look like SQLite's."},
+      "ALTER": {"title": "ALTER TABLE: reshape a table", "text": "ALTER TABLE spells RENAME COLUMN power TO might renames a column.", "dialects": "SQLite can rename, add and drop columns, little else."},
+      "TRANSACTION": {"title": "Transactions: all or nothing", "text": "BEGIN ... COMMIT applies every statement or none; ROLLBACK undoes them.", "dialects": "Same; MySQL needs the InnoDB engine."},
+      "PRAGMA": {"title": "PRAGMA: ask the database about itself", "text": "PRAGMA table_info(spells) lists the columns of a table.", "dialects": "SQLite only: PostgreSQL uses information_schema, MySQL uses DESCRIBE."},
+      "backups": {"title": "Backups: the world you can return to", "text": "You broke the world and did not rewind. A backup (a snapshot) is how real systems survive mistakes like that.", "dialects": "sqlite3 .backup; pg_dump in PostgreSQL; mysqldump in MySQL."},
+      "trickster": {"title": "Trickster: knowledge beats force", "text": "You broke a guardian with what you know about databases. That counts.", "dialects": ""}
+    }
+  },
+
+  "ui": {
+    "book_closed": {
+      "foe_turn": "The book is closed: it is {foe}'s turn.",
+      "animating": "The book is closed while the spell resolves.",
+      "over": "The book is closed: the fight is over."
+    },
+    "rewind": {
+      "title": "REWIND (F6): turn the world back",
+      "help": "UP/DOWN choose, ENTER rewind (costs this turn), F6/ESC close",
+      "empty": "Nothing to rewind yet: every change you make is saved here first.",
+      "key": "F6 REWIND"
+    },
+    "scroll": {
+      "can_save": "Cast {count, plural, one {# time} other {# times}}: F7 saves it as a Scroll.",
+      "saved": "Scroll saved: {name}. Cast it with SELECT * FROM {name}.",
+      "deleted": "Scroll {name} torn out.",
+      "renamed": "Scroll renamed to {name}.",
+      "bad_name": "A Scroll's name uses letters, digits and _ only, up to 24 characters."
+    },
+    "write": {
+      "done": "The world changed: {summary}."
+    }
+  }
+}

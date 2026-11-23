@@ -189,7 +189,7 @@
   "coach": {
     "_help": "One-line reactions. The game adds the lesson's query under them, so the player always sees what to type next.",
     "miscast": "No harm done: a miscast is free. Try this:",
-    "locked_rune": "Good instinct! A guardian teaches {rune}.",
+    "undone": "Nothing breaks in practice: I put it back.",
     "enter": "ENTER makes a new line. CTRL+ENTER casts.",
     "cast_hint": "CTRL+ENTER casts it",
     "cast_too_early": "Oops: those names fired spells! That is next.",

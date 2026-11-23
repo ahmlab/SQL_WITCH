@@ -109,17 +109,20 @@ def test_the_title_is_drawn_big_and_centred():
 
 # ------------------------------------------------------------------ the sandbox
 
-def test_the_sandbox_answers_reads_and_refuses_writes_without_crashing():
-    typed = "SELECT name FROM spells LIMIT 1\nDROP TABLE spells\nDELETE * FROM spells\n" \
-            "SELECT COUNT(*) FROM spells\n\n"
+def test_the_sandbox_lets_the_world_change_and_refuses_only_what_is_unsafe():
+    # Sandbox v2 (plan §4.1): writes run; leaving the world (ATTACH) is still refused.
+    typed = ("SELECT name FROM spells LIMIT 1\nATTACH 'outside.db' AS outside\n"
+             "DELETE * FROM spells\nDELETE FROM items WHERE qty > 99\n"
+             "SELECT COUNT(*) FROM spells\n\n")
     run = subprocess.run([sys.executable, "-m", "try_it_yourself.try_sandbox"], cwd=ROOT,
                          input=typed, capture_output=True, text=True, timeout=60)
     assert run.returncode == 0, run.stderr
     assert "Traceback" not in run.stderr
     assert "('Ember',)" in run.stdout
-    assert "refused to listen" in run.stdout
+    assert "ATTACH another database" in run.stdout
     assert "does not understand" in run.stdout
-    assert "(12,)" in run.stdout                                  # the DROP changed nothing
+    assert "([], [])" in run.stdout                               # the DELETE ran
+    assert "(12,)" in run.stdout
 
 
 # ------------------------------------------------------------------ HP bars change colour

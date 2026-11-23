@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import random
 
-from ai.base import Intent
+from ai.base import Intent, confused
 from ai.goals import Context, Evaluator, Think
 from ai.perception import Perception, Percept, summary
 from ai.steering import Movement
@@ -62,6 +62,14 @@ class GuardianBrain:
     # ------------------------------------------------------------ the turn
 
     def decide(self, state: BattleState, rng: random.Random) -> Intent:
+        # Brains survive anything (plan §4.1): a book that is gone or a self that is no longer
+        # in the enemies table leaves nothing to decide. The rng is not touched, so the rest of
+        # the fight stays reproducible.
+        if state.foe_forgets or {"foe_spells", "enemies"} & set(state.missing):
+            self._last = {"technique": self.technique, "mode": f"{self.mode} -> confused",
+                          "sees": f"world {state.integrity}, missing {', '.join(state.missing)}",
+                          "intent": "confused"}
+            return confused()
         p = self.percept = self.perception.sense(state)
         previous = self.mode
         mode = self.next_mode(p, rng)

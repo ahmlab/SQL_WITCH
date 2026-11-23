@@ -140,7 +140,7 @@ def test_the_knights_lines_are_plain_and_consistent_with_his_ward():
     ("SELECT name FROM spells ", set(), ("", "CTRL+ENTER casts")),
     ("SELECT name FROM spells ", {"LIMIT"}, ("LIMIT 1", "")),
     ("SELECT name FROM spells ", {"LIMIT", "WHERE"}, ("WHERE element =", "")),
-    ("SELECT name FROM spells LIMIT ", set(), ("", "LIMIT is a rune you have not learned yet")),
+    ("SELECT name FROM spells LIMIT ", set(), ("1", "")),          # nothing is locked
     ("select name ", set(), ("from spells", "")),
 ])
 def test_the_next_piece_of_a_query_is_offered(typed, runes, expected):

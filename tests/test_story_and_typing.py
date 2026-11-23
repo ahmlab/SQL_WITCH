@@ -127,10 +127,10 @@ def test_finishing_a_keyword_makes_it_glow_and_chime():
     assert game.scene.fx.sparks and not game.scene.fx.bolts   # sparks, no lightning
 
 
-def test_a_locked_keyword_thuds_instead():
+def test_every_keyword_glows_because_nothing_is_locked():
     game = to_battle()
     type_text(game, "LIMIT ")
-    assert ("locked", 0) in game.audio.log and ("rune", 0) not in game.audio.log
+    assert ("rune", 0) in game.audio.log and ("locked", 0) not in game.audio.log
 
 
 def test_erase_and_newline_have_their_own_sounds():

@@ -4,7 +4,7 @@ A brain decides WHAT to do as an Intent. A style (ai/styles.py) then writes that
 SQL, and after that the intent is thrown away: damage can only come from the executed query
 (design doc 5.1, "why decide and express are separate"). Never imports pygame.
 
-STATUS: step 3 done - Intent, Brain protocol, RandomBrain baseline.
+STATUS: Intent, the confused intent, Brain protocol, RandomBrain baseline.
 """
 
 from __future__ import annotations
@@ -21,8 +21,18 @@ class Intent:
     """A small, finite description of an action, e.g. Intent('overcast', 'Ada', 'attack')."""
     action: str                  # what the brain wants, in its own words
     target: str | None = None    # combatant name the intent is aimed at, if any
-    kind: str = "attack"         # attack | heal | ward | scry
+    kind: str = "attack"         # attack | heal | ward | scry | confused
     params: dict = field(default_factory=dict, compare=True, hash=False)
+
+
+# What a confused foe "casts" (plan §4.1): a look at a table that is no longer there. It miscasts,
+# in character, and the foe's turn is spent staring at an empty page.
+CONFUSED_SQL = "SELECT * FROM a_table_that_was_here"
+
+
+def confused() -> Intent:
+    """The intent of a foe whose world is too broken to act in."""
+    return Intent("confused", None, "confused")
 
 
 class Brain(Protocol):

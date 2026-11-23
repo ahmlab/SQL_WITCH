@@ -188,17 +188,27 @@ def test_an_off_goal_query_is_shown_and_coached_not_passed(lesson, sql, kind):
         assert outcome.report is not None                    # the result is still shown
 
 
-def test_a_locked_rune_is_praised_and_promised():
+def test_nothing_is_locked_any_more_and_the_codex_remembers():
+    # Sandbox v2: LIMIT is not a lock. Using it before the Slime simply works, and the Codex
+    # records the player's first query with it.
     t = tutorial("cast")
-    outcome = t.cast("SELECT name FROM spells LIMIT 1")
-    assert outcome.kind == "locked" and "LIMIT" in outcome.message
-    assert "LIMIT" in t.strip().say and "guardian" in t.strip().say
-    assert t.battle.state.ada.runes == set()
+    assert t.cast("SELECT name FROM spells LIMIT 1").kind == "pass"
+    assert t.battle.codex.pages["LIMIT"].first_query == "SELECT name FROM spells LIMIT 1"
+
+
+def test_in_practice_whatever_a_query_breaks_is_put_back():
+    t = tutorial("look")
+    outcome = t.cast("DROP TABLE enemies")
+    assert outcome.kind == "undone" and t.phase == "task"
+    assert "put it back" in t.strip().say and t.strip().write == "SELECT * FROM enemies"
+    conn = t.battle.conn
+    assert conn.execute("SELECT name FROM enemies").fetchone() == ("Training Dummy",)
+    assert t.cast("SELECT * FROM enemies").kind == "pass"     # the lesson goes on
 
 
 def test_a_miscast_keeps_the_games_humour_and_ends_with_what_to_type():
     t = tutorial("look")
-    outcome = t.cast("DROP TABLE enemies")
+    outcome = t.cast("ATTACH 'outside.db' AS outside")
     assert outcome.kind == "miscast" and outcome.message.startswith("Ada:")
     assert t.strip().write == "SELECT * FROM enemies"
     assert outcome.dummy                                     # and the dummy has an opinion
@@ -399,7 +409,7 @@ def test_practice_looks_do_run_out_like_in_a_real_fight():
 def test_records_hold_what_the_playtest_log_needs():
     t = tutorial("look")
     t.tick(1500)
-    t.cast("DROP TABLE enemies")
+    t.cast("ATTACH 'outside.db' AS outside")
     t.cast("SELECT * FROM witch")
     t.cast("SELECT * FROM enemies")
     while t.phase == "success":
@@ -407,7 +417,7 @@ def test_records_hold_what_the_playtest_log_needs():
     record = t.records[0]
     assert record["lesson"] == "look" and record["result"] == "passed"
     assert record["miscasts"] == 1 and record["off_goal"] == 1
-    assert record["queries"] == ["DROP TABLE enemies", "SELECT * FROM witch",
+    assert record["queries"] == ["ATTACH 'outside.db' AS outside", "SELECT * FROM witch",
                                  "SELECT * FROM enemies"]
     assert record["seconds"] >= 1.5 and record["hint_level"] >= 1
     json.dumps(record)                                       # one JSON line per lesson

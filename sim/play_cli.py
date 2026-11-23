@@ -13,6 +13,7 @@ import time
 from typing import Callable
 
 from ai.roster import ORDER
+from i18n import t
 from magic.battle import Battle, FoeTurn
 from magic.cast import PAGE_ROWS, CastReport, cell_text, column_widths, effect_word
 from magic.guard import Miscast
@@ -43,8 +44,11 @@ Something round and green wobbles out of the bushes: the ASTERISK SLIME.
 
 HELP = """\
   Tables: witch, spells, items, enemies, foe_spells, type_chart, query_log
+  Any SQL works (INSERT, DROP, CREATE VIEW...): the world reacts. :rewind lists the snapshots,
+  :rewind N turns the world back to snapshot N (it costs your turn).
   A row casts a spell if one of its cells is the name of a spell Ada knows.
   A row uses an item if a cell is an item's name. A combatant's name in the row is the target.
+  :rewind  the snapshots of this fight; :rewind N goes back to snapshot N
   :why     what the guardian's brain was thinking (the debug overlay)
   :schema  the columns of every table
   :quit    leave the battle"""
@@ -139,6 +143,12 @@ def narrate(report: CastReport) -> list[str]:
             lines.append(f"  {event[2]} strips {event[4]} ward from {event[3]}.")
         elif kind == "faint":
             lines.append(f"  {event[1]} faints!")
+        elif kind == "write":
+            from magic.battle import _summary
+            key, args = _summary(report)
+            lines.append("  " + t("ui.write.done", summary=t(key, **args)))
+        elif kind == "confused":
+            lines.append("  " + t("world.forgets", foe=event[1]))
         elif kind == "scry":
             _, rows_out, ends = event
             lines.append("  Nothing castable here, and no free looks left: the turn is spent."
@@ -147,12 +157,40 @@ def narrate(report: CastReport) -> list[str]:
     return lines
 
 
+def tell_world(report: CastReport, battle: Battle, out: Out) -> None:
+    """Reactions, tricks and new Codex pages, as the window narrates them."""
+    names = {"foe": battle.state.foe.name, "grimoire": "Grimoire", "ada": battle.state.ada.name}
+    for reaction in list(report.reactions) + list(report.tricks):
+        if reaction.effect != "refuse":
+            line = t(reaction.line_key, **dict(reaction.args, foe=battle.state.foe.name))
+            out(f"  {names.get(reaction.speaker, reaction.speaker)}: {line}")
+    for page in report.codex:
+        out(f"  [{t('codex.unlocked', technique=page)}]")
+
+
+def show_rewind(battle: Battle, arg: str, out: Out) -> None:
+    entries = battle.world.entries()
+    if not arg:
+        if not entries:
+            out("  " + t("ui.rewind.empty"))
+        for i, (turn, key, args) in enumerate(entries):
+            out(f"  {i}: " + t("world.rewind_entry", turn=turn, summary=t(key, **args)))
+        return
+    if not arg.isdigit() or int(arg) >= len(entries):
+        out("  :rewind N, where N is one of the numbers above")
+        return
+    report = battle.rewind(int(arg))
+    out("  Grimoire: " + t("reaction.rewind_grimoire", turn=report.events[0][1]))
+    tell_world(report, battle, out)
+
+
 def show_foe_turn(turn: FoeTurn, battle: Battle, out: Out) -> None:
     out("")
     out(f"{battle.state.foe.name}'s book:")
     out(f"  > {turn.sql}")
     for line in page_lines(turn.report) + narrate(turn.report):
         out(line)
+    tell_world(turn.report, battle, out)
     if turn.invitation:
         out("")
         out(f"  *** The word {turn.invitation} glows in the guardian's book. Ada copies the rune: "
@@ -216,6 +254,9 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
         if sql == ":schema":
             show_schema(battle, out)
             continue
+        if sql.startswith(":rewind"):
+            show_rewind(battle, sql[len(":rewind"):].strip(), out)
+            continue
         try:
             report = battle.ada_cast(sql)
         except Miscast as miscast:
@@ -223,6 +264,7 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
             continue
         for line in page_lines(report) + narrate(report):
             out(line)
+        tell_world(report, battle, out)
         if not report.ends_turn:
             for line in status(battle):
                 out(line)
@@ -230,7 +272,9 @@ def play(battle: Battle, read: Callable[[str], str], out: Out) -> str | None:
     out("")
     for line in status(battle):
         out(line)
-    if battle.winner == "ada":
+    if battle.winner == "confused":
+        out("\n" + t("world.confused_end"))
+    elif battle.winner == "ada":
         out(f"\n{battle.state.foe.name} falls. Ada wins!")
     else:
         out(f"\nAda's HP hits zero. {battle.state.foe.name} stands victorious. Game over.")

@@ -37,7 +37,7 @@ class Combatant:
     ward: int = 0
     # Set when an overflow drains the caster to 0 MP; the next enemy turn hits 1.5x.
     exhausted: bool = False
-    # Keywords this combatant may write. The rune gate (magic/guard.py) reads this.
+    # Techniques this combatant knows (the Codex). Nothing is locked: this only guides hints.
     runes: set[str] = field(default_factory=set)
     # Sir Wherewell's Ward of Relevance (design doc 5.4): while it is up, only super-effective
     # spells land, and the first one that does shatters it.
@@ -75,6 +75,12 @@ class BattleState:
     scries_used: int = 0              # free looks taken in the current turn
     foe_book: list[str] = field(default_factory=list)  # every query the foe has cast
     ada_casts: list[CastMemory] = field(default_factory=list)  # what Ada has done so far
+    # The world's condition (magic/world.py), so brains can perceive a broken world:
+    integrity: str = "intact"           # intact | altered | damaged | broken
+    missing: tuple[str, ...] = ()       # the needed tables that are gone, empty or unreadable
+    foe_rage: bool = False              # the player wrecked her own side: the foe hits harder
+    foe_forgets: bool = False           # the foe's book is gone: it stares at an empty page
+    ending: str | None = None           # "confused": the fight dissolves at the end of the round
 
     def side(self, who: str) -> Combatant:
         """'ada' or 'foe' -> the combatant. Callers pass the side, never the name."""

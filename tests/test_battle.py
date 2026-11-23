@@ -79,7 +79,7 @@ def test_a_scry_keeps_the_turn_and_a_cast_passes_it():
 def test_a_miscast_is_free_in_apprentice_mode():
     battle = Battle(seed=1, foe_opens=False)
     with pytest.raises(Miscast):
-        battle.ada_cast("SELECT name FROM spells LIMIT 1")   # LIMIT is still locked
+        battle.ada_cast("ATTACH 'outside.db' AS outside")                             # program safety still refuses
     assert battle.whose_turn == "ada" and battle.state.ada.mp == 30
 
 
@@ -173,10 +173,10 @@ def run_cli(lines, seed=7):
 
 
 def test_the_cli_plays_a_whole_battle():
-    script = ["SELECT * FROM enemies", "DROP TABLE spells", ":why", ":schema", ":help"]
+    script = ["SELECT * FROM enemies", "ATTACH 'outside.db' AS outside", ":why", ":schema", ":help"]
     text = run_cli(itertools.chain(script, itertools.repeat("SELECT name FROM spells", 40)))
     assert "the page ends here: 8 rows kept writing themselves into the margin" in text
-    assert "MY LIFE" in text
+    assert "ATTACH another database" in text
     assert "MP: 30 -> 0" in text
     assert "foe_spells: foe_id, name" in text
     assert "Ada wins!" in text or "Game over." in text

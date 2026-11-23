@@ -1,0 +1,8 @@
+{
+  "_help": "Tricks: breaking a guardian with knowledge (decision D10). pattern names a recogniser in magic/world.py. reward: what the player earns (codex page, achievement id; Scroll slots and items when those systems exist). line_key: what the guardian says. Unrecognised breaks end in confusion; review the query_log of playtests to add new tricks here.",
+  "tricks": [
+    {"id": "shadow_book", "pattern": "foe_reads_player_view", "line_key": "trick.shadow_book", "speaker": "foe", "reward": {"codex": "trickster", "achievement": "shadow_book"}},
+    {"id": "read_my_mind", "pattern": "player_reads_foe_query", "line_key": "trick.read_my_mind", "speaker": "foe", "reward": {"codex": "trickster", "achievement": "read_my_mind"}}
+  ],
+  "_future": "Patterns for later guardians: trap_trigger (a player trigger fires on a foe's INSERT: the Gravedigger), index_beats_shuffle (the Sorting Sage), rollback_foe_turn (the Chronomancer: needs world backups at the Hearth)."
+}

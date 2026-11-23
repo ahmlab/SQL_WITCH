@@ -172,9 +172,8 @@ def test_the_tables_mirror_the_battle_after_a_cast(battle):
 
 def test_a_miscast_changes_nothing(battle):
     conn, state, rng = battle
-    state.ada.runes = set()
     with pytest.raises(Miscast):
-        resolve(conn, state, "SELECT name FROM spells LIMIT 1", "ada", rng)
+        resolve(conn, state, "ATTACH 'outside.db' AS outside", "ada", rng)
     assert state.ada.mp == 30
     assert conn.execute("SELECT COUNT(*) FROM query_log").fetchone()[0] == 0
 

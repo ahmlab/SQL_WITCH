@@ -1,0 +1,7 @@
+{
+  "_help": "The Codex: one page per technique (the names guard.inspect gives a query's signature) plus special pages (backups, trickster). Each page's text is in the catalog under codex.page.<id>.title, .text and .dialects. The first time a technique is used (by the player, or demonstrated by a guardian) its page unlocks; the page then shows the guardian's example and the player's own first query.",
+  "order": ["LIMIT", "WHERE", "ORDER BY", "DISTINCT", "JOIN", "GROUP BY", "HAVING", "SUBQUERY",
+            "WITH", "IS NULL", "COALESCE", "UNION", "EXCEPT", "INTERSECT", "INSERT", "UPDATE",
+            "DELETE", "DROP", "CREATE TABLE", "CREATE VIEW", "CREATE INDEX", "CREATE TRIGGER",
+            "ALTER", "TRANSACTION", "PRAGMA", "backups", "trickster"]
+}

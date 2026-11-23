@@ -1,0 +1,19 @@
+{
+  "_help": "What a battle needs from its database, and how bad it is when it is missing. check: table (it exists), rows (it has at least one row), row (the row described by where exists: :ada is the witch's name, :foe_id the foe's id), readable (the query in sql runs; a broken column fails it). missing: the integrity class when the check fails (damaged: the fight goes on, wounded; broken: the engine cannot go on, and the fight ends in confusion at the end of the round unless the player rewinds). change: the name a reaction can match when this check starts failing.",
+  "needs": [
+    {"table": "witch", "check": "row", "where": "name = :ada", "missing": "broken", "change": "witch_row_removed"},
+    {"table": "enemies", "check": "row", "where": "id = :foe_id", "missing": "broken", "change": "foe_row_removed"},
+    {"table": "spells", "check": "readable", "sql": "SELECT name, element, power, mp_cost, kind FROM spells LIMIT 1", "missing": "damaged", "change": "unreadable"},
+    {"table": "spells", "check": "rows", "missing": "damaged", "change": "emptied"},
+    {"table": "foe_spells", "check": "readable", "sql": "SELECT name, element, power, mp_cost, kind FROM foe_spells WHERE foe_id = :foe_id", "missing": "damaged", "change": "unreadable"},
+    {"table": "type_chart", "check": "readable", "sql": "SELECT attack, defend, multiplier FROM type_chart LIMIT 1", "missing": "damaged", "change": "unreadable"},
+    {"table": "items", "check": "readable", "sql": "SELECT name, kind, amount, qty FROM items LIMIT 1", "missing": "damaged", "change": "unreadable"}
+  ],
+  "_volatile": "Columns the engine itself rewrites after every query (HP, MP, wards, item counts): changes to them are not the player's doing and are not reported.",
+  "volatile": {"witch": ["hp", "mp", "ward"], "enemies": ["hp", "mp"], "items": ["qty"]},
+  "ignore": ["query_log", "sqlite_sequence", "sqlite_stat1", "sqlite_stat4"],
+  "core": ["witch", "spells", "items", "enemies", "foe_spells", "type_chart", "query_log"],
+  "names": ["spells", "items", "enemies", "foe_spells", "witch"],
+  "snapshots_kept": 20,
+  "rage_multiplier": 1.5
+}

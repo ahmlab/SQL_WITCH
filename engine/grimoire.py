@@ -32,7 +32,7 @@ SCROLL_LEFT = pygame.Rect(RIGHT_PAGE.right - 15, RIGHT_PAGE.y - 1, 7, 8)
 GAP = render.ADVANCE             # one character between columns, as in magic.cast
 STATUS_BOX = pygame.Rect(LEFT_PAGE.x, LEFT_PAGE.bottom - 9, LEFT_PAGE.width, 9)
 LOOKS_AT = pygame.Rect(LEFT_PAGE.right - 29, LEFT_PAGE.y - 1, 30, 8)
-FOOTER = "CTRL+ENTER cast TAB complete F3 guide"
+FOOTER = "CTRL+ENTER cast TAB complete F3 guide F6 rewind"
 
 
 def wrap(text: str, width: int) -> list[str]:
@@ -121,6 +121,7 @@ class Grimoire:
         self.show_looks = True
         self.show_status = True
         self.footer = FOOTER
+        self.closed: str | None = None    # why the book is closed (turn lock), or None: open
 
     EDITOR_AT = (LEFT_PAGE.x, LEFT_PAGE.y + 9)
 
@@ -234,7 +235,10 @@ class Grimoire:
         if self.show_looks:
             looks = f"looks {self.looks_left}"
             f.draw(surface, looks, (LEFT_PAGE.right - f.width(looks), LEFT_PAGE.y), render.SAND)
-        self.editor.draw(surface, self.EDITOR_AT, now, focused)
+        if self.closed:
+            self._draw_closed(surface)
+        else:
+            self.editor.draw(surface, self.EDITOR_AT, now, focused)
         if self.show_status:
             self._draw_status(surface)
 
@@ -247,12 +251,26 @@ class Grimoire:
 
         f.draw(surface, self.footer, (8, 173), render.BUTTER)
 
+    def _draw_closed(self, surface: pygame.Surface) -> None:
+        """Turn lock: the left page is a closed cover with one line saying why."""
+        cover = pygame.Rect(LEFT_PAGE.x - 1, LEFT_PAGE.y + 8, LEFT_PAGE.width + 2, 44)
+        render.cover(surface, cover, (*render.LEATHER, 235))
+        pygame.draw.rect(surface, render.GOLD, cover.inflate(-8, -8), 1)
+        lines = wrap(self.closed, 30)[:3]
+        f = render.font()
+        y = cover.centery - len(lines) * render.LINE_H // 2
+        for line in lines:
+            f.draw(surface, line, (cover.centerx - f.width(line) // 2, y), render.BUTTER)
+            y += render.LINE_H
+
     def _draw_status(self, surface: pygame.Surface) -> None:
         box = STATUS_BOX
         if self.report is None:
             return
         report = self.report
-        if report.scry and not report.ends_turn:
+        if report.kind != "read" and not report.casts:       # it changed the world
+            text, border = f"the world changed | MP {report.mp_after}", render.VIOLET
+        elif report.scry and not report.ends_turn:
             n = len(report.rows)
             text, border = f"{n} row{'' if n == 1 else 's'} | a free look | MP {report.mp_after}", \
                 render.TEAL

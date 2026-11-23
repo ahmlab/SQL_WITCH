@@ -165,14 +165,11 @@ def test_long_lines_wrap_between_words():
 
 # ------------------------------------------------------------------ colouring
 
-def test_locked_runes_are_marked_and_unlocked_ones_are_not():
+def test_no_keyword_is_drawn_as_locked_any_more():
     sql = "SELECT name FROM spells LIMIT 1"
     start = sql.index("LIMIT")
-    locked = colour_styles(sql, locked_words(set()), set())
-    assert set(locked[start:start + 5]) == {"locked"}
-    assert locked[0] == "keyword"
-    free = colour_styles(sql, locked_words({"LIMIT"}), set())
-    assert set(free[start:start + 5]) == {"keyword"}
+    styles = colour_styles(sql, locked_words(set()), set())
+    assert set(styles[start:start + 5]) == {"keyword"} and styles[0] == "keyword"
 
 
 def test_strings_numbers_and_names_get_their_colours():
@@ -226,9 +223,8 @@ def test_no_suggestion_for_a_finished_word_or_in_the_middle_of_a_line():
     assert editor.suggestion() == ""
 
 
-def test_locked_runes_are_never_suggested():
-    assert typed(QueryEditor(unlocked=set()), "LIM").suggestion() == ""
-    assert typed(QueryEditor(unlocked={"LIMIT"}), "LIM").suggestion() == "IT"
+def test_every_keyword_can_be_suggested():
+    assert typed(QueryEditor(unlocked=set()), "LIM").suggestion() == "IT"
 
 
 def test_the_suggestion_is_drawn_faded_on_the_text_layer():

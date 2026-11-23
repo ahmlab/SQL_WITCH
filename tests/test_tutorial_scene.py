@@ -180,7 +180,7 @@ def test_enter_on_a_finished_query_teaches_ctrl_enter_without_changing_the_contr
 def test_a_miscast_shows_the_games_message_and_what_to_type():
     game, scene = start()
     to_task(game, scene, "columns")
-    type_text(game, "DROP TABLE enemies")
+    type_text(game, "ATTACH 'outside.db' AS outside")
     press(game, pygame.K_RETURN, pygame.KMOD_LCTRL)
     assert scene.grimoire.miscast and scene.grimoire.miscast.startswith("Ada:")
     assert scene.tutorial.strip().write == "SELECT name, weakness FROM enemies"

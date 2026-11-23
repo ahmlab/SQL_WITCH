@@ -15,7 +15,8 @@ How it works:
 - A stuck player (idle, or failing) climbs a ladder of hints that never goes back down.
 Never imports pygame.
 
-STATUS: script loading and checking, goals, phases, coaching, hint ladder, ghost text, records.
+STATUS: script loading and checking, goals, phases, coaching, hint ladder, ghost text, records,
+world changes undone (sandbox v2: nothing is locked, nothing breaks in practice).
 """
 
 from __future__ import annotations
@@ -301,7 +302,7 @@ def ghost_text(example: str, typed: str, mode: str) -> tuple[str, bool]:
 @dataclass
 class Outcome:
     """What one of the player's queries led to. The scene shows it; nothing is decided there."""
-    kind: str                         # pass | off_goal | early_cast | miscast | locked | quest | free
+    kind: str                         # pass | off_goal | early_cast | miscast | undone | quest | free
     report: CastReport | None = None
     message: str = ""                 # the game's own miscast line, for the right page
     dummy: str = ""                   # what the dummy says about it
@@ -510,10 +511,25 @@ class Tutorial:
             raise RuntimeError(f"No query is expected now ({self.phase}).")
         self._queries.append(sql)
         self._idle = 0
+        world = self.battle.world.snapshot(self.battle.state)   # practice changes nothing
         try:
             report = self.battle.ada_cast(sql)
         except Miscast as miscast:
+            self.battle.world.discard(world)
             return self._miscast(sql, str(miscast))
+        if report.kind != "read":
+            # Freedom reaches the tutorial too, but with no stakes: whatever the query changed
+            # in the world is put back, and the Grimoire says so. Guardians will not be so kind.
+            self.battle.state = self.battle._restore(world)
+            self.battle.world.discard(world)
+            self._settle(report)
+            self.coach = Step(say=self.script["coach"]["undone"],
+                              write="" if self.practising else self.lesson["example"])
+            if not self.practising:
+                self._off_goal += 1
+                self._fail()
+            return Outcome("undone", report, dummy=self._quip("looked_at"))
+        self.battle.world.discard(world)
         restuffed = self._settle(report)
         outcome = self._practice(report) if self.practising else self._judge(report)
         outcome.restuffed = restuffed
@@ -524,25 +540,12 @@ class Tutorial:
     def _miscast(self, sql: str, message: str) -> Outcome:
         self._miscasts += 1
         coach = self.script["coach"]
-        rune = self._locked_rune(sql)
         if self.practising:
-            line = coach["locked_rune"].format(rune=rune) if rune else coach["practice_miscast"]
-            self.coach = Step(say=line)
+            self.coach = Step(say=coach["practice_miscast"])
         else:
             self._fail()
-            line = coach["locked_rune"].format(rune=rune) if rune else coach["miscast"]
-            self.coach = Step(say=line, write=self.lesson["example"])
-        return Outcome("locked" if rune else "miscast", message=message,
-                       dummy=self._quip("miscast"))
-
-    def _locked_rune(self, sql: str) -> str:
-        """The first rune in the query that Ada has not learned, or '' (read from the syntax
-        tree, the same way the guard does, not from the miscast's wording)."""
-        tree = _tree(sql)
-        if tree is None:
-            return ""
-        locked = guard.runes_used(tree) - self.battle.state.ada.runes
-        return sorted(locked)[0] if locked else ""
+            self.coach = Step(say=coach["miscast"], write=self.lesson["example"])
+        return Outcome("miscast", message=message, dummy=self._quip("miscast"))
 
     def _judge(self, report: CastReport) -> Outcome:
         lesson, coach = self.lesson, self.script["coach"]

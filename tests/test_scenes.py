@@ -133,9 +133,9 @@ def test_escape_on_the_title_quits_and_window_close_quits():
 
 def test_a_miscast_shows_on_the_page_and_keeps_the_turn():
     game = to_battle()
-    cast(game, "DROP TABLE spells")
+    cast(game, "ATTACH 'outside.db' AS outside")
     scene = game.scene
-    assert "MY LIFE" in scene.grimoire.miscast
+    assert "ATTACH another database" in scene.grimoire.miscast
     assert scene.phase == "input" and scene.battle.state.ada.mp == 30
 
 

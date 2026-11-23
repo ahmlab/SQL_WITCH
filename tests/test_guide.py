@@ -52,13 +52,11 @@ def test_every_example_is_valid_and_its_label_is_true(example):
     assert report.scry == (example["kind"] == "look")
 
 
-def test_examples_unlock_with_the_runes():
+def test_every_example_is_ready_because_nothing_is_locked():
     guide = Guide(Battle(seed=1).conn, set())
     ready = {e["sql"] for e in guide.examples() if e["ready"]}
     assert "SELECT * FROM enemies" in ready
-    assert "SELECT name FROM spells LIMIT 1" not in ready
-    guide.runes.add("LIMIT")
-    assert "SELECT name FROM spells LIMIT 1" in {e["sql"] for e in guide.examples() if e["ready"]}
+    assert "SELECT name FROM spells LIMIT 1" in ready
 
 
 # ------------------------------------------------------------------ using it in battle
@@ -87,14 +85,14 @@ def test_enter_writes_the_chosen_example_on_the_page():
     assert scene.editor.text == layout("SELECT element, power, mp_cost FROM spells")
 
 
-def test_a_locked_example_cannot_be_written():
+def test_an_example_with_limit_can_be_written_before_the_slime_teaches_it():
     game, scene = to_battle()
     press(game, pygame.K_F3)
     press(game, pygame.K_3)
     examples = scene.guide.examples()
-    scene.guide.choice = next(i for i, e in enumerate(examples) if not e["ready"])
+    scene.guide.choice = next(i for i, e in enumerate(examples) if "LIMIT" in e["sql"])
     press(game, pygame.K_RETURN)
-    assert scene.guide.open and scene.editor.text == ""
+    assert "LIMIT" in scene.editor.text
 
 
 def test_the_guide_button_can_be_clicked():

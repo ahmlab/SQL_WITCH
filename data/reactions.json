@@ -1,0 +1,23 @@
+{
+  "_help": "How the world reacts to what a query did. when: table (or * for any), change (dropped, emptied, created, rows_added, rows_removed, rows_changed, columns_changed, became_view, a need's change such as foe_row_removed, or a statement verb such as insert, update, delete, alter; for whole casts: committed, transaction_left_open, rollback_no_transaction, commit_no_transaction, rewind), actor (player, foe or any), and optionally like_core (a created table whose name looks like a core table). speaker: foe, grimoire or ada. line_key: a key of data/i18n/<locale>.json. effect: none, foe_rages (the foe's spells hit harder until the world is rewound), foe_forgets (the foe stares at an empty book), fight_ends_confused (no winner, at the end of the round, unless rewound), refuse (the query is undone and refused with the line), forget_chart (every element hits normally), codex_unlock (unlocks the page named in page). cooldown: turns before the same reaction can fire again (99: once per fight).",
+  "reactions": [
+    {"id": "delete_witch_row", "when": {"table": "witch", "change": "witch_row_removed", "actor": "player"}, "speaker": "grimoire", "line_key": "reaction.delete_witch_row", "effect": "refuse", "cooldown": 0},
+    {"id": "drop_witch", "when": {"table": "witch", "change": "dropped", "actor": "player"}, "speaker": "grimoire", "line_key": "reaction.drop_witch", "effect": "refuse", "cooldown": 0},
+    {"id": "drop_spells", "when": {"table": "spells", "change": "dropped", "actor": "player"}, "speaker": "foe", "line_key": "reaction.drop_spells", "effect": "foe_rages", "cooldown": 99},
+    {"id": "empty_spells", "when": {"table": "spells", "change": "emptied", "actor": "player"}, "speaker": "foe", "line_key": "reaction.empty_spells", "effect": "foe_rages", "cooldown": 99},
+    {"id": "insert_spell", "when": {"table": "spells", "change": "rows_added", "actor": "player"}, "speaker": "foe", "line_key": "reaction.insert_spell", "effect": "foe_rages", "cooldown": 99},
+    {"id": "alter_spells", "when": {"table": "spells", "change": "rows_changed", "actor": "player"}, "speaker": "foe", "line_key": "reaction.alter_spells", "effect": "foe_rages", "cooldown": 99},
+    {"id": "drop_foe_spells", "when": {"table": "foe_spells", "change": "dropped", "actor": "player"}, "speaker": "foe", "line_key": "reaction.drop_foe_spells", "effect": "foe_forgets", "cooldown": 99},
+    {"id": "empty_foe_spells", "when": {"table": "foe_spells", "change": "emptied", "actor": "player"}, "speaker": "foe", "line_key": "reaction.empty_foe_spells", "effect": "foe_forgets", "cooldown": 99},
+    {"id": "rename_foe_column", "when": {"table": "foe_spells", "change": "columns_changed", "actor": "player"}, "speaker": "foe", "line_key": "reaction.rename_foe_column", "effect": "foe_forgets", "cooldown": 99},
+    {"id": "delete_foe_row", "when": {"table": "enemies", "change": "foe_row_removed", "actor": "player"}, "speaker": "foe", "line_key": "reaction.delete_foe_row", "effect": "fight_ends_confused", "cooldown": 99},
+    {"id": "drop_enemies", "when": {"table": "enemies", "change": "dropped", "actor": "player"}, "speaker": "foe", "line_key": "reaction.drop_enemies", "effect": "fight_ends_confused", "cooldown": 99},
+    {"id": "drop_items", "when": {"table": "items", "change": "dropped", "actor": "player"}, "speaker": "grimoire", "line_key": "reaction.drop_items", "effect": "none", "cooldown": 99},
+    {"id": "drop_type_chart", "when": {"table": "type_chart", "change": "dropped", "actor": "player"}, "speaker": "foe", "line_key": "reaction.drop_type_chart", "effect": "forget_chart", "cooldown": 99},
+    {"id": "core_lookalike", "when": {"table": "*", "change": "created", "actor": "player", "like_core": true}, "speaker": "foe", "line_key": "reaction.core_lookalike", "effect": "none", "cooldown": 3},
+    {"id": "rollback_no_transaction", "when": {"table": "*", "change": "rollback_no_transaction", "actor": "player"}, "speaker": "foe", "line_key": "reaction.rollback_no_transaction", "effect": "none", "cooldown": 2},
+    {"id": "commit", "when": {"table": "*", "change": "committed", "actor": "player"}, "speaker": "foe", "line_key": "reaction.commit", "effect": "codex_unlock", "page": "TRANSACTION", "cooldown": 5},
+    {"id": "transaction_left_open", "when": {"table": "*", "change": "transaction_left_open", "actor": "player"}, "speaker": "grimoire", "line_key": "miscast.transaction_left_open", "effect": "none", "cooldown": 0},
+    {"id": "rewind", "when": {"table": "*", "change": "rewind", "actor": "player"}, "speaker": "foe", "line_key": "reaction.rewind", "effect": "none", "cooldown": 0}
+  ]
+}
