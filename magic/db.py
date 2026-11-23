@@ -65,8 +65,9 @@ def insert_rows(conn, table, rows):
     sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
     conn.executemany(sql, [tuple(row[c] for c in columns) for row in rows])
 
-def build_db(level=1, data_dir=DATA_DIR):
-    """Create a fresh in-memory battle database for Ada at the given level."""
+def build_db(level=1, data_dir=DATA_DIR, foe_ids=None):
+    """Create a fresh in-memory battle database for Ada at the given level.
+    foe_ids: only these foes (and their spells) enter the battle; None loads every foe."""
     data_dir = Path(data_dir)
     spells = read_csv(data_dir / "spells.csv")
     items = read_csv(data_dir / "items.csv")
@@ -94,6 +95,9 @@ def build_db(level=1, data_dir=DATA_DIR):
     insert_rows(conn, "witch", [ada])
     insert_rows(conn, "spells", known)
     insert_rows(conn, "items", items)
+    if foe_ids is not None:     # one guardian per battle: the others are not in this world yet
+        foes = [row for row in foes if row["id"] in foe_ids]
+        foe_spells = [row for row in foe_spells if row["foe_id"] in foe_ids]
     insert_rows(conn, "enemies", foes)
     insert_rows(conn, "foe_spells", foe_spells)
     insert_rows(conn, "type_chart", type_chart)

@@ -1,0 +1,149 @@
+{
+  "basics": [
+    "A spell is a SELECT query: you ask a table for rows, and the rows land",
+    "on the right page of the Grimoire.",
+    "",
+    "    SELECT columns FROM table",
+    "    SELECT * FROM enemies            the star means: every column",
+    "    SELECT name, power FROM spells   only these two columns",
+    "",
+    "HOW A RESULT BECOMES MAGIC",
+    "- A row that holds the NAME of one of your spells casts that spell.",
+    "- A row with no spell name is only information: a free look (3 a turn).",
+    "- The page shows 4 rows. Every spell row costs MP, but only the rows",
+    "  you can read work: rows past the page drain MP and fizzle.",
+    "- Power and cost always come from the spells table, never your query.",
+    "",
+    "A GOOD FIRST TURN",
+    "1. Look at your foe, free:    SELECT * FROM enemies",
+    "2. Look at your spells, free: SELECT element, power FROM spells",
+    "3. Then cast few spells, not the whole book. CTRL+ENTER casts."
+  ],
+  "tables_intro": "Each ROW is one thing; each COLUMN is one fact about it.",
+  "tables": {
+    "witch": "you: hp, mp and ward",
+    "spells": "your spells: name, element, power, mp_cost, kind",
+    "items": "your satchel: name, kind (hp or mp), amount, qty",
+    "enemies": "the guardian: hp, element, weakness",
+    "foe_spells": "the guardian's book: read it, you cannot cast it",
+    "type_chart": "attack vs defend element; multiplier 2 = super effective",
+    "query_log": "every query cast so far, yours and the guardian's"
+  },
+  "reading": [
+    "READING A RESULT: SELECT name, hp, element, weakness FROM enemies",
+    "One row = one guardian. Read the row across: the weakness column",
+    "says which element hurts it most. Cast spells of that element."
+  ],
+  "examples": [
+    {
+      "sql": "SELECT * FROM enemies",
+      "kind": "look",
+      "say": "your foe: its HP, element and weakness",
+      "needs": []
+    },
+    {
+      "sql": "SELECT element, power, mp_cost FROM spells",
+      "kind": "look",
+      "say": "your spells, without casting them (no names, so it is free)",
+      "needs": []
+    },
+    {
+      "sql": "SELECT * FROM witch",
+      "kind": "look",
+      "say": "your own HP, MP and ward",
+      "needs": []
+    },
+    {
+      "sql": "SELECT name FROM spells",
+      "kind": "cast",
+      "say": "casts the first 4 rows and burns the rest of your MP",
+      "needs": []
+    },
+    {
+      "sql": "SELECT name FROM spells LIMIT 1",
+      "kind": "cast",
+      "say": "casts exactly one spell: the first row",
+      "needs": [
+        "LIMIT"
+      ]
+    },
+    {
+      "sql": "SELECT name FROM items LIMIT 1",
+      "kind": "cast",
+      "say": "uses one item from your satchel",
+      "needs": [
+        "LIMIT"
+      ]
+    },
+    {
+      "sql": "SELECT attack, multiplier FROM type_chart WHERE defend = 'Fire'",
+      "kind": "look",
+      "say": "which elements hit Fire hard (change 'Fire' to your foe's element)",
+      "needs": [
+        "WHERE"
+      ]
+    },
+    {
+      "sql": "SELECT element, power, mp_cost FROM spells WHERE element = 'Fire'",
+      "kind": "look",
+      "say": "only your Fire spells, without casting (change the element)",
+      "needs": [
+        "WHERE"
+      ]
+    },
+    {
+      "sql": "SELECT name FROM spells WHERE element = 'Fire' LIMIT 1",
+      "kind": "cast",
+      "say": "one spell of the element you choose",
+      "needs": [
+        "WHERE",
+        "LIMIT"
+      ]
+    },
+    {
+      "sql": "SELECT name FROM spells WHERE element = 'Fire' AND power > 30 LIMIT 1",
+      "kind": "cast",
+      "say": "a strong spell of that element (AND joins two conditions)",
+      "needs": [
+        "WHERE",
+        "LIMIT"
+      ]
+    },
+    {
+      "sql": "SELECT name FROM spells WHERE kind = 'heal' LIMIT 1",
+      "kind": "cast",
+      "say": "heal yourself",
+      "needs": [
+        "WHERE",
+        "LIMIT"
+      ]
+    }
+  ],
+  "runes": [
+    {
+      "rune": "LIMIT",
+      "does": "keep only the first rows:  ... LIMIT 1",
+      "from": "the Asterisk Slime"
+    },
+    {
+      "rune": "WHERE",
+      "does": "keep only the rows that match:  ... WHERE element = 'Fire' (AND, OR, =, <, >)",
+      "from": "Sir Wherewell"
+    },
+    {
+      "rune": "ORDER BY",
+      "does": "sort the rows:  ... ORDER BY power DESC",
+      "from": "the Sorting Sage (later)"
+    },
+    {
+      "rune": "JOIN",
+      "does": "combine two tables row by row",
+      "from": "the Twin Archivists (later)"
+    },
+    {
+      "rune": "GROUP BY",
+      "does": "collapse many rows into groups",
+      "from": "Count Aggregor (later)"
+    }
+  ]
+}
