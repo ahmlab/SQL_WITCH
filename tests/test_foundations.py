@@ -1,6 +1,7 @@
 """Prompt 01: the new packages exist, the smoke test runs, and the text-literal lint is ready."""
 
 import ast
+import re
 import importlib
 import subprocess
 import sys
@@ -64,13 +65,16 @@ def literal_texts() -> list[str]:
                 text = node.args[1] if node.func.attr in ("draw", "draw_big") else node.args[0]
                 if isinstance(text, (ast.Constant, ast.JoinedStr)) and \
                         (not isinstance(text, ast.Constant) or isinstance(text.value, str)):
-                    if isinstance(text, ast.Constant) and not text.value.strip(" *.v>"):
-                        continue                                 # punctuation marks only
+                    if isinstance(text, ast.Constant) and (not text.value.strip(" *.v>")
+                                                           or len(text.value.strip()) == 1):
+                        continue                    # a mark or a lone glyph (the sleeper's z)
+                    if isinstance(text, ast.JoinedStr) and not any(
+                            isinstance(v, ast.Constant) and re.search(r"[A-Za-z]", v.value)
+                            for v in text.values):
+                        continue                    # numbers and values only: "30/30"
                     found.append(f"{path.relative_to(ROOT)}:{node.lineno}")
     return found
 
 
-@pytest.mark.xfail(reason="text still lives in code until the i18n catalog (prompt 04)",
-                   strict=False)
 def test_no_user_facing_text_is_written_in_code():
     assert literal_texts() == []

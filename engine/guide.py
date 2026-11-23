@@ -33,6 +33,7 @@ def page_name(page: str) -> str:
 BOX = pygame.Rect(8, 6, 304, 168)
 COLS = 73                                     # characters per line inside the box
 VISIBLE_EXAMPLES = 8
+TAG_CELLS = 6                                 # the LOOK/CAST tag before each example
 
 
 def load_guide(path=DATA_DIR / "guide.json") -> dict:
@@ -190,10 +191,10 @@ class Guide:
             f.draw(canvas, tag, (BOX.x + 5, y), tag_colour)
             styles = colour_styles(e["sql"], locked, set(self.content["tables"]))
             colours = [STYLE_COLOURS[s] if e["ready"] else render.GREY for s in styles]
-            render.draw_coloured(canvas, e["sql"][:COLS - 6], colours, (BOX.x + 5 + 5 * render.ADVANCE, y))
+            render.draw_coloured(canvas, e["sql"][:COLS - TAG_CELLS - 1], colours, (BOX.x + 5 + TAG_CELLS * render.ADVANCE, y))
             say = e["say"] if e["ready"] else \
                 t("guide.learn_first", runes=", ".join(sorted(set(e["needs"]) - self.runes)))
-            f.draw(canvas, say[:COLS - 6], (BOX.x + 5 + 5 * render.ADVANCE, y + render.LINE_H),
+            f.draw(canvas, say[:COLS - TAG_CELLS - 1], (BOX.x + 5 + TAG_CELLS * render.ADVANCE, y + render.LINE_H),
                    render.SLATE)
             y += 2 * render.LINE_H + 2
         if first + VISIBLE_EXAMPLES < len(examples):
@@ -208,6 +209,8 @@ class Guide:
             f.draw(canvas, r["rune"], (BOX.x + 5, y), render.GOLD if known else render.GREY)
             f.draw(canvas, t("guide.known") if known else t("guide.from", who=r["from"]),
                    (BOX.x + 5 + 10 * render.ADVANCE, y), render.FOREST if known else render.SLATE)
-            f.draw(canvas, r["does"][:COLS - 4], (BOX.x + 5 + 4 * render.ADVANCE, y + render.LINE_H),
-                   render.INK if known else render.GREY)
-            y += 2 * render.LINE_H + 3
+            for line in wrap(r["does"], COLS - 4):         # a long line goes on, never cut
+                y += render.LINE_H
+                f.draw(canvas, line, (BOX.x + 5 + 4 * render.ADVANCE, y),
+                       render.INK if known else render.GREY)
+            y += render.LINE_H + 3

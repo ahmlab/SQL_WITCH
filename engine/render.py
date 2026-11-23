@@ -477,7 +477,9 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
                 frame.blit(f.glyph(char, colour), (cx, y))
             else:                                    # Chinese, Greek, Cyrillic: Unifont
                 glyph = fonts.fallback_glyph(char, colour, k, line_h, advance)
-                frame.blit(glyph, (cx, y * k + (line_h * k - glyph.get_height()) // 2))
+                room = cells(char) * advance * k                # centred in its cell(s)
+                frame.blit(glyph, (cx + max(0, room - glyph.get_width()) // 2,
+                                   y * k + (line_h * k - glyph.get_height()) // 2))
     frame.set_clip(None)
 
 

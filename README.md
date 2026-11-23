@@ -64,10 +64,13 @@ python main.py
 | `--start tutorial` | The default: intro, then the tutorial, then the Slime. |
 | `--start slime` | Skip the tutorial: the intro leads straight to the Slime. |
 | `--start knight` | Start the story at the second guardian (with `LIMIT` already learned). |
+| `--locale es` | Play in another language: `es`, `zh-Hans`, `zh-Hant` (drafts awaiting review), or `qps`, the pseudo-locale for testing. |
 
 | Key | Action |
 |---|---|
-| `Enter` | Title and dialogue: continue. In the editor: new line. |
+| `Enter` | Title and dialogue: continue (hold it to type faster). In the editor: new line. |
+| `L` | Title: next language. Dialogue: the log of everything said. |
+| `A` / hold `Ctrl` | Dialogue: auto-advance / skip. |
 | `Ctrl+Enter` | Cast the query (also fast-forwards the battle narration). |
 | `Tab` or `→` | Accept the shaded suggestion after the cursor: the rest of a word (`SE` → `SELECT`) or the next piece of the query (`SELECT` → `name` → `FROM spells`). |
 | `Up` / `Down` | Previous / next query in the history (from the first / last line). |
@@ -116,6 +119,14 @@ In battle, press **F3** (or click **? GUIDE**, top right). The guide explains wh
 is, what each table holds, how to read a result, and lists queries you can try right now,
 each marked as a free LOOK or a CAST. Its text lives in `data/guide.json`.
 
+## Languages
+
+English, Spanish, Simplified and Traditional Chinese are in the game today (the last three
+as machine drafts waiting for a native reviewer); the other EU languages and Indonesian are
+listed and their plural rules tested, waiting for translators. SQL keywords, table and column
+names, spell and item names stay in English everywhere: that is the SQL you will use for real.
+How to translate, review and test: [`docs/LOCALISATION.md`](docs/LOCALISATION.md).
+
 ## Sound and music
 
 All sounds live in [`assets/audio/`](assets/audio/), and
@@ -158,7 +169,9 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `story/pacing.py` | The typewriter: time-based pacing per speaker and language, voices, box styles. |
 | `story/hints.py` | The Hint Director: who speaks up when the player is stuck, and what they say. |
 | `story/scenes.py` | Script lines as story-scene records (backdrop, Ada's sleepiness, who is on stage). |
-| `i18n/` | The text catalog (`data/i18n/`), ICU plurals and gender. |
+| `i18n/` | The text catalogs (`data/i18n/`), ICU plurals and gender, text width and wrapping, the qps pseudo-locale, overflow checks. |
+| `engine/fonts.py` | The font service: pixel letters, composed accents, Unifont for Chinese, Greek and Cyrillic. |
+| `tools/translate.py`, `tools/i18n_report.py` | Translation drafts and review marks; coverage, overflow and gender reports. |
 | `magic/tutorial.py` | The tutorial's lessons: pass conditions, coaching, hint ladder (no pygame). |
 | `ai/` | Foe brains and their SQL styles. **Never imports pygame.** |
 | `ai/perception.py` | What a guardian senses each turn, and its memory of Ada's casts. |

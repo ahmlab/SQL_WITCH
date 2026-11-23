@@ -5,8 +5,8 @@ from code (not the catalog) stands out on screen, and so does text cut at a box'
 
 Kept as they are: {placeholders}, ICU plural/select syntax (their branches are pseudo'd),
 the script markup ({wave}...), words in capitals (SQL keywords: SELECT, WHERE), words with an
-underscore or digits (table and column names: foe_spells), and anything in 'quotes' (SQL
-strings, spell names typed in queries).
+underscore or digits (table and column names: foe_spells), a table name after FROM, JOIN,
+INTO, UPDATE or TABLE, and anything in 'quotes' (SQL strings, spell names typed in queries).
 
 Never imports pygame.
 
@@ -21,7 +21,8 @@ ACCENTS = str.maketrans(
     "abcdeghiklmnoprstuwyzACDEGHIKLNORSTUWYZ",
     "åƀçđéĝĥîķļɱñöþŕšţûŵýžÅÇĐÉĜĤÎĶĻÑÖŘŠŢÛŴÝŽ")
 EXPANSION = 0.35
-_KEEP = re.compile(r"('[^']*'|\b[A-Z][A-Z0-9_]+\b|\b\w*[_\d]\w*\b)")
+_KEEP = re.compile(r"('[^']*'|\b[A-Z][A-Z0-9_]+\b|\b\w*[_\d]\w*\b"
+                   r"|(?<=FROM )\w+|(?<=JOIN )\w+|(?<=INTO )\w+|(?<=UPDATE )\w+|(?<=TABLE )\w+)")
 
 
 def _letters(text: str) -> str:

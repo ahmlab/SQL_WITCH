@@ -1420,9 +1420,10 @@ class ResultScene(Scene):
         outcome = "victory" if self.won else "confused" if self.confused else "defeat"
         lines = self.game.dialogue.get(f"{self.key}_{outcome}", self.game.dialogue[outcome])
         y = 52
-        for line in lines:
-            f.draw(canvas, line, ((320 - f.width(line)) // 2, y), render.WHITE)
-            y += 9
+        for said in lines:
+            for line in wrap(said, 76):                   # a long line (or translation) wraps
+                f.draw(canvas, line, ((320 - f.width(line)) // 2, y), render.WHITE)
+                y += 9
         state = self.battle.state
         stats = [t("result.stats", turn=state.turn, queries=self.queries, casts=self.casts),
                  t("result.stats_hp", hp=state.ada.hp, max=state.ada.max_hp, seed=self.battle.seed)]

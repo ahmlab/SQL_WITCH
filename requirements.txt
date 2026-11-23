@@ -7,6 +7,9 @@ babel==2.18.0          # CLDR plural rules and locale formatting (i18n/)
 pytest==9.1.1
 pyinstaller==6.22.3    # tools/package.py
 
+# Translation tool (optional): tools/translate.py --engine opencc
+opencc-python-reimplemented==0.1.7
+
 # Evaluation and report (section 9)
 pandas==3.0.6
 matplotlib==3.11.2

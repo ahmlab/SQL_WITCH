@@ -26,6 +26,7 @@ from sqlglot.errors import TokenError
 from sqlglot.tokens import TokenType
 
 from engine import render
+from i18n.width import text_cells
 
 # The words that spell each rune. ON belongs to JOIN; SUBQUERY has no word of its own.
 RUNE_WORDS = {
@@ -218,6 +219,7 @@ class QueryEditor:
                  columns: int = 36, visible_lines: int = 7, tables: list[str] = ()):
         self.lines: list[str] = [""]
         self.row = self.col = 0
+        self.composing = ""                # IME text not committed yet (TEXTEDITING)
         self.history: list[str] = []
         self._history_pos: int | None = None
         self._draft = ""
@@ -462,8 +464,14 @@ class QueryEditor:
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
         """Feed one pygame event. Returns the query when the player casts it (Ctrl+Enter)."""
+        if event.type == pygame.TEXTEDITING:
+            # An IME (Chinese, Japanese...) is composing: show it at the cursor, underlined,
+            # until it commits the characters with a TEXTINPUT.
+            self.composing = event.text
+            return None
         if event.type == pygame.TEXTINPUT:
             self._tab = None
+            self.composing = ""
             self.insert(event.text)
             return None
         if event.type != pygame.KEYDOWN:
@@ -528,11 +536,17 @@ class QueryEditor:
             out.extend((r, start, text) for start, text in chunks)
         return out, cursor
 
+    def cursor_cells(self) -> tuple[int, int]:
+        """The cursor's visual line and its column in cells (a Chinese character takes two)."""
+        lines, (line, col) = self.visual_lines()
+        text = lines[line][2] if line < len(lines) else ""
+        return line, text_cells(text[:col])
+
     def cursor_xy(self, topleft: tuple[int, int]) -> tuple[int, int]:
         """Where the cursor is drawn, in canvas pixels, when the editor sits at topleft."""
-        _, (line, col) = self.visual_lines()
+        line, cells_in = self.cursor_cells()
         first = max(0, line - self.visible_lines + 1)
-        return (topleft[0] + col * render.ADVANCE, topleft[1] + (line - first) * render.LINE_H)
+        return (topleft[0] + cells_in * render.ADVANCE, topleft[1] + (line - first) * render.LINE_H)
 
     def word_before_cursor(self) -> str:
         return self._word_before_cursor()
@@ -558,6 +572,14 @@ class QueryEditor:
                     pygame.draw.line(surface, render.RED, (x - 1, y + 2), (x + 3, y + 2))
         ghost = self.suggestion() if focused else ""
         advice = self.hint() if focused else ""
+        cursor_col = self.cursor_cells()[1]                        # in cells, not characters
+        if self.composing and focused and first <= cursor_line < first + self.visible_lines:
+            px, py = x0 + cursor_col * render.ADVANCE, y0 + (cursor_line - first) * render.LINE_H
+            f.draw(surface, self.composing, (px, py), render.VIOLET)
+            pygame.draw.line(surface, render.VIOLET, (px, py + render.GLYPH_H),
+                             (px + f.width(self.composing), py + render.GLYPH_H))
+            cursor_col += text_cells(self.composing)
+            ghost = advice = ""                                     # the IME has the floor
         if (ghost or advice) and first <= cursor_line < first + self.visible_lines:
             room = max(0, self.columns - cursor_col)               # stay on the page
             gx, gy = x0 + cursor_col * render.ADVANCE, y0 + (cursor_line - first) * render.LINE_H
