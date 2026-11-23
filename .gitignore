@@ -11,3 +11,6 @@ settings.json
 try_guard.py
 try.sandbox.py
 Try/
+dist/
+build/
+logs/

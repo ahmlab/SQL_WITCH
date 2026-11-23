@@ -1,10 +1,13 @@
-"""SQL Witch: python main.py [--seed N] [--scale K]
+"""SQL Witch: python main.py [--seed N] [--scale K] [--start tutorial|slime|knight] [--smoke-test]
 
 Boots pygame, opens the window and runs the scenes with a fixed 60 Hz timestep: the game
 always advances in steps of 1/60 s, however fast or slow the machine draws, so animations
 and timings are the same everywhere. Rules and brains never see the clock.
 
-STATUS: step 7 done - arguments, fixed timestep, scene manager, clean shutdown.
+--smoke-test starts the game, draws the title for a moment and quits with exit code 0: CI and
+the packaged bundle use it to prove the game really starts on a machine.
+
+STATUS: arguments, fixed timestep, scene manager, clean shutdown, smoke test.
 """
 
 from __future__ import annotations
@@ -43,6 +46,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="where the story starts: the tutorial, or straight at a guardian "
                              "(default: tutorial)")
     parser.add_argument("--frames", type=int, default=None, help=argparse.SUPPRESS)  # smoke tests
+    parser.add_argument("--smoke-test", action="store_true",
+                        help="start, show the title, quit (for CI and packaged builds)")
     return parser.parse_args(argv)
 
 
@@ -79,8 +84,15 @@ def run(seed: int, scale: int | None = None, max_frames: int | None = None,
     return 0
 
 
+SMOKE_FRAMES = 30            # half a second of title screen
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.smoke_test:
+        code = run(seed=1, scale=1, max_frames=SMOKE_FRAMES, start=args.start)
+        print("smoke test: the title was shown and the game quit cleanly")
+        return code
     seed = args.seed if args.seed is not None else int(time.time())
     print(f"SQL Witch - seed {seed} (replay this battle with --seed {seed})")
     return run(seed, args.scale, args.frames, args.start)

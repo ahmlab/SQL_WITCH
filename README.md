@@ -30,7 +30,7 @@ with `match`/`case`, goal-driven behaviour and steering behaviours. See
 - Sir Wherewell's Ward of Relevance turns aside every spell that is not super-effective
   against him. Scry him (`SELECT * FROM enemies`), then filter for his weakness.
 
-The full design is in [`docs/SQL_Witch_Design_Document.pdf`](docs/) (when present) and the
+The full design is in [`docs/plan/SQL_Witch_Design_Document.pdf`](docs/plan/), the roadmap in [`docs/plan/00_MASTER_PLAN.md`](docs/plan/00_MASTER_PLAN.md), and the
 sprite brief in [`docs/SPRITES.md`](docs/SPRITES.md).
 
 ## Install
