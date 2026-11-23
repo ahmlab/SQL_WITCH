@@ -219,6 +219,20 @@ def make_typing_and_story() -> None:
                                 duty=0.125, volume=0.12)))
 
 
+# ------------------------------------------------------------------ voices
+
+VOICE_SCALE = (55, 57, 60, 62, 64, 67, 69, 72)    # a lower pentatonic: talking, not typing
+
+
+def make_voices() -> None:
+    """Dialogue blips (data/pacing.json "voices"): each speaker has a timbre and a note, played
+    every few letters while their line types out, like Ada's typing notes."""
+    for i, n in enumerate(VOICE_SCALE, start=1):
+        write(f"voice_square_{i}.wav", notes([(midi(n), 0.045)], duty=0.25, volume=0.22))
+        write(f"voice_triangle_{i}.wav", notes([(midi(n + 12), 0.05)], wave_fn=triangle,
+                                               volume=0.3))
+
+
 # ------------------------------------------------------------------ Sir Wherewell
 
 def make_knight_sounds() -> None:
@@ -384,6 +398,7 @@ def main() -> None:
     print(f"Writing sounds to {OUT}")
     make_effects()
     make_typing_and_story()
+    make_voices()
     make_knight_sounds()
     make_music()
     make_knight_music()

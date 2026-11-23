@@ -109,7 +109,8 @@ Training Dummy that cannot hurt you (3 to 5 minutes, no way to lose).
 Help fades as you go: lesson 1 offers the whole query faded (TAB, then CTRL+ENTER), lesson 2
 only the keywords, lesson 3 a hint line, lesson 4 nothing. If you get stuck, the help comes
 back on its own. Any query that does the job passes, not only the one shown.
-The wording lives in `data/tutorial.json` (see [`docs/TUTORIAL.md`](docs/TUTORIAL.md)).
+The wording lives in `data/story/tutorial.script` and its structure in `data/tutorial.json` (see [`docs/TUTORIAL.md`](docs/TUTORIAL.md)).
+Every other line of dialogue is in `data/story/*.script`; how to write them, pace them and add hints: [`docs/WRITING.md`](docs/WRITING.md).
 
 In battle, press **F3** (or click **? GUIDE**, top right). The guide explains what a query
 is, what each table holds, how to read a result, and lists queries you can try right now,
@@ -153,6 +154,10 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `magic/world.py` | Snapshots, Rewind, the integrity check, reactions and tricks. |
 | `magic/spellbook.py` | Scrolls: saved queries as SQL views. |
 | `story/codex.py` | The Codex: the techniques the player has used or seen. |
+| `story/script.py` | The screenplay format of `data/story/*.script`: parser, conditions, runner. |
+| `story/pacing.py` | The typewriter: time-based pacing per speaker and language, voices, box styles. |
+| `story/hints.py` | The Hint Director: who speaks up when the player is stuck, and what they say. |
+| `story/scenes.py` | Script lines as story-scene records (backdrop, Ada's sleepiness, who is on stage). |
 | `i18n/` | The text catalog (`data/i18n/`), ICU plurals and gender. |
 | `magic/tutorial.py` | The tutorial's lessons: pass conditions, coaching, hint ladder (no pygame). |
 | `ai/` | Foe brains and their SQL styles. **Never imports pygame.** |
@@ -166,6 +171,7 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `ai/roster.py` | The guardians in order, with their level, runes, brain and style. |
 | `ai/dummy.py` | The tutorial's Training Dummy: a brain that stands still. |
 | `engine/` | Everything that touches pygame: rendering, editor, Grimoire, scenes, audio. |
+| `engine/dialogue.py` | Text boxes: wrapping (Latin and CJK), typed text with effects, portraits, the log. |
 | `engine/tutorial_scene.py` | The tutorial on screen: a battle scene with a Grimoire that teaches. |
 | `engine/ada_anim.py` | Ada's animation from her one sprite, moved row by row: breathing, typing, casting, hit, hurt, fainting. |
 | `assets/audio/` | Sound effects, battle music and `sounds.json`. |

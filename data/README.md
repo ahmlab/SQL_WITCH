@@ -17,12 +17,16 @@ Schema reference: design document, Appendix A. Starting values: Appendix B.
 - `items.csv` - `name,kind,amount,qty`.
 - `type_chart.csv` - `attack,defend,multiplier`. Cycle: Fire > Nature > Storm > Tide > Fire;
   Arcane is neutral except x2 against Void; every other element is x0.5 against Void.
-- `dialogue.json` - story beats and guardian lines, keyed by scene id. Each `intro` line has a
-  `speaker` and `text`, plus: `scene` (`office`, `void` or `glade`: changing it dips to black),
-  `sleep` (office only, 0 awake to 3 asleep on the desk), `book` (the Grimoire floats on screen),
-  `slime` (the Slime appears), `sound` (an event from `assets/audio/sounds.json`) and
-  `only_before` (`tutorial` or `slime`: said only when the intro leads there; the rules the
-  tutorial teaches by doing are only spoken to players who skip it with `--start slime`).
+- `story/*.script` - every story scene and spoken line, in the screenplay format described in
+  `docs/WRITING.md`. `story/intro.script` holds the intro, the guardians' arrivals and the result
+  lines: stage directions such as `[scene office|void|glade|keep]`, `[sleep 0-3]`, `[book]`,
+  `[slime]`, `[sfx name]` set the picture; a line inside `<<if next == "tutorial">>` is said only
+  when the intro leads there. `story/hints.script` holds what guardians and the Grimoire say
+  during a battle (see `hints.json`).
+- `pacing.json` - the typewriter: characters per second (Latin and CJK), each speaker's speed,
+  pauses after punctuation per language, voice blips and text box styles.
+- `hints.json` - the Hint Director: which signals make someone speak during a battle, the
+  thresholds, cooldowns and which script node each hint plays.
 - `tutorial.json` - the tutorial's whole script: lessons, every line, ghost levels, pass
   conditions and the hint thresholds. Its own `_help` key explains the format; the game refuses
   to start (and says which line) if a line is too long for its box. See `docs/TUTORIAL.md`.

@@ -1,0 +1,30 @@
+{
+  "_help": "How dialogue is paced and voiced. cps: characters per second of a line at normal speed, for Latin-like scripts and for CJK (a Chinese character carries a word, so it is slower). speakers: each speaker's speed as a multiple. punctuation: extra ms after a character, per language (default applies to every language that does not list it). voices: each speaker's blip (timbre: square or triangle; note 1-8 of the C pentatonic scale, low to high) played every blip_every letters. fast_forward: speed while the confirm key is held. auto_advance_ms: the pause before the next line when auto-advance is on (A key). styles: a box per kind of speaker (palette colour names from engine/render.py); speaker_style says which kind each speaker is.",
+  "cps": {"latin": 38, "cjk": 13},
+  "speakers": {"": 0.9, "Grimoire": 0.9, "Ada": 1.0, "Sir Wherewell": 0.8, "Asterisk Slime": 1.15, "Training Dummy": 1.1},
+  "punctuation": {
+    "default": {",": 90, ";": 140, ":": 140, ".": 230, "!": 230, "?": 230, "…": 320},
+    "zh-Hans": {"，": 120, "、": 90, "；": 160, "：": 160, "。": 280, "！": 280, "？": 280, "…": 320},
+    "zh-Hant": {"，": 120, "、": 90, "；": 160, "：": 160, "。": 280, "！": 280, "？": 280, "…": 320}
+  },
+  "voices": {
+    "": {"timbre": "triangle", "note": 3},
+    "Grimoire": {"timbre": "triangle", "note": 2},
+    "Ada": {"timbre": "square", "note": 5},
+    "Sir Wherewell": {"timbre": "square", "note": 1},
+    "Asterisk Slime": {"timbre": "triangle", "note": 7},
+    "Training Dummy": {"timbre": "square", "note": 6}
+  },
+  "blip_every": 3,
+  "fast_forward": 6,
+  "auto_advance_ms": 1700,
+  "styles": {
+    "narrator": {"fill": "CREAM", "border": "INK", "tag": null},
+    "ada": {"fill": "CREAM", "border": "INK", "tag": "VIOLET"},
+    "grimoire": {"fill": "CREAM", "border": "VIOLET", "tag": "LAVENDER"},
+    "guardian": {"fill": "CREAM", "border": "WINE", "tag": "RED"},
+    "companion": {"fill": "CREAM", "border": "FOREST", "tag": "FOREST"},
+    "letter": {"fill": "PARCHMENT", "border": "LEATHER", "tag": "AMBER"}
+  },
+  "speaker_style": {"": "narrator", "Ada": "ada", "Grimoire": "grimoire", "Sir Wherewell": "guardian", "Asterisk Slime": "guardian", "Training Dummy": "guardian"}
+}

@@ -41,6 +41,7 @@ class TutorialScene(BattleScene):
     # The dummy's HP panel goes mid-field: the strip and the bubble use the top of the screen.
     FOE_PANEL = pygame.Rect(64, 56, 120, 20)
     DANGER_MUSIC = False                     # nothing is at stake here
+    HINTS = False                            # the coach is the only voice in practice
 
     def __init__(self, game, tutorial: Tutorial | None = None):
         self.tutorial = tutorial or Tutorial(seed=game.seed)

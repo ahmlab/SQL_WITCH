@@ -1,0 +1,65 @@
+# The story scenes and the result screens, ported from data/dialogue.json (prompt 03).
+# Directions before a line: [scene office|void|glade|keep] [sleep 0-3] [book] [slime] [knight]
+# [sfx name]. A line inside <<if next == "tutorial">> is said only when the scene leads there.
+# Each line's i18n key is story.intro.<node>.<n>. See docs/WRITING.md.
+
+== intro ==
+[scene office] [sleep 0] : 11:58 pm. The quarterly report is still running.
+[scene office] [sleep 1] Ada: Nobody reads these dashboards anyway. SQL is just... busywork.
+[scene office] [sleep 2] Ada: I'll just close my eyes... until it reaches 100%...
+[scene office] [sleep 3] [sfx flatline] : The progress bar stops at 99%. So does Ada's heart.
+[scene void] : ...
+[scene glade] Ada: Grass? Why is the sky a table? Why does it have so many columns?
+[scene glade] [book] [sfx book] Grimoire: Welcome to the Kingdom of Codd, witch. Here the world is a database, and magic is querying.
+[scene glade] [book] Ada: A... talking book?
+[scene glade] [book] Grimoire: Your Grimoire. Here, magic is not waved: it is written. Every spell is a query.
+[scene glade] [book] Ada: I write SQL all day. How hard can it be?
+<<if next == "tutorial">>
+[scene glade] [book] Grimoire: Then show me. Before you meet anything with teeth, practice on something made of straw.
+<<endif>>
+<<if next == "slime">>
+[scene glade] [book] Grimoire: My right page holds only four rows. You pay for every spell you summon, but only the rows you can read take effect.
+<<endif>>
+<<if next == "slime">>
+[scene glade] [book] Grimoire: Never written a query? In battle, press F3 or click GUIDE: I will show you what to write, and how to read my pages.
+<<endif>>
+<<if next == "slime">>
+[scene glade] [book] Grimoire: And you will learn the rest from the first thing that wants to eat you.
+<<endif>>
+<<if next == "slime">>
+[scene glade] [book] [slime] : Something round and green wobbles out of the bushes: the ASTERISK SLIME!
+<<endif>>
+
+== knight_intro ==
+[scene glade] [book] Grimoire: LIMIT is yours, witch. The next guardian is not beaten with fewer spells, but with the right ones.
+[scene keep] [book] : The Filter Keep. Its gate opens only for what is relevant.
+[scene keep] [book] [knight] [sfx ward_up] Sir Wherewell: Halt! I am Sir Wherewell, Knight of the Filter. My Ward of Relevance stops every spell that does not matter.
+[scene keep] [book] [knight] Sir Wherewell: Only a spell of the element I am weak to can get through. Do you know which one, witch?
+[scene keep] [book] [knight] Ada: I know dozens of spells now. How do I cast only the right ones?
+[scene keep] [book] [knight] Grimoire: Look at him first with SELECT * FROM enemies and find his weakness. Then watch his book: he never casts without WHERE.
+
+== victory ==
+: The Asterisk Slime melts into a puddle of rows.
+Ada: One word. LIMIT. And the page behaves.
+
+== confused ==
+: The fight dissolves into confusion: there is nothing left to win.
+Grimoire: A backup would have brought it back. Next time, rewind (F6).
+
+== defeat ==
+: Ada's HP hits zero. The Slime wobbles triumphantly.
+Grimoire: Even the best witches overflow sometimes. Again?
+
+== knight_victory ==
+: Sir Wherewell kneels and opens the gate.
+Ada: WHERE. Ask only for what you need.
+
+== knight_defeat ==
+: Ada's HP hits zero. The Knight lowers his blade.
+Grimoire: Spells that are not super-effective bounce off. Filter for his weakness.
+
+== battle_tip ==
+: New to SQL? Press F3 for the spell guide.
+
+== end_of_slice ==
+: End of the vertical slice. Thank you for playing!

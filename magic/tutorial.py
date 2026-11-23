@@ -188,10 +188,83 @@ def script_problems(script: dict) -> list[str]:
     return problems
 
 
+DUMMY_NAME = "Training Dummy"              # its lines in the script are spoken by this name
+SINGLE_LINES = {"restuffed"}               # dummy lines that are one line, not a pool
+
+
+def _steps(node: str, words) -> list[dict]:
+    """A node of data/story/tutorial.script as tutorial steps: a Grimoire (or narrator) line
+    starts a step, a Training Dummy line after it is that step's reply."""
+    from story.scenes import text_of
+    steps: list[dict] = []
+    for line in words.node(node).items:
+        if not hasattr(line, "speaker"):
+            continue
+        if line.speaker == DUMMY_NAME and steps:
+            steps[-1]["dummy"] = text_of(line)
+        elif line.speaker == DUMMY_NAME:
+            steps.append({"dummy": text_of(line)})
+        else:
+            steps.append({"say": text_of(line), "narrator": not line.speaker})
+    return steps
+
+
+def _one(node: str, words) -> str:
+    return _steps(node, words)[0].get("say") or _steps(node, words)[0].get("dummy", "")
+
+
+def _merge(into: list, steps: list[dict]) -> list:
+    """The JSON's steps (what to point at, the query) with the script's words, step by step."""
+    out = [dict(into[i]) if i < len(into) else {} for i in range(len(steps))]
+    for step, words in zip(out, steps):
+        if not words.get("narrator"):
+            words = {k: v for k, v in words.items() if k != "narrator"}
+        step.update(words)
+    return out
+
+
+def with_words(script: dict, words=None) -> dict:
+    """Put the words of data/story/tutorial.script back into the tutorial's structure."""
+    from story.scenes import text_of
+    from story.script import get
+    words = words or get("tutorial")
+    nodes = words.nodes
+    script = json.loads(json.dumps(script))                # a copy: the cache stays clean
+    script["opening"] = _merge(script.get("opening", []), _steps("opening", words))
+    script["ending"] = _merge(script.get("ending", []), _steps("ending", words))
+    for lesson in script["lessons"]:
+        name = lesson["id"]
+        for part in ("intro", "demo_after", "success"):
+            if f"{name}_{part}" in nodes:
+                lesson[part] = _merge(lesson.get(part, []), _steps(f"{name}_{part}", words))
+        lesson["task"] = _merge([lesson.get("task", {})], _steps(f"{name}_task", words))[0]
+        for part in ("restate", "off_goal"):
+            if f"{name}_{part}" in nodes:
+                lesson[part] = _one(f"{name}_{part}", words)
+    practice = script["practice"]
+    practice["intro"] = _merge(practice.get("intro", []), _steps("practice_intro", words))
+    practice["task"] = _merge([practice.get("task", {})], _steps("practice_task", words))[0]
+    for quest in practice["quests"]:
+        quest["label"] = _one(f"practice_{quest['id']}_label", words)
+        quest["done"] = _merge([quest.get("done", {})],
+                               _steps(f"practice_{quest['id']}_done", words))[0]
+    practice["all_done"] = _merge([practice.get("all_done", {})],
+                                  _steps("practice_all_done", words))[0]
+    for node in nodes:
+        if node.startswith("coach_"):
+            script["coach"][node[len("coach_"):]] = _one(node, words)
+        elif node.startswith("dummy_"):
+            lines = [text_of(line) for line in words.node(node).items if hasattr(line, "speaker")]
+            name = node[len("dummy_"):]
+            script["dummy"][name] = lines[0] if name in SINGLE_LINES else lines
+    return script
+
+
 def load_script(path: Path | str = DATA_DIR / "tutorial.json") -> dict:
-    """Read the script, and refuse one whose lines would not fit the screen."""
+    """Read the script (structure from the JSON, words from data/story/tutorial.script), and
+    refuse one whose lines would not fit the screen."""
     with open(path, encoding="utf-8") as f:
-        script = json.load(f)
+        script = with_words(json.load(f))
     problems = script_problems(script)
     if problems:
         raise ValueError("data/tutorial.json needs fixing:\n  " + "\n  ".join(problems))

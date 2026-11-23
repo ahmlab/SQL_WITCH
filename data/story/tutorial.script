@@ -1,0 +1,189 @@
+# The tutorial's words, ported from data/tutorial.json (prompt 03) without changing them.
+# data/tutorial.json keeps the structure (lessons, goals, what to point at, the queries);
+# magic/tutorial.py puts these lines back in their places when it loads the tutorial.
+# Nodes: <lesson>_<part> (intro, demo_after, task, restate, off_goal, success), opening,
+# ending, practice_<quest>_done, practice_<quest>_label, coach_<name>, dummy_<pool>.
+# In a step, a Grimoire line (or a narrator line, ': text') starts the step; a Training Dummy
+# line after it is the dummy's reply in the same step. {rows}, {cast}, {lost}, {page},
+# {mp_before}, {mp_after} are filled in from the real result. See docs/WRITING.md.
+
+== opening ==
+Grimoire: Before any guardian: practice. This straw dummy cannot hurt you. Nothing here can.
+Training Dummy: I can judge you, though.
+
+== look_intro ==
+Grimoire: A query asks a table for its rows. Watch me ask the table called enemies.
+
+== look_demo_after ==
+Grimoire: One row, one creature: the dummy. Each column is one fact about it.
+Training Dummy: Take a picture. It lasts longer.
+
+== look_task ==
+Grimoire: Your turn. Write the same query:
+
+== look_restate ==
+Grimoire: Ask the table enemies for everything:
+
+== look_off_goal ==
+Grimoire: A real query! But I asked for the dummy:
+
+== look_success ==
+Grimoire: There it is again, and this time you asked. Your first query!
+
+== columns_intro ==
+Grimoire: My page is narrow: a wide row gets cut at the right edge. So ask for less.
+
+== columns_demo_after ==
+Grimoire: Two names after SELECT, a comma between them: two columns on the page.
+
+== columns_task ==
+Grimoire: Your turn. Find what the dummy is weak to:
+
+== columns_restate ==
+Grimoire: Two columns from enemies, name and weakness:
+
+== columns_off_goal ==
+Grimoire: Good look! But its weakness is not there:
+
+== columns_success ==
+Grimoire: Fire. Remember it: a foe's weakness takes double damage.
+Training Dummy: Rude. That was private.
+
+== read_intro ==
+Grimoire: All those looks, and your MP has not moved. Looking is free. Read before you act.
+
+== read_demo_after ==
+Grimoire: Your spells. None of them fired: I left out the name column on purpose.
+
+== read_task ==
+Grimoire: Your turn. Read three columns of your spells:
+
+== read_restate ==
+Grimoire: Three columns from the table spells:
+
+== read_off_goal ==
+Grimoire: Nice, but I want to see each spell's element:
+
+== read_success ==
+Grimoire: The first spell is Fire, and the dummy is weak to Fire. Only 3 MP, too.
+Training Dummy: I do not like where this is going.
+
+== cast_intro ==
+Grimoire: Now the magic. A row that carries a spell's name casts that spell. Watch.
+
+== cast_demo_after ==
+Grimoire: {cast} spells fired, and Fire hit twice as hard. But read the rest.
+Training Dummy: Ow. Ow. Ow. Ow. In that order.
+Grimoire: My page holds {page} rows. The other {lost} fell off the bottom and fizzled.
+Grimoire: Yet I paid for all {rows}: MP {mp_before} to {mp_after}. That is the Rule of the Page.
+Grimoire: Here, I refill your mana. Guardians will not be so kind.
+
+== cast_task ==
+Grimoire: Your turn. Attack the dummy: ask the table spells for its name column.
+
+== cast_restate ==
+Grimoire: Spell names are triggers. Ask for them:
+
+== cast_off_goal ==
+Grimoire: Nothing hit the dummy. Ask spells for name:
+
+== cast_success ==
+Grimoire: Real magic! And you overflowed the page, like every witch on day one.
+Training Dummy: My straw! My only straw!
+Grimoire: {cast} hit, {lost} fizzled, {rows} paid for. I refill your mana once more.
+
+== practice_intro ==
+Grimoire: Free practice. Nothing can go wrong here. TABLES (F4) lists what you can ask.
+
+== practice_task ==
+Grimoire: Try these if you like. Press F5 when you feel READY.
+
+== practice_element_label ==
+: Put your own element on the page
+
+== practice_element_done ==
+Grimoire: Arcane. Neither strong nor weak against anything. Like a spreadsheet.
+
+== practice_book_label ==
+: Read the dummy's spell book
+
+== practice_book_done ==
+Grimoire: Empty: it knows no spells. A guardian's book will not be. Read it.
+Training Dummy: Straw does not retain much.
+
+== practice_log_label ==
+: Read the world's diary: query_log
+
+== practice_log_done ==
+Grimoire: Every query ever cast here, yours included. This world forgets nothing.
+Training Dummy: I remember EVERYTHING.
+
+== practice_all_done ==
+Grimoire: All three! You read tables better than most witches. F5 when READY.
+
+== ending ==
+Grimoire: One thing should bother you: you wanted ONE spell, and you paid for all of them.
+Grimoire: There is a rune for that. The next guardian knows it. Watch its book.
+Grimoire: All I showed you is in the GUIDE (F3). Open it whenever you are lost.
+: Something round and green wobbles out of the bushes: the ASTERISK SLIME!
+Training Dummy: Not my problem. Good luck!
+
+== coach_miscast ==
+Grimoire: No harm done: a miscast is free. Try this:
+
+== coach_undone ==
+Grimoire: Nothing breaks in practice: I put it back.
+
+== coach_enter ==
+Grimoire: ENTER makes a new line. CTRL+ENTER casts.
+
+== coach_cast_hint ==
+Grimoire: CTRL+ENTER casts it
+
+== coach_cast_too_early ==
+Grimoire: Oops: those names fired spells! That is next.
+
+== coach_ghost_word ==
+Grimoire: Follow the faded word: TAB takes it.
+
+== coach_offer ==
+Grimoire: Stuck? Press TAB and I will write it with you.
+
+== coach_refill ==
+Grimoire: I refill your mana. In here it is free.
+
+== coach_practice_miscast ==
+Grimoire: No harm done. Read the red note and try again.
+
+== coach_looks_spent ==
+Grimoire: A turn has 3 free looks. In here, have more.
+
+== coach_skip ==
+Grimoire: Skip the tutorial?  ENTER: skip   ESC: stay
+
+== coach_continue ==
+Grimoire: ENTER
+
+== dummy_looked_at ==
+Training Dummy: Stop staring. I am shy.
+Training Dummy: Yes, that is all of me.
+Training Dummy: My good side is the left.
+Training Dummy: Read me like a book. Ha.
+
+== dummy_hit ==
+Training Dummy: Ow. I am a prop, you know.
+Training Dummy: My straw! My only straw!
+Training Dummy: I felt that in my seams.
+Training Dummy: Was that really necessary?
+
+== dummy_miscast ==
+Training Dummy: Even I could spell that.
+Training Dummy: I felt nothing. Literally.
+Training Dummy: The grammar hurt, though.
+
+== dummy_restuffed ==
+Training Dummy: *stuffs its straw back in*
+
+== dummy_idle ==
+Training Dummy: Take your time. I am straw.
+Training Dummy: I am not going anywhere.

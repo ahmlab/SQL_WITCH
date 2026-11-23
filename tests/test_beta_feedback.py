@@ -11,7 +11,7 @@ pygame = pytest.importorskip("pygame")
 from engine import render
 from engine.grimoire import (RIGHT_PAGE, SCROLL_RIGHT, SHADE_CAST, SHADE_DEFLECTED, Grimoire,
                              row_shades)
-from engine.scenes import TABLES_BUTTON, BattleScene, Game
+from engine.scenes import TABLES_BUTTON, BattleScene, Game, load_dialogue
 from engine.textinput import QueryEditor, next_step
 from magic.battle import Battle
 from magic.db import DATA_DIR
@@ -121,7 +121,7 @@ def test_shift_arrows_wheel_and_arrow_clicks_scroll_in_battle():
 # ------------------------------------------------------------------ 3. the Knight's text
 
 def test_the_knights_lines_are_plain_and_consistent_with_his_ward():
-    dialogue = json.loads((DATA_DIR / "dialogue.json").read_text())
+    dialogue = load_dialogue()                                # from data/story/intro.script
     text = " ".join(line["text"] for line in dialogue["knight_intro"])
     text += " ".join(dialogue["knight_victory"] + dialogue["knight_defeat"])
     for archaic in ("thou", "canst", "thy", "thee"):

@@ -35,6 +35,8 @@
     "book":       {"file": "book.wav", "volume": 0.7},
     "deflect":    {"file": "deflect.wav", "volume": 0.75},
     "shatter":    {"file": "shatter.wav", "volume": 0.8},
-    "ward_up":    {"file": "ward_up.wav", "volume": 0.75}
+    "ward_up":    {"file": "ward_up.wav", "volume": 0.75},
+    "voice_square":   {"files": ["voice_square_1.wav", "voice_square_2.wav", "voice_square_3.wav", "voice_square_4.wav", "voice_square_5.wav", "voice_square_6.wav", "voice_square_7.wav", "voice_square_8.wav"], "volume": 0.3},
+    "voice_triangle": {"files": ["voice_triangle_1.wav", "voice_triangle_2.wav", "voice_triangle_3.wav", "voice_triangle_4.wav", "voice_triangle_5.wav", "voice_triangle_6.wav", "voice_triangle_7.wav", "voice_triangle_8.wav"], "volume": 0.3}
   }
 }

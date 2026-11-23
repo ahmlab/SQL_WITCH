@@ -1,0 +1,97 @@
+# What the guardians and the Grimoire say during a battle, when the Hint Director decides someone
+# should speak (data/hints.json says when). One node per hint, one line per node.
+# Node names: <guardian>_<topic> for a guardian's taunt (it contains a real hint, in character),
+# grimoire_<topic>_<step> for the Grimoire (nudge, shape, offer: each more explicit).
+# Placeholders: {mode} is the guardian's current mode, read from its brain's explain(), so a
+# taunt never lies about what the guardian is doing. Item and spell names stay in English.
+# Draft lines (prompt 03); the real writing is prompt 07, by humans. See docs/WRITING.md.
+
+# ------------------------------------------------------------------ the Asterisk Slime
+
+== slime_world ==
+Asterisk Slime: You broke my table, little witch. Do you know how to {wave}put it back{/wave}?
+
+== slime_heal ==
+Asterisk Slime: Low on HP, and a Healing Herb still sitting in your items? Splendid. I am {mode}, and hungry.
+
+== slime_ether ==
+Asterisk Slime: No mana left? Your satchel holds an Ether, and you have never once read it.
+
+== slime_overflow ==
+Asterisk Slime: {shake}Splat!{/shake} Half your spells fell off the page again. Even a slime knows when to stop.
+
+== slime_habit ==
+Asterisk Slime: The same query, a third time. I am {mode}, not stupid: I know it by heart now.
+
+== slime_enemies ==
+Asterisk Slime: You keep casting, but you have never looked at me. I am in a table too, you know.
+
+== slime_items ==
+Asterisk Slime: Witches carry things. Do you even know what is in your items?
+
+== slime_stuck ==
+Asterisk Slime: Blub? Is the witch asleep again? I can wait. I am {mode}. I am a slime.
+
+# ------------------------------------------------------------------ Sir Wherewell
+
+== knight_world ==
+Sir Wherewell: You damaged the records of this keep. Only a fool fights on a broken floor. Can you put it back?
+
+== knight_heal ==
+Sir Wherewell: You are wounded, and you carry a Healing Herb you have never used. I am {mode}: I will not wait for you.
+
+== knight_ether ==
+Sir Wherewell: Your mana is spent. There is an Ether in your items. In your place, I would read it.
+
+== knight_overflow ==
+Sir Wherewell: Twice now your spells spilled past the page. Ask for fewer rows, or ask for {color gold}better{/color} ones.
+
+== knight_habit ==
+Sir Wherewell: The same spell for the third time. I am {mode}, and my ward has learned its shape.
+
+== knight_enemies ==
+Sir Wherewell: You strike without knowing me. My weakness is written in the enemies table, for anyone who reads.
+
+== knight_items ==
+Sir Wherewell: A witch who never opens her items fights with one hand.
+
+== knight_stuck ==
+Sir Wherewell: I am {mode}, and still you hesitate. Write something, witch.
+
+# ------------------------------------------------------------------ the Grimoire
+
+== grimoire_world_nudge ==
+Grimoire: The world changed under us. F6 opens the rewind page: we can go back to before it broke.
+
+== grimoire_heal_shape ==
+Grimoire: Your HP is low. Read the herb from your items: {rune SELECT} name FROM items {rune WHERE} name = 'Healing Herb'.
+
+== grimoire_ether_shape ==
+Grimoire: Out of mana? {rune SELECT} name FROM items {rune WHERE} name = 'Ether' drinks one.
+
+== grimoire_overflow_nudge ==
+Grimoire: Only four rows fit on my right page. The rest are paid for, and lost.
+
+== grimoire_overflow_shape ==
+Grimoire: End your query with {rune LIMIT}, like this: SELECT name FROM spells LIMIT 4.
+
+== grimoire_habit_nudge ==
+Grimoire: The same spell again and again. Guardians learn. Try another element, or another filter.
+
+== grimoire_enemies_nudge ==
+Grimoire: Who are we fighting, witch? The enemies table knows.
+
+== grimoire_enemies_shape ==
+Grimoire: Look before you strike: {rune SELECT} * FROM enemies. Read its weakness column.
+
+== grimoire_enemies_offer ==
+Grimoire: Press F3 and I will show you the exact query, and how to read what it returns.
+
+== grimoire_items_nudge ==
+Grimoire: You carry things, witch. They live in the items table, and every name you read from it is used.
+
+== grimoire_items_shape ==
+Grimoire: Pick one item by name: {rune SELECT} name FROM items {rune WHERE} name = 'Healing Herb'. Reading every row uses every item.
+
+== grimoire_stuck_offer ==
+Grimoire: Stuck? Press F3, and I will write the next query with you.

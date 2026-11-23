@@ -106,7 +106,26 @@
     }
   },
 
+  "hint": {
+    "_help": "A guardian's mode in words, for the {mode} of its taunts (data/story/hints.script). The keys are the brains' real modes (ai/fsm.py, ai/knight.py).",
+    "mode": {
+      "idle": "waiting",
+      "opening": "curious",
+      "wobble": "wobbly",
+      "overcast": "greedy",
+      "exhausted": "exhausted",
+      "careful": "careful",
+      "vigilant": "vigilant",
+      "pressing": "on the attack",
+      "besieged": "besieged",
+      "winded": "winded",
+      "desperate": "desperate"
+    }
+  },
   "ui": {
+    "dialogue": {
+      "log_close": "Any key: back to the story"
+    },
     "book_closed": {
       "foe_turn": "The book is closed: it is {foe}'s turn.",
       "animating": "The book is closed while the spell resolves.",

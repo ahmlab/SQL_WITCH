@@ -1,8 +1,211 @@
-"""Dialogue on screen: text boxes, typewriter pacing, inline effects, the log (prompt 03).
+"""Dialogue on screen: text boxes, the typewriter, inline effects, portraits and the log.
 
-Draws what story/script.py parsed: measures text with the real font, wraps it per script.
+Draws what story/ decided. A DialogueBox shows one line:
+- wrapped with the real font's measurements (wrap_text): Latin and other spaced scripts break
+  between words (no hyphenation); CJK breaks between any two characters, but never puts
+  closing punctuation at the start of a line or opening punctuation at its end;
+- revealed by story.pacing.Typewriter, character by character;
+- with inline effects per character: {wave} rises and falls, {shake} trembles, {color gold}
+  colours, {rune WHERE} glows behind the word;
+- if a line has more rows than its box (a long translation), the box scrolls inside itself as
+  the typewriter goes, so text never spills out of the box;
+- styled per kind of speaker (data/pacing.json: narrator, Ada, Grimoire, guardian, companion,
+  letter), with the speaker's name on a tag and a portrait frame when a [portrait] direction
+  asks for one (assets/portraits/<who>_<emotion>.png when it exists, a placeholder until then).
 
-Must not: Never decides what is said: story/ does.
+Never decides what is said: story/ does.
 
-STATUS: created (prompt 01); built in prompt 03.
+STATUS: wrapping (Latin and CJK), typewriter drawing, effects, scrolling, styles, portraits, log.
 """
+
+from __future__ import annotations
+
+import math
+from pathlib import Path
+from typing import Callable
+
+import pygame
+
+from engine import render
+from story.pacing import is_cjk, style_of
+from story.script import Token
+
+PORTRAITS = Path(__file__).resolve().parent.parent / "assets" / "portraits"
+# Kinsoku (CJK line-breaking rules): these never start a line...
+NO_START = set("，。、；：！？）」』》〉】〕…—,.;:!?)]}%")
+# ...and these never end one.
+NO_END = set("（「『《〈【〔([{")
+
+
+def measure(text: str) -> int:
+    """Width of a text in canvas pixels with the game's font (CJK takes two cells)."""
+    return sum(2 * render.ADVANCE if is_cjk(c) else render.ADVANCE for c in text) - (
+        1 if text else 0)
+
+
+def wrap_text(text: str, width: int, measure_fn: Callable[[str], int] = measure) -> list[str]:
+    """Lines that fit `width` pixels. Spaced scripts break at spaces; CJK at any character,
+    following the kinsoku rules; a word longer than the line is cut."""
+    lines: list[str] = []
+    line = ""
+    i = 0
+    while i < len(text):
+        char = text[i]
+        if char == "\n":
+            lines.append(line)
+            line, i = "", i + 1
+            continue
+        if is_cjk(char) or char in NO_START or char in NO_END:
+            piece = char
+            i += 1
+        else:                                       # a whole word (and the space after it)
+            j = i
+            while j < len(text) and not is_cjk(text[j]) and text[j] not in "\n" and \
+                    not (text[j] == " " and j > i):
+                j += 1
+            piece = text[i:j]
+            i = j
+        candidate = line + piece
+        if measure_fn(candidate.rstrip()) <= width or not line.strip():
+            if measure_fn(candidate.rstrip()) > width and not line:   # one piece too wide
+                while piece and measure_fn(piece) > width:
+                    cut = len(piece)
+                    while cut > 1 and measure_fn(piece[:cut]) > width:
+                        cut -= 1
+                    lines.append(piece[:cut])
+                    piece = piece[cut:]
+                line = piece
+            else:
+                line = candidate
+            continue
+        if piece in NO_START and line:              # pull the last character down with it
+            carry, line = line[-1], line[:-1]
+            lines.append(line.rstrip())
+            line = carry + piece
+            continue
+        if line and line[-1] in NO_END:             # an opening bracket goes to the next line
+            carry, line = line[-1], line[:-1]
+            lines.append(line.rstrip())
+            line = carry + piece.lstrip()
+            continue
+        lines.append(line.rstrip())
+        line = piece.lstrip()
+    if line.strip() or not lines:
+        lines.append(line.rstrip())
+    return lines
+
+
+def colour(name: str | None, default: tuple) -> tuple:
+    return getattr(render, name.upper(), default) if name else default
+
+
+class DialogueBox:
+    """One text box. draw() shows `shown` characters of a line's tokens."""
+
+    def __init__(self, rect: pygame.Rect, rows: int, opaque: bool = False):
+        self.rect = pygame.Rect(rect)
+        self.rows = rows
+        # opaque: over a scene with text on the text layer (the battle), the box must hide it,
+        # which only render.cover does.
+        self.opaque = opaque
+
+    def _panel(self, canvas, rect, fill, border) -> None:
+        if self.opaque:
+            render.cover(canvas, rect, (*border, 255))
+            render.cover(canvas, rect.inflate(-2, -2), (*fill, 255))
+        else:
+            render.panel(canvas, rect, fill=fill, border=border)
+
+    def layout(self, tokens: list[Token]) -> list[list[tuple[str, Token]]]:
+        """The line's characters, wrapped into rows, each with its style."""
+        text = "".join(t.text for t in tokens if t.kind == "text")
+        styled = [(c, t) for t in tokens if t.kind == "text" for c in t.text]
+        rows, k = [], 0
+        for row in wrap_text(text, self.rect.width - 8):
+            while k < len(styled) and styled[k][0] in " \n" and not row.startswith(styled[k][0]):
+                k += 1                                    # spaces eaten by the wrap
+            rows.append(styled[k:k + len(row)])
+            k += len(row)
+        return rows
+
+    def overflows(self, tokens: list[Token]) -> bool:
+        return len(self.layout(tokens)) > self.rows
+
+    def draw(self, canvas: pygame.Surface, speaker: str, tokens: list[Token], shown: int,
+             now: int, portrait: tuple | None = None) -> pygame.Rect:
+        f = render.font()
+        style = style_of(speaker)
+        box = self.rect
+        self._panel(canvas, box, colour(style.get("fill"), render.CREAM),
+                    colour(style.get("border"), render.INK))
+        if speaker and style.get("tag"):
+            tag = pygame.Rect(box.x + 4, box.y - 7, f.width(speaker) + 8, 10)
+            self._panel(canvas, tag, colour(style["tag"], render.LAVENDER), render.INK)
+            f.draw(canvas, speaker, (tag.x + 4, tag.y + 3), render.WHITE)
+        if portrait:
+            self._portrait(canvas, portrait)
+        rows = self.layout(tokens)
+        # Which rows to show: the ones around the typewriter, so a long line scrolls.
+        upto, count = 0, 0
+        for r, row in enumerate(rows):
+            count += len(row)
+            upto = r
+            if count >= shown:
+                break
+        first = max(0, upto - self.rows + 1)
+        drawn = 0
+        for r, row in enumerate(rows):
+            if r < first:
+                drawn += len(row)
+                continue
+            if r >= first + self.rows:
+                break
+            x = box.x + 4
+            y = box.y + 5 + (r - first) * render.LINE_H
+            for i, (char, token) in enumerate(row):
+                if drawn >= shown:
+                    return box
+                drawn += 1
+                dx = dy = 0
+                if token.wave:
+                    dy = round(math.sin(now / 130 + (x + i) * 0.5))
+                if token.shake:
+                    dx = ((now // 45 + i * 7) % 3) - 1
+                    dy += ((now // 60 + i * 5) % 3) - 1
+                if token.rune:
+                    pygame.draw.rect(canvas, render.BUTTER,
+                                     (x - 1, y - 1, measure(char) + 2, render.GLYPH_H + 1))
+                ink = colour(token.color, render.INK)
+                f.draw(canvas, char, (x + dx, y + dy), ink)
+                x += measure(char) + 1
+        return box
+
+    def _portrait(self, canvas: pygame.Surface, portrait: tuple) -> None:
+        who, emotion = (portrait + ("neutral",))[:2]
+        frame = pygame.Rect(self.rect.right - 36, self.rect.y - 34, 32, 32)
+        path = PORTRAITS / f"{who}_{emotion}.png"
+        if path.exists():
+            canvas.blit(pygame.image.load(str(path)), frame)
+            return
+        render.panel(canvas, frame, fill=render.PARCHMENT)    # until the art exists
+        f = render.font()
+        f.draw(canvas, who[:1].upper(), (frame.centerx - 2, frame.y + 8), render.VIOLET)
+        f.draw(canvas, emotion[:7], (frame.x + 3, frame.bottom - 9), render.SLATE)
+
+
+def draw_log(canvas: pygame.Surface, entries: list[tuple[str, str]], hint: str) -> None:
+    """The dialogue log: the last lines said, newest at the bottom."""
+    f = render.font()
+    box = pygame.Rect(8, 6, 304, 168)
+    render.cover(canvas, box, (*render.INK, 245))
+    y = box.bottom - 18
+    for speaker, text in reversed(entries):
+        said = f"{speaker}: {text}" if speaker else text
+        rows = wrap_text(said, box.width - 12)
+        for row in reversed(rows):
+            if y < box.y + 4:
+                break
+            f.draw(canvas, row, (box.x + 6, y), render.LILAC if speaker else render.GREY)
+            y -= render.LINE_H
+        y -= 3
+    f.draw(canvas, hint, (box.x + 6, box.bottom - 9), render.GOLD)

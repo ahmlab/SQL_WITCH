@@ -40,6 +40,14 @@ from magic.battle import _summary
 from magic.guard import Miscast
 from i18n import t
 from story.codex import Codex
+from story.pacing import Typewriter, settings as settings_pacing, voice
+from story.scenes import INTRO, legacy, record
+from story.script import Choice, ScriptRunner, get as script_named, tokens as script_tokens
+from story.hints import HintDirector, context_of
+from engine.dialogue import DialogueBox, draw_log
+from i18n import CATALOG, locale as i18n_locale
+
+LOG_KEEP = 60                      # lines the dialogue log remembers
 
 
 def _last_word(text: str) -> str:
@@ -47,9 +55,9 @@ def _last_word(text: str) -> str:
     return match.group(0) if match else ""
 
 
-def load_dialogue(path=DATA_DIR / "dialogue.json") -> dict:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+def load_dialogue() -> dict:
+    """Text by name for the result screens and the battle tip, from data/story/intro.script."""
+    return legacy()
 
 
 def is_cast_key(event) -> bool:
@@ -94,6 +102,8 @@ class Game:
         self.seed = seed
         self.vfx = random.Random(seed)    # visual effects only, never the battle's rng
         self.dialogue = load_dialogue()
+        self.dialogue_log: list[tuple[str, str]] = []   # what was said, for the log (L)
+        self.auto_advance = False
         self.debug = False
         self.running = True
         self.held: set[int] = set()        # keys down right now (to spot held-key repeats)
@@ -243,71 +253,185 @@ class TitleScene(Scene):
 # ------------------------------------------------------------------ dialogue
 
 class DialogueScene(Scene):
-    """The intro: Ada falls asleep at her desk, dies, and wakes up in Codd, where a floating
-    book speaks to her. Each line of data/dialogue.json names its backdrop ("scene"), and may
-    add Ada's sleepiness ("sleep" 0-3), the book, the Slime and a sound.
-    ENTER finishes the line, then moves on; ESC skips the scene."""
-    MS_PER_CHAR = 30
+    """A story scene played from a script node (data/story/intro.script): Ada falls asleep at
+    her desk, dies, and wakes up in Codd, where a floating book speaks to her; or a guardian
+    arrives. Each line's directions name its backdrop ([scene]), Ada's sleepiness ([sleep 0-3]),
+    who is on stage ([book] [slime] [knight]), a sound ([sfx]), a portrait, [shake], [wait N].
+    The typewriter is story.pacing (time-based, per speaker and language, pauses on
+    punctuation). ENTER finishes the line, then moves on; holding it types faster; holding CTRL
+    skips; A toggles auto-advance; L opens the log of what was said; ESC skips the scene."""
     FADE_MS = 450                     # half a dip to black between two backdrops
     BOOK_AT = (198, 72)
+    BOX = pygame.Rect(8, 128, 304, 44)
+    SKIP_HOLD_MS = 90                 # while CTRL is held, a finished line waits this long
 
     def __init__(self, game, key: str = "intro", guardian: str = "slime"):
         super().__init__(game)
         self.guardian = guardian             # what follows: "tutorial" or a guardian's battle
-        # A line marked only_before is said only when this scene leads to that place.
-        self.lines = [line for line in game.dialogue[key]
-                      if line.get("only_before", guardian) == guardian]
+        self.key = key
+        # The script's conditions read these: <<if next == "tutorial">>, codex.WHERE, ...
+        self.variables = {"next": guardian,
+                          "codex": {page.id: True for page in game.codex.unlocked()}}
+        self.runner = ScriptRunner(script_named(INTRO), key, self.variables)
+        self.lines: list[dict] = []
+        self.choice = None                   # a Choice waiting for the player, when one is due
+        self.choice_at = 0
+        self._read_ahead()
         self.index = 0
-        self.backdrop = self.lines[0].get("scene", "glade")
+        self.backdrop = self.lines[0].get("scene", "glade") if self.lines else "glade"
         self.fade_from, self.fade_at = "black", 0     # the story fades in from black
         self.drowsy = 0.0
         self.book_born: int | None = None
         self.void_since = 0
-        self.line_started = 2 * self.FADE_MS
+        self.held = self.skipping = False
+        self.auto = game.auto_advance        # the A key's choice lasts the whole game
+        self.show_log = False
+        self.done_for = 0                    # ms the current line has been fully shown
+        self.shake_until = 0
+        self.box = DialogueBox(self.BOX, rows=4)
         self.ada = AdaAnimator()
+        self.line_ms = -2.0 * self.FADE_MS   # the first line waits for the fade-in
         self._start_line()
+
+    # ------------------------------------------------------------ the script
+
+    def _read_ahead(self) -> None:
+        """Take lines from the runner until a choice or the end."""
+        while (item := self.runner.next()) is not None:
+            if isinstance(item, Choice):
+                self.choice, self.choice_at = item, 0
+                return
+            self.lines.append(record(item))
 
     @property
     def line(self) -> dict:
-        return self.lines[self.index]
+        return self.lines[min(self.index, len(self.lines) - 1)]
 
     def _shown_chars(self) -> int:
-        return (self.time - self.line_started) // self.MS_PER_CHAR
+        return self.typer.visible(self.line_ms)
+
+    def _line_done(self) -> bool:
+        return self.typer.done(self.line_ms)
 
     def _start_line(self) -> None:
-        scene = self.line.get("scene", self.backdrop)
+        line = self.line
+        scene = line.get("scene", self.backdrop)
         if scene != self.backdrop:                    # dip to black, then the new place
             self.fade_from, self.fade_at, self.backdrop = self.backdrop, self.time, scene
-            self.line_started = self.time + 2 * self.FADE_MS
+            self.line_ms = -2.0 * self.FADE_MS
             if scene == "void":
                 self.void_since = self.time + self.FADE_MS
-        if self.line.get("book") and self.book_born is None:
-            self.book_born = self.line_started
-        if self.line.get("sound"):
-            self.game.audio.play(self.line["sound"])
+        for name, args in line.get("directions", []):
+            if name == "wait" and args:
+                self.line_ms -= float(args[0])
+            elif name == "shake":
+                self.shake_until = self.time + int(args[0]) if args else self.time + 400
+            elif name == "music" and args:
+                self.game.audio.play_music(args[0])
+        if line.get("book") and self.book_born is None:
+            self.book_born = self.time - int(min(0.0, self.line_ms))
+        if line.get("sound"):
+            self.game.audio.play(line["sound"])
+        self.typer = Typewriter(line["markup"], line["speaker"], i18n_locale())
+        self.blips = 0
+        self.done_for = 0
+        self.game.dialogue_log.append((line["speaker"], line["text"]))
+        del self.game.dialogue_log[:-LOG_KEEP]
+
+    def _advance(self) -> None:
+        if self.index + 1 < len(self.lines):
+            self.game.audio.play("next")
+            self.index += 1
+            self.line_ms = 0.0
+            self._start_line()
+        elif self.choice is None:
+            self.game.audio.play("next")
+            self.game.switch(next_scene(self.game, self.guardian))
+
+    def _choose(self, option: int) -> None:
+        self.game.audio.play("confirm")
+        self.runner.choose(self.choice, option)
+        self.choice = None
+        before = len(self.lines)
+        self._read_ahead()
+        if len(self.lines) > before:
+            self.index = before - 1
+            self._advance()
+        else:
+            self.game.switch(next_scene(self.game, self.guardian))
+
+    def _choosing(self) -> bool:
+        return self.choice is not None and self.index == len(self.lines) - 1 and \
+            self._line_done()
+
+    # ------------------------------------------------------------ input and time
 
     def handle(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        ctrl = (pygame.K_LCTRL, pygame.K_RCTRL)
+        if event.type == pygame.KEYUP:
+            if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+                self.held = False
+            elif event.key in ctrl:
+                self.skipping = False
+            return
+        if event.type != pygame.KEYDOWN:
+            return
+        if self.show_log:                             # the log closes with any key
+            self.show_log = False
+            return
+        if event.key == pygame.K_ESCAPE:
             self.game.switch(next_scene(self.game, self.guardian))
+        elif event.key in ctrl:
+            self.skipping = True
+        elif event.key == pygame.K_l:
+            self.show_log = True
+        elif event.key == pygame.K_a:
+            self.auto = not self.auto
+            self.game.auto_advance = self.auto
+            self.game.audio.play("confirm")
+        elif self._choosing() and event.key in (pygame.K_UP, pygame.K_DOWN):
+            step = -1 if event.key == pygame.K_UP else 1
+            self.choice_at = (self.choice_at + step) % len(self.choice.options)
         elif is_confirm_key(event):
-            if self._shown_chars() < len(self.line["text"]):
-                self.line_started = -10 ** 9            # finish the typewriter at once
-            elif self.index + 1 < len(self.lines):
-                self.game.audio.play("next")
-                self.index += 1
-                self.line_started = self.time
-                self._start_line()
+            self.held = True
+            if not self._line_done():
+                self.line_ms = max(self.line_ms, self.typer.total_ms)   # finish it at once
+            elif self._choosing():
+                self._choose(self.choice_at)
             else:
-                self.game.audio.play("next")
-                self.game.switch(next_scene(self.game, self.guardian))
+                self._advance()
 
     def update(self, dt):
         super().update(dt)
         self.ada.update(dt)
+        pace = settings_pacing()
+        if self.show_log:
+            return
+        speed = pace["fast_forward"] if (self.held or self.skipping) else 1
+        before = self._shown_chars()
+        self.line_ms += dt * speed
+        shown = self._shown_chars()
+        self._blip(before, shown, pace["blip_every"])
+        if self._line_done() and self.line_ms >= 0:
+            self.done_for += dt
+            wait = self.SKIP_HOLD_MS if self.skipping else pace["auto_advance_ms"]
+            if (self.skipping or self.auto) and not self._choosing() and self.done_for >= wait:
+                self._advance()
         target = float(self.line.get("sleep", self.drowsy))
         step = 0.6 * dt / 1000                        # Ada drifts off slowly, never at once
         self.drowsy = target if abs(target - self.drowsy) <= step else \
             self.drowsy + step * (1 if target > self.drowsy else -1)
+
+    def _blip(self, before: int, shown: int, every: int) -> None:
+        """The speaker's voice: one blip every few letters typed (not while skipping)."""
+        if shown <= before or self.skipping or not self.line["speaker"]:
+            return
+        letters = sum(1 for c in self.typer.text[before:shown] if not c.isspace())
+        self.blips += letters
+        if self.blips >= every:
+            self.blips %= every
+            event, variant = voice(self.line["speaker"])
+            self.game.audio.play(event, variant)
 
     # ------------------------------------------------------------ drawing
 
@@ -324,8 +448,7 @@ class DialogueScene(Scene):
                 scenery.draw_keep(canvas, self.time, ground_y=110)
             draw_ada(canvas, ADA_STANDING, anim=self.ada)   # in front of the book, breathing
             if self.book_born is not None and self.line.get("book"):
-                speaking = (self.line["speaker"] == "Grimoire"
-                            and self._shown_chars() < len(self.line["text"]))
+                speaking = (self.line["speaker"] == "Grimoire" and not self._line_done())
                 book_at = self.BOOK_AT if name == "glade" else (130, 64)
                 scenery.draw_book(canvas, book_at, self.time,
                                   self.time - self.book_born, speaking,
@@ -348,19 +471,35 @@ class DialogueScene(Scene):
             if elapsed < 2 * self.FADE_MS:
                 scenery.dim(canvas, canvas.get_rect(),
                             255 - 255 * (elapsed - self.FADE_MS) // self.FADE_MS)
+        if self.time < self.shake_until:              # [shake]: the whole picture trembles
+            canvas.scroll(((self.time // 40) % 3) - 1, ((self.time // 55) % 3) - 1)
         line = self.line
-        box = pygame.Rect(8, 128, 304, 44)
-        render.panel(canvas, box)
-        if line["speaker"]:
-            colour = render.LAVENDER if line["speaker"] == "Grimoire" else render.VIOLET
-            tag = pygame.Rect(12, 121, f.width(line["speaker"]) + 8, 10)
-            render.panel(canvas, tag, fill=colour)
-            f.draw(canvas, line["speaker"], (tag.x + 4, tag.y + 3), render.WHITE)
-        text = line["text"][:max(0, self._shown_chars())]
-        for i, row in enumerate(wrap(text, 74)[:4]):
-            f.draw(canvas, row, (box.x + 4, box.y + 6 + i * render.LINE_H), render.INK)
-        if self._shown_chars() >= len(line["text"]) and (self.time // 400) % 2 == 0:
+        shown = max(0, self._shown_chars())
+        self.box.draw(canvas, line["speaker"], self.typer.tokens, shown, self.time,
+                      line.get("portrait"))
+        box = self.BOX
+        if self._choosing():
+            self._draw_choice(canvas)
+        elif self._line_done() and (self.time // 400) % 2 == 0:
             f.draw(canvas, "v", (box.right - 8, box.bottom - 9), render.VIOLET)
+        if self.auto:
+            f.draw(canvas, "A", (box.right - 8, box.y + 3), render.GREY, small=True)
+        if self.show_log:
+            draw_log(canvas, self.game.dialogue_log, t("ui.dialogue.log_close"))
+
+    def _draw_choice(self, canvas) -> None:
+        f = render.font()
+        options = [CATALOG.raw(key) or text for text, _, key in self.choice.options]
+        width = max(f.width(o) for o in options) + 16
+        panel = pygame.Rect(self.BOX.right - width, self.BOX.y - 6 - render.LINE_H * len(options),
+                            width, render.LINE_H * len(options) + 4)
+        render.panel(canvas, panel)
+        for i, option in enumerate(options):
+            y = panel.y + 3 + i * render.LINE_H
+            if i == self.choice_at:
+                f.draw(canvas, ">", (panel.x + 3, y), render.VIOLET)
+            f.draw(canvas, option, (panel.x + 10, y),
+                   render.INK if i == self.choice_at else render.SLATE)
 
 
 # ------------------------------------------------------------------ battle
@@ -373,6 +512,7 @@ class Beat:
     effect: Callable[[], None] | None = None
     sounds: tuple[str, ...] = ()          # event names in assets/audio/sounds.json
     speaker: str = ""                     # set: someone talks (a reaction), in a wider box
+    markup: str = ""                      # a script line's inline effects ({wave}...), if any
 
 
 @dataclass
@@ -403,6 +543,7 @@ ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
 class BattleScene(Scene):
     WAIT_MS = 350                          # a short breath between turns
     DANGER_MUSIC = True                    # the tutorial turns this off: nothing is at stake
+    HINTS = True                           # the tutorial turns this off: its coach talks
     FOE_PANEL = pygame.Rect(4, 3, 120, 20)
     ADA_PANEL = pygame.Rect(196, 70, 120, 27)
 
@@ -459,6 +600,12 @@ class BattleScene(Scene):
         self.rewind_choice = 0
         self.last_cast: str | None = None           # the query F7 would save as a Scroll
         self._last_thud = -1000
+        # Who speaks up when Ada is stuck (story/hints.py); the tutorial has its own coach.
+        self.hints = HintDirector(guardian) if self.HINTS else None
+        self.speech_box = DialogueBox(pygame.Rect(4, 70, 312, 28), rows=3, opaque=True)
+        self.hint_context: dict = {}
+        if self.phase == "input":
+            self._hint_turn()
 
     def enter(self):
         pygame.key.start_text_input()
@@ -492,8 +639,21 @@ class BattleScene(Scene):
 
     # ------------------------------------------------------------ narration
 
-    def say(self, text: str, ms: int = 700, effect=None, *sounds: str, speaker: str = "") -> None:
-        self.beats.append(Beat(text, ms, effect, sounds, speaker))
+    def say(self, text: str, ms: int = 700, effect=None, *sounds: str, speaker: str = "",
+            markup: str = "") -> None:
+        self.beats.append(Beat(text, ms, effect, sounds, speaker, markup))
+
+    def speak_hint(self, hint) -> None:
+        """Someone speaks during Ada's turn (story/hints.py): typed out, long enough to read."""
+        ms = int(Typewriter(hint.markup, hint.speaker, i18n_locale()).total_ms) + 2600
+        self.say(hint.text, ms, None, *voice(hint.speaker)[:1], speaker=hint.speaker,
+                 markup=hint.markup)
+
+    def _hint_turn(self) -> None:
+        """Ada's turn starts: the Hint Director's idle clock restarts on fresh numbers."""
+        if self.hints is not None:
+            self.hints.start_turn(self.battle.state.turn)
+            self.hint_context = context_of(self.battle)
 
     def side_of(self, name: str) -> str:
         return "ada" if name == self.battle.state.ada.name else "foe"
@@ -647,9 +807,14 @@ class BattleScene(Scene):
         except Miscast as miscast:
             self.grimoire.show_miscast(str(miscast), self.time)
             self.game.audio.play("miscast")
+            if self.hints is not None:
+                self.hints.miscast()
             return
         self.game.audio.play("scry" if report.scry else "cast")
         self._ada_casts(report)
+        if self.hints is not None:
+            self.hints.observe(report)
+            self.hint_context = context_of(self.battle)
         self.last_cast = sql
         if "weakness" in report.columns and report.rows:
             weakness = report.rows[0][report.columns.index("weakness")]
@@ -812,6 +977,8 @@ class BattleScene(Scene):
                 self.game.audio.play("rune")
             return
         if self.phase == "input":
+            if self.hints is not None and event.type in (pygame.KEYDOWN, pygame.TEXTINPUT):
+                self.hints.keystroke()
             before = self.editor.text
             sql = self.editor.handle_event(event)
             if sql:
@@ -896,6 +1063,10 @@ class BattleScene(Scene):
         resting = self.beat is None and not self.beats
         if resting:
             self._sync_shown()
+        if resting and self.phase == "input" and self.hints is not None and \
+                not (self.guide.open or self.rewind_open):
+            if hint := self.hints.tick(dt, self.hint_context):
+                self.speak_hint(hint)
         if not resting or self.phase == "input":
             return
         self.idle += dt
@@ -909,6 +1080,7 @@ class BattleScene(Scene):
             self.foe_turn()
         elif turn == "ada":
             self.phase = "input"
+            self._hint_turn()
             idle = getattr(self.battle.brain, "idle_movement", None)
             self.order = idle() if idle else steering.Movement("wander", "home")
         else:
@@ -1028,18 +1200,14 @@ class BattleScene(Scene):
         """The current beat in its little box, and the floating damage numbers."""
         f = render.font()
         if self.beat is not None and self.beat.text and self.beat.speaker:
-            # Someone speaks (a reaction, a trick): a wide box with their name on a tag.
-            box = pygame.Rect(4, 70, 312, 28)
-            # cover, not panel: the panels behind have text on the text layer, which a plain
-            # pixel box would not hide.
-            render.cover(canvas, box, (*render.INK, 255))
-            render.cover(canvas, box.inflate(-2, -2), (*render.CREAM, 255))
-            tag = pygame.Rect(8, 63, f.width(self.beat.speaker) + 8, 10)
-            render.cover(canvas, tag, (*render.INK, 255))
-            render.cover(canvas, tag.inflate(-2, -2), (*render.LAVENDER, 255))
-            f.draw(canvas, self.beat.speaker, (tag.x + 4, tag.y + 3), render.WHITE)
-            for i, line in enumerate(wrap(self.beat.text, 76)[:3]):
-                f.draw(canvas, line, (box.x + 4, box.y + 4 + i * render.LINE_H), render.INK)
+            # Someone speaks (a reaction, a trick, a hint): a wide box with their name on a tag,
+            # opaque over the panels behind (their text is on the text layer). A script line
+            # keeps its effects and types out.
+            beat = self.beat
+            tokens = script_tokens(beat.markup or beat.text)
+            shown = Typewriter(tokens, beat.speaker, i18n_locale()).visible(
+                beat.ms - self.beat_left) if beat.markup else 10 ** 6
+            self.speech_box.draw(canvas, beat.speaker, tokens, shown, self.time)
         elif self.beat is not None and self.beat.text:
             box = pygame.Rect(64, 80, 128, 17)
             render.panel(canvas, box)
