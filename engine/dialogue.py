@@ -22,77 +22,26 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Callable
 
 import pygame
 
 from engine import render
-from story.pacing import is_cjk, style_of
+from i18n.width import text_cells, wrap
+from story.pacing import style_of
+from story.scenes import speaker_name
 from story.script import Token
 
 PORTRAITS = Path(__file__).resolve().parent.parent / "assets" / "portraits"
-# Kinsoku (CJK line-breaking rules): these never start a line...
-NO_START = set("，。、；：！？）」』》〉】〕…—,.;:!?)]}%")
-# ...and these never end one.
-NO_END = set("（「『《〈【〔([{")
 
 
 def measure(text: str) -> int:
     """Width of a text in canvas pixels with the game's font (CJK takes two cells)."""
-    return sum(2 * render.ADVANCE if is_cjk(c) else render.ADVANCE for c in text) - (
-        1 if text else 0)
+    return max(0, text_cells(text) * render.ADVANCE - 1)
 
 
-def wrap_text(text: str, width: int, measure_fn: Callable[[str], int] = measure) -> list[str]:
-    """Lines that fit `width` pixels. Spaced scripts break at spaces; CJK at any character,
-    following the kinsoku rules; a word longer than the line is cut."""
-    lines: list[str] = []
-    line = ""
-    i = 0
-    while i < len(text):
-        char = text[i]
-        if char == "\n":
-            lines.append(line)
-            line, i = "", i + 1
-            continue
-        if is_cjk(char) or char in NO_START or char in NO_END:
-            piece = char
-            i += 1
-        else:                                       # a whole word (and the space after it)
-            j = i
-            while j < len(text) and not is_cjk(text[j]) and text[j] not in "\n" and \
-                    not (text[j] == " " and j > i):
-                j += 1
-            piece = text[i:j]
-            i = j
-        candidate = line + piece
-        if measure_fn(candidate.rstrip()) <= width or not line.strip():
-            if measure_fn(candidate.rstrip()) > width and not line:   # one piece too wide
-                while piece and measure_fn(piece) > width:
-                    cut = len(piece)
-                    while cut > 1 and measure_fn(piece[:cut]) > width:
-                        cut -= 1
-                    lines.append(piece[:cut])
-                    piece = piece[cut:]
-                line = piece
-            else:
-                line = candidate
-            continue
-        if piece in NO_START and line:              # pull the last character down with it
-            carry, line = line[-1], line[:-1]
-            lines.append(line.rstrip())
-            line = carry + piece
-            continue
-        if line and line[-1] in NO_END:             # an opening bracket goes to the next line
-            carry, line = line[-1], line[:-1]
-            lines.append(line.rstrip())
-            line = carry + piece.lstrip()
-            continue
-        lines.append(line.rstrip())
-        line = piece.lstrip()
-    if line.strip() or not lines:
-        lines.append(line.rstrip())
-    return lines
+def wrap_text(text: str, width: int) -> list[str]:
+    """Lines that fit `width` pixels: i18n.width.wrap, in cells of the text grid."""
+    return wrap(text, (width + 1) // render.ADVANCE)
 
 
 def colour(name: str | None, default: tuple) -> tuple:
@@ -122,10 +71,14 @@ class DialogueBox:
         styled = [(c, t) for t in tokens if t.kind == "text" for c in t.text]
         rows, k = [], 0
         for row in wrap_text(text, self.rect.width - 8):
-            while k < len(styled) and styled[k][0] in " \n" and not row.startswith(styled[k][0]):
-                k += 1                                    # spaces eaten by the wrap
-            rows.append(styled[k:k + len(row)])
-            k += len(row)
+            out = []
+            for char in row:                          # match the row to the styled characters
+                while k < len(styled) and styled[k][0] != char:
+                    k += 1                            # spaces and newlines eaten by the wrap
+                if k < len(styled):
+                    out.append(styled[k])
+                    k += 1
+            rows.append(out)
         return rows
 
     def overflows(self, tokens: list[Token]) -> bool:
@@ -135,13 +88,14 @@ class DialogueBox:
              now: int, portrait: tuple | None = None) -> pygame.Rect:
         f = render.font()
         style = style_of(speaker)
+        label = speaker_name(speaker)
         box = self.rect
         self._panel(canvas, box, colour(style.get("fill"), render.CREAM),
                     colour(style.get("border"), render.INK))
-        if speaker and style.get("tag"):
-            tag = pygame.Rect(box.x + 4, box.y - 7, f.width(speaker) + 8, 10)
+        if label and style.get("tag"):
+            tag = pygame.Rect(box.x + 4, box.y - 7, f.width(label) + 8, 10)
             self._panel(canvas, tag, colour(style["tag"], render.LAVENDER), render.INK)
-            f.draw(canvas, speaker, (tag.x + 4, tag.y + 3), render.WHITE)
+            f.draw(canvas, label, (tag.x + 4, tag.y + 3), render.WHITE)
         if portrait:
             self._portrait(canvas, portrait)
         rows = self.layout(tokens)
@@ -200,7 +154,7 @@ def draw_log(canvas: pygame.Surface, entries: list[tuple[str, str]], hint: str) 
     render.cover(canvas, box, (*render.INK, 245))
     y = box.bottom - 18
     for speaker, text in reversed(entries):
-        said = f"{speaker}: {text}" if speaker else text
+        said = f"{speaker_name(speaker)}: {text}" if speaker else text
         rows = wrap_text(said, box.width - 12)
         for row in reversed(rows):
             if y < box.y + 4:

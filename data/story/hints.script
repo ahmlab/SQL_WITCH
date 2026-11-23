@@ -53,7 +53,7 @@ Sir Wherewell: The same spell for the third time. I am {mode}, and my ward has l
 Sir Wherewell: You strike without knowing me. My weakness is written in the enemies table, for anyone who reads.
 
 == knight_items ==
-Sir Wherewell: A witch who never opens her items fights with one hand.
+Sir Wherewell: A witch who never opens {player.gender, select, masculine {his} other {her}} items fights with one hand.
 
 == knight_stuck ==
 Sir Wherewell: I am {mode}, and still you hesitate. Write something, witch.

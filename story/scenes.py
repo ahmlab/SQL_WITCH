@@ -23,9 +23,26 @@ FLAGS = ("book", "slime", "knight")
 
 
 def text_of(line: Line) -> str:
-    """A line in the current language: the catalog's translation, or the script's English."""
+    """A line in the current language (the catalog's translation, or the script's English),
+    with the player's name and gender filled in. Inline markup and the game's own
+    placeholders ({rows}, {foe}...) stay for the scene to use."""
     translated = CATALOG.raw(line.key)
-    return translated if translated is not None else line.text
+    return CATALOG.format(translated if translated is not None else line.text)
+
+
+def speaker_name(speaker: str) -> str:
+    """The name on a speaker's tag: translated for the Grimoire and the protagonist,
+    as written (database names) for everyone else."""
+    if not speaker:
+        return ""
+    shown = CATALOG.raw(f"speaker.{speaker}")
+    return CATALOG.format(shown) if shown is not None else speaker
+
+
+def text_of_key(key: str, default: str) -> str:
+    """A script line's text by its key, in the current language."""
+    translated = CATALOG.raw(key)
+    return CATALOG.format(translated) if translated is not None else default
 
 
 def record(line: Line) -> dict:

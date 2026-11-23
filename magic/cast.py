@@ -20,6 +20,7 @@ import random
 import sqlite3
 from dataclasses import dataclass, field
 
+from i18n import t
 from magic import guard, rules
 from magic.rules import BattleState, Combatant
 
@@ -187,16 +188,16 @@ class CastReport:
 
     def status_line(self) -> str:
         """The line under the Grimoire page: '11 rows | 4 cast | 7 lost | MP 30 -> 0'."""
-        n = len(self.rows)
-        return (f"{n} row{'' if n == 1 else 's'} | {len(self.casts)} cast | {self.overflow} lost | "
-                f"MP {self.mp_before} -> {self.mp_after}")
+        return t("grimoire.status", rows=len(self.rows), cast=len(self.casts), lost=self.overflow,
+                 before=self.mp_before, after=self.mp_after)
 
 
 def effect_word(multiplier: float) -> str:
+    """The words after a hit's damage ("super effective!"), or nothing for a normal hit."""
     if multiplier > 1:
-        return "super effective"
+        return t("battle.effect.super")
     if multiplier < 1:
-        return "not very effective"
+        return t("battle.effect.weak")
     return ""
 
 

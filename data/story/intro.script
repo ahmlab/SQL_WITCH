@@ -7,7 +7,7 @@
 [scene office] [sleep 0] : 11:58 pm. The quarterly report is still running.
 [scene office] [sleep 1] Ada: Nobody reads these dashboards anyway. SQL is just... busywork.
 [scene office] [sleep 2] Ada: I'll just close my eyes... until it reaches 100%...
-[scene office] [sleep 3] [sfx flatline] : The progress bar stops at 99%. So does Ada's heart.
+[scene office] [sleep 3] [sfx flatline] : The progress bar stops at 99%. So does {player.name}'s heart.
 [scene void] : ...
 [scene glade] Ada: Grass? Why is the sky a table? Why does it have so many columns?
 [scene glade] [book] [sfx book] Grimoire: Welcome to the Kingdom of Codd, witch. Here the world is a database, and magic is querying.
@@ -47,7 +47,7 @@ Ada: One word. LIMIT. And the page behaves.
 Grimoire: A backup would have brought it back. Next time, rewind (F6).
 
 == defeat ==
-: Ada's HP hits zero. The Slime wobbles triumphantly.
+: {player.name}'s HP hits zero. The Slime wobbles triumphantly.
 Grimoire: Even the best witches overflow sometimes. Again?
 
 == knight_victory ==
@@ -55,7 +55,7 @@ Grimoire: Even the best witches overflow sometimes. Again?
 Ada: WHERE. Ask only for what you need.
 
 == knight_defeat ==
-: Ada's HP hits zero. The Knight lowers his blade.
+: {player.name}'s HP hits zero. The Knight lowers his blade.
 Grimoire: Spells that are not super-effective bounce off. Filter for his weakness.
 
 == battle_tip ==

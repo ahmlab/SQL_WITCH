@@ -1,26 +1,24 @@
 {
   "_help": "English is the source catalog. Keys are grouped by system; placeholders are ICU MessageFormat: {name}, {count, plural, one {# row} other {# rows}}, {gender, select, feminine {...} masculine {...} other {...}}. Apostrophes are plain text. SQL keywords, table and column names stay in English in every language.",
-
   "miscast": {
-    "gibberish": "Ada: Mmm that was NOT the right way of making the spell.",
-    "empty": "Ada: An empty page casts nothing.",
-    "one_at_a_time": "Ada: Hahaha no. Put the semicolon down: one spell per cast, or one BEGIN ... COMMIT block.",
-    "not_understood": "Ada: That's not a spell the Grimoire knows. It looked at it, sighed, and closed itself.",
-    "forgery": "Ada: Ink cannot conjure names. Pick them from a table.",
-    "attach": "Ada: ATTACH another database? Absolutely not. We have enough monsters here.",
-    "detach": "Ada: DETACH? Nothing here is attached, and nothing will be.",
+    "gibberish": "{player.name}: Mmm that was NOT the right way of making the spell.",
+    "empty": "{player.name}: An empty page casts nothing.",
+    "one_at_a_time": "{player.name}: Hahaha no. Put the semicolon down: one spell per cast, or one BEGIN ... COMMIT block.",
+    "not_understood": "{player.name}: That's not a spell the Grimoire knows. It looked at it, sighed, and closed itself.",
+    "forgery": "{player.name}: Ink cannot conjure names. Pick them from a table.",
+    "attach": "{player.name}: ATTACH another database? Absolutely not. We have enough monsters here.",
+    "detach": "{player.name}: DETACH? Nothing here is attached, and nothing will be.",
     "vacuum": "Grimoire: VACUUM? I am a book, not a broom.",
     "pragma": "Grimoire: *Angry noises*. Only a few PRAGMAs are allowed: table_info, table_list, index_list, index_info, foreign_key_list.",
-    "too_slow": "Ada: That spell collapsed under its own weight. The grimoire is still smoking.",
+    "too_slow": "{player.name}: That spell collapsed under its own weight. The grimoire is still smoking.",
     "too_big": "Grimoire: My pages are full. Whatever you were building, it is too big for this world.",
     "denied": "Grimoire: That reaches outside the world. Some doors stay shut, even for witches.",
-    "not_understood_error": "Ada: The world does not understand that. ({error})",
+    "not_understood_error": "{player.name}: The world does not understand that. ({error})",
     "refused_constraint": "Grimoire: The world refused it: {error}.",
     "duplicate_name": "Grimoire: There is already something called {name} in this world. Names are unique here, or spells would not know whom to hit.",
     "witch_row": "Grimoire: You are not a row I will let you delete.",
     "transaction_left_open": "Grimoire: You opened a transaction and never closed it. I tore that page out (ROLLBACK)."
   },
-
   "world": {
     "summary": {
       "insert": "you added rows to {table}",
@@ -45,7 +43,6 @@
     "forgets": "{foe} has forgotten its spells.",
     "confused_end": "The fight dissolves into confusion. There is nothing left to win."
   },
-
   "reaction": {
     "drop_spells": "Hahaha! Your spellbook is gone, witch. Now I can hit you as hard as I like.",
     "empty_spells": "Not a single spell left? This will be quick.",
@@ -66,46 +63,151 @@
     "rewind": "Back again, are we? Time is a page you can turn, it seems.",
     "rewind_grimoire": "I turned the world back to turn {turn}. It cost you this turn."
   },
-
   "trick": {
     "shadow_book": "Wait... that is not my book. It is your view of my book! Well played, witch.",
     "read_my_mind": "You read my own query from query_log before I cast it again? Clever."
   },
-
   "codex": {
     "unlocked": "Codex: {technique}",
     "acknowledged": "{foe}: You already know {technique}? Then show me.",
     "page": {
-      "WHERE": {"title": "WHERE: ask only for what you need", "text": "WHERE keeps the rows that pass a test: WHERE element = 'Fire'.", "dialects": "Same in PostgreSQL and MySQL."},
-      "ORDER BY": {"title": "ORDER BY: put rows in order", "text": "ORDER BY power DESC puts the strongest first.", "dialects": "Same everywhere; NULLs sort first in SQLite and MySQL, last in PostgreSQL."},
-      "LIMIT": {"title": "LIMIT: only the first rows", "text": "LIMIT 1 keeps one row: cast one spell, pay for one spell.", "dialects": "PostgreSQL and MySQL: LIMIT too. SQL Server: TOP; the SQL standard: FETCH FIRST."},
-      "JOIN": {"title": "JOIN: match two tables", "text": "JOIN puts rows of two tables side by side when a condition matches.", "dialects": "Same; SQLite has no RIGHT or FULL JOIN before version 3.39."},
-      "GROUP BY": {"title": "GROUP BY: one row per group", "text": "GROUP BY element, with COUNT(*), counts the spells of each element.", "dialects": "PostgreSQL is stricter: every selected column must be grouped or aggregated."},
-      "HAVING": {"title": "HAVING: filter the groups", "text": "HAVING COUNT(*) > 2 keeps the groups with more than two rows.", "dialects": "Same everywhere."},
-      "DISTINCT": {"title": "DISTINCT: no repeats", "text": "SELECT DISTINCT element lists each element once.", "dialects": "PostgreSQL also has DISTINCT ON."},
-      "SUBQUERY": {"title": "Subqueries: an answer inside an answer", "text": "WHERE power > (SELECT AVG(power) FROM spells) compares with a computed value.", "dialects": "Same everywhere."},
-      "WITH": {"title": "WITH: name a step", "text": "WITH strong AS (SELECT ...) SELECT ... FROM strong reads like a recipe.", "dialects": "MySQL needs version 8 for WITH."},
-      "IS NULL": {"title": "IS NULL: the missing value", "text": "NULL is not equal to anything, not even NULL: test it with IS NULL.", "dialects": "Same everywhere."},
-      "COALESCE": {"title": "COALESCE: a value instead of nothing", "text": "COALESCE(hp, 0) gives 0 when hp is NULL.", "dialects": "Same; MySQL also has IFNULL, SQL Server ISNULL."},
-      "UNION": {"title": "UNION: one list from two", "text": "SELECT name FROM spells UNION SELECT name FROM items joins two results, without repeats.", "dialects": "Same; UNION ALL keeps the repeats."},
-      "EXCEPT": {"title": "EXCEPT: what one has and the other lacks", "text": "The rows of the first result that are not in the second.", "dialects": "MySQL needs version 8.0.31 for EXCEPT."},
-      "INTERSECT": {"title": "INTERSECT: what both share", "text": "The rows that appear in both results.", "dialects": "MySQL needs version 8.0.31 for INTERSECT."},
-      "INSERT": {"title": "INSERT: bring something into the world", "text": "INSERT INTO items (name, kind, amount, qty) VALUES (...) adds a row.", "dialects": "Same; PostgreSQL adds RETURNING, SQLite has it too since 3.35."},
-      "UPDATE": {"title": "UPDATE: correct the world", "text": "UPDATE ... SET ... WHERE ... changes rows. Forget the WHERE and you change them all.", "dialects": "Same everywhere."},
-      "DELETE": {"title": "DELETE: let go, carefully", "text": "DELETE FROM ... WHERE ... removes rows. Without WHERE it removes every row.", "dialects": "Same; TRUNCATE in PostgreSQL and MySQL empties a table faster."},
-      "DROP": {"title": "DROP: remove a whole table", "text": "DROP TABLE removes the table and everything in it. Only a backup brings it back.", "dialects": "Same; PostgreSQL can undo it inside a transaction."},
-      "CREATE TABLE": {"title": "CREATE TABLE: a new place for data", "text": "CREATE TABLE notes (text TEXT) makes an empty table.", "dialects": "Types are strict in PostgreSQL, loose in SQLite."},
-      "CREATE VIEW": {"title": "CREATE VIEW: a saved question", "text": "A view is a query with a name; reading it runs the query. Your Scrolls are views.", "dialects": "Same everywhere."},
-      "CREATE INDEX": {"title": "CREATE INDEX: find rows fast", "text": "An index is a sorted copy of a column, so searches do not read every row.", "dialects": "Same; each database chooses when to use it."},
-      "CREATE TRIGGER": {"title": "CREATE TRIGGER: a trap in the data", "text": "A trigger runs its own statements when rows are inserted, updated or deleted.", "dialects": "PostgreSQL triggers call a function; MySQL's look like SQLite's."},
-      "ALTER": {"title": "ALTER TABLE: reshape a table", "text": "ALTER TABLE spells RENAME COLUMN power TO might renames a column.", "dialects": "SQLite can rename, add and drop columns, little else."},
-      "TRANSACTION": {"title": "Transactions: all or nothing", "text": "BEGIN ... COMMIT applies every statement or none; ROLLBACK undoes them.", "dialects": "Same; MySQL needs the InnoDB engine."},
-      "PRAGMA": {"title": "PRAGMA: ask the database about itself", "text": "PRAGMA table_info(spells) lists the columns of a table.", "dialects": "SQLite only: PostgreSQL uses information_schema, MySQL uses DESCRIBE."},
-      "backups": {"title": "Backups: the world you can return to", "text": "You broke the world and did not rewind. A backup (a snapshot) is how real systems survive mistakes like that.", "dialects": "sqlite3 .backup; pg_dump in PostgreSQL; mysqldump in MySQL."},
-      "trickster": {"title": "Trickster: knowledge beats force", "text": "You broke a guardian with what you know about databases. That counts.", "dialects": ""}
+      "WHERE": {
+        "title": "WHERE: ask only for what you need",
+        "text": "WHERE keeps the rows that pass a test: WHERE element = 'Fire'.",
+        "dialects": "Same in PostgreSQL and MySQL."
+      },
+      "ORDER BY": {
+        "title": "ORDER BY: put rows in order",
+        "text": "ORDER BY power DESC puts the strongest first.",
+        "dialects": "Same everywhere; NULLs sort first in SQLite and MySQL, last in PostgreSQL."
+      },
+      "LIMIT": {
+        "title": "LIMIT: only the first rows",
+        "text": "LIMIT 1 keeps one row: cast one spell, pay for one spell.",
+        "dialects": "PostgreSQL and MySQL: LIMIT too. SQL Server: TOP; the SQL standard: FETCH FIRST."
+      },
+      "JOIN": {
+        "title": "JOIN: match two tables",
+        "text": "JOIN puts rows of two tables side by side when a condition matches.",
+        "dialects": "Same; SQLite has no RIGHT or FULL JOIN before version 3.39."
+      },
+      "GROUP BY": {
+        "title": "GROUP BY: one row per group",
+        "text": "GROUP BY element, with COUNT(*), counts the spells of each element.",
+        "dialects": "PostgreSQL is stricter: every selected column must be grouped or aggregated."
+      },
+      "HAVING": {
+        "title": "HAVING: filter the groups",
+        "text": "HAVING COUNT(*) > 2 keeps the groups with more than two rows.",
+        "dialects": "Same everywhere."
+      },
+      "DISTINCT": {
+        "title": "DISTINCT: no repeats",
+        "text": "SELECT DISTINCT element lists each element once.",
+        "dialects": "PostgreSQL also has DISTINCT ON."
+      },
+      "SUBQUERY": {
+        "title": "Subqueries: an answer inside an answer",
+        "text": "WHERE power > (SELECT AVG(power) FROM spells) compares with a computed value.",
+        "dialects": "Same everywhere."
+      },
+      "WITH": {
+        "title": "WITH: name a step",
+        "text": "WITH strong AS (SELECT ...) SELECT ... FROM strong reads like a recipe.",
+        "dialects": "MySQL needs version 8 for WITH."
+      },
+      "IS NULL": {
+        "title": "IS NULL: the missing value",
+        "text": "NULL is not equal to anything, not even NULL: test it with IS NULL.",
+        "dialects": "Same everywhere."
+      },
+      "COALESCE": {
+        "title": "COALESCE: a value instead of nothing",
+        "text": "COALESCE(hp, 0) gives 0 when hp is NULL.",
+        "dialects": "Same; MySQL also has IFNULL, SQL Server ISNULL."
+      },
+      "UNION": {
+        "title": "UNION: one list from two",
+        "text": "SELECT name FROM spells UNION SELECT name FROM items joins two results, without repeats.",
+        "dialects": "Same; UNION ALL keeps the repeats."
+      },
+      "EXCEPT": {
+        "title": "EXCEPT: what one has and the other lacks",
+        "text": "The rows of the first result that are not in the second.",
+        "dialects": "MySQL needs version 8.0.31 for EXCEPT."
+      },
+      "INTERSECT": {
+        "title": "INTERSECT: what both share",
+        "text": "The rows that appear in both results.",
+        "dialects": "MySQL needs version 8.0.31 for INTERSECT."
+      },
+      "INSERT": {
+        "title": "INSERT: bring something into the world",
+        "text": "INSERT INTO items (name, kind, amount, qty) VALUES (...) adds a row.",
+        "dialects": "Same; PostgreSQL adds RETURNING, SQLite has it too since 3.35."
+      },
+      "UPDATE": {
+        "title": "UPDATE: correct the world",
+        "text": "UPDATE ... SET ... WHERE ... changes rows. Forget the WHERE and you change them all.",
+        "dialects": "Same everywhere."
+      },
+      "DELETE": {
+        "title": "DELETE: let go, carefully",
+        "text": "DELETE FROM ... WHERE ... removes rows. Without WHERE it removes every row.",
+        "dialects": "Same; TRUNCATE in PostgreSQL and MySQL empties a table faster."
+      },
+      "DROP": {
+        "title": "DROP: remove a whole table",
+        "text": "DROP TABLE removes the table and everything in it. Only a backup brings it back.",
+        "dialects": "Same; PostgreSQL can undo it inside a transaction."
+      },
+      "CREATE TABLE": {
+        "title": "CREATE TABLE: a new place for data",
+        "text": "CREATE TABLE notes (text TEXT) makes an empty table.",
+        "dialects": "Types are strict in PostgreSQL, loose in SQLite."
+      },
+      "CREATE VIEW": {
+        "title": "CREATE VIEW: a saved question",
+        "text": "A view is a query with a name; reading it runs the query. Your Scrolls are views.",
+        "dialects": "Same everywhere."
+      },
+      "CREATE INDEX": {
+        "title": "CREATE INDEX: find rows fast",
+        "text": "An index is a sorted copy of a column, so searches do not read every row.",
+        "dialects": "Same; each database chooses when to use it."
+      },
+      "CREATE TRIGGER": {
+        "title": "CREATE TRIGGER: a trap in the data",
+        "text": "A trigger runs its own statements when rows are inserted, updated or deleted.",
+        "dialects": "PostgreSQL triggers call a function; MySQL's look like SQLite's."
+      },
+      "ALTER": {
+        "title": "ALTER TABLE: reshape a table",
+        "text": "ALTER TABLE spells RENAME COLUMN power TO might renames a column.",
+        "dialects": "SQLite can rename, add and drop columns, little else."
+      },
+      "TRANSACTION": {
+        "title": "Transactions: all or nothing",
+        "text": "BEGIN ... COMMIT applies every statement or none; ROLLBACK undoes them.",
+        "dialects": "Same; MySQL needs the InnoDB engine."
+      },
+      "PRAGMA": {
+        "title": "PRAGMA: ask the database about itself",
+        "text": "PRAGMA table_info(spells) lists the columns of a table.",
+        "dialects": "SQLite only: PostgreSQL uses information_schema, MySQL uses DESCRIBE."
+      },
+      "backups": {
+        "title": "Backups: the world you can return to",
+        "text": "You broke the world and did not rewind. A backup (a snapshot) is how real systems survive mistakes like that.",
+        "dialects": "sqlite3 .backup; pg_dump in PostgreSQL; mysqldump in MySQL."
+      },
+      "trickster": {
+        "title": "Trickster: knowledge beats force",
+        "text": "You broke a guardian with what you know about databases. That counts.",
+        "dialects": ""
+      }
     }
   },
-
   "hint": {
     "_help": "A guardian's mode in words, for the {mode} of its taunts (data/story/hints.script). The keys are the brains' real modes (ai/fsm.py, ai/knight.py).",
     "mode": {
@@ -124,7 +226,8 @@
   },
   "ui": {
     "dialogue": {
-      "log_close": "Any key: back to the story"
+      "log_close": "Any key: back to the story",
+      "auto": "A"
     },
     "book_closed": {
       "foe_turn": "The book is closed: it is {foe}'s turn.",
@@ -147,5 +250,109 @@
     "write": {
       "done": "The world changed: {summary}."
     }
+  },
+  "battle": {
+    "_help": "Narration during a battle: each line is a beat in the little box over the battlefield. Spell, item and guardian names come from the database and stay in English.",
+    "hit": "{spell}: {damage}",
+    "crit": "CRIT!",
+    "effect": {
+      "super": "super effective!",
+      "weak": "not very effective!"
+    },
+    "gain": "{spell}: +{amount}",
+    "ward": "{spell}: ward {amount}",
+    "again": "{spell} again: it fizzles",
+    "no_mp": "{spell}: no MP left",
+    "none_left": "{spell}: none left",
+    "margin": "{count, plural, one {# spell fizzles} other {# spells fizzle}} in the margin",
+    "mp": "MP {before} -> {after}",
+    "deflect": "{spell} bounces off: not super-effective!",
+    "shatter": "The Ward of Relevance shatters!",
+    "relevance_up": "Ward of Relevance is up: only super-effective spells pass",
+    "dispel": "{spell} removes {player.name}'s ward ({amount})",
+    "exhausted": "{foe} is EXHAUSTED!",
+    "faints": "{name} faints!",
+    "free_look": "A free look.",
+    "nothing_castable": "Nothing castable: turn spent.",
+    "round_end": "Round {turn} ends: +{mp} MP",
+    "foe_casts": "{foe} casts!",
+    "rune_glows": "{rune} glows in {foe}'s book!",
+    "copies_rune": "{player.name} copies the rune: {rune}"
+  },
+  "panel": {
+    "_help": "The battle screen's panels and buttons. Short: they sit in small boxes.",
+    "tables": "TABLES",
+    "tables_title": "TABLES  (click a name to write it)",
+    "tables_close": "F4/ESC close",
+    "tables_rule": "A row with a 'name' from spells or items casts it. The rest is a free look.",
+    "guide_button": "? GUIDE F3",
+    "level": "Lv{level}",
+    "hp": "HP",
+    "mp": "MP",
+    "exhausted": "EXHAUSTED",
+    "relevance": "WARD OF RELEVANCE",
+    "codex": "CODEX: {count}"
+  },
+  "grimoire": {
+    "_help": "The Grimoire's two pages. status: the line under the left page after a cast; foe_*: the summary under the guardian's book.",
+    "your_query": "YOUR QUERY",
+    "result": "RESULT",
+    "looks": "looks {count}",
+    "poof": "*poof*",
+    "blank": "(the page stays blank)",
+    "shift": "SHIFT",
+    "footer": "CTRL+ENTER cast TAB complete F3 guide F6 rewind",
+    "changed": "the world changed | MP {mp}",
+    "free_look": "{rows, plural, one {# row} other {# rows}} | a free look | MP {mp}",
+    "status": "{rows, plural, one {# row} other {# rows}} | {cast} cast | {lost} lost | MP {before} -> {after}",
+    "foe_title": "{foe} CAST:",
+    "foe_waiting": "(waiting)",
+    "foe_nothing": "{rows, plural, one {# row} other {# rows}} - nothing castable.",
+    "foe_summary": "{rows, plural, one {# row} other {# rows}}{lost, plural, =0 {} other { - # fell off its page}}. MP {mp}{mp, plural, =0 {!} other {.}}"
+  },
+  "title": {
+    "subtitle": "a turn-based RPG where your queries are spells",
+    "press_enter": "press ENTER",
+    "seed": "seed {seed}",
+    "language": "L language: {name}",
+    "draft": "{name} (draft)"
+  },
+  "result": {
+    "victory": "VICTORY",
+    "confusion": "CONFUSION",
+    "defeat": "DEFEAT",
+    "stats": "rounds {turn}   queries {queries}   spells cast {casts}",
+    "stats_hp": "HP left {hp}/{max}   seed {seed}",
+    "codex": "CODEX - {rune}, as {foe} cast it:",
+    "to_title": "ENTER title    ESC quit",
+    "continue": "ENTER continue    ESC quit",
+    "retry": "ENTER try again    ESC quit"
+  },
+  "guide": {
+    "_help": "The spell guide's frame (F3). Its pages are data/guide.json (keys guide.<path>).",
+    "title": "SPELL GUIDE",
+    "page": {
+      "basics": "BASICS",
+      "tables": "TABLES",
+      "try_these": "TRY THESE",
+      "runes": "RUNES"
+    },
+    "keys": "<- -> pages   UP/DOWN choose   ENTER write it on the page   F3/ESC close",
+    "look": "LOOK",
+    "cast": "CAST",
+    "learn_first": "learn {runes} first",
+    "more": "v more",
+    "runes_intro": "Runes are SQL keywords. You learn each one from the guardian",
+    "runes_intro2": "who uses it: watch its book, then copy it.",
+    "known": "known",
+    "from": "from {who}"
+  },
+  "tutorial_ui": {
+    "ready": "F5 READY"
+  },
+  "speaker": {
+    "_help": "Names shown on a speaker's tag. Guardians use their names from the database (data, in English); the Grimoire and the protagonist are translated here.",
+    "Grimoire": "Grimoire",
+    "Ada": "{player.name}"
   }
 }

@@ -1,4 +1,5 @@
-"""SQL Witch: python main.py [--seed N] [--scale K] [--start tutorial|slime|knight] [--smoke-test]
+"""SQL Witch: python main.py [--seed N] [--scale K] [--start tutorial|slime|knight] [--locale L]
+[--smoke-test]
 
 Boots pygame, opens the window and runs the scenes with a fixed 60 Hz timestep: the game
 always advances in steps of 1/60 s, however fast or slow the machine draws, so animations
@@ -45,6 +46,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--start", choices=["tutorial", "slime", "knight"], default="tutorial",
                         help="where the story starts: the tutorial, or straight at a guardian "
                              "(default: tutorial)")
+    parser.add_argument("--locale", default=None,
+                        help="language, e.g. es, zh-Hans, zh-Hant; qps is the pseudo-locale "
+                             "for testing (default: English)")
     parser.add_argument("--frames", type=int, default=None, help=argparse.SUPPRESS)  # smoke tests
     parser.add_argument("--smoke-test", action="store_true",
                         help="start, show the title, quit (for CI and packaged builds)")
@@ -89,6 +93,12 @@ SMOKE_FRAMES = 30            # half a second of title screen
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.locale:
+        from i18n import CATALOG, set_locale
+        if args.locale not in CATALOG.settings()["locales"]:
+            print(f"unknown locale {args.locale!r}; see data/i18n/locales.json")
+            return 2
+        set_locale(args.locale)
     if args.smoke_test:
         code = run(seed=1, scale=1, max_frames=SMOKE_FRAMES, start=args.start)
         print("smoke test: the title was shown and the game quit cleanly")

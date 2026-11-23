@@ -17,12 +17,19 @@ import json
 
 import pygame
 
+from i18n import locale, t
+from i18n.sources import localise
+
 from engine import render
 from engine.grimoire import wrap
 from engine.textinput import STYLE_COLOURS, colour_styles, locked_words
 from magic.db import DATA_DIR
 
-PAGES = ["BASICS", "TABLES", "TRY THESE", "RUNES"]
+PAGES = ["BASICS", "TABLES", "TRY THESE", "RUNES"]      # ids; the tab shows page_name()
+
+
+def page_name(page: str) -> str:
+    return t("guide.page." + page.lower().replace(" ", "_"))
 BOX = pygame.Rect(8, 6, 304, 168)
 COLS = 73                                     # characters per line inside the box
 VISIBLE_EXAMPLES = 8
@@ -34,10 +41,18 @@ def load_guide(path=DATA_DIR / "guide.json") -> dict:
 
 
 class Guide:
+    @property
+    def content(self) -> dict:
+        """The guide in the current language (its words come from the catalog)."""
+        here = locale()
+        if getattr(self, "_content_locale", None) != here:
+            self._content, self._content_locale = localise("guide", self.source), here
+        return self._content
+
     def __init__(self, conn, runes: set[str], content: dict | None = None):
         self.conn = conn                      # the battle database: tables and a real row
         self.runes = runes                    # Ada's runes (the live set: it grows in battle)
-        self.content = content or load_guide()
+        self.source = content or load_guide()        # English, as written in data/guide.json
         self.open = False
         self.page = 0
         self.choice = 0
@@ -91,7 +106,7 @@ class Guide:
     def _tab_rects(self) -> list[pygame.Rect]:
         rects, x = [], BOX.x + 4
         for name in PAGES:
-            w = render.font().width(f"{PAGES.index(name) + 1} {name}") + 8
+            w = render.font().width(f"{PAGES.index(name) + 1} {page_name(name)}") + 8
             rects.append(pygame.Rect(x, BOX.y + 3, w, 10))
             x += w + 3
         return rects
@@ -106,13 +121,14 @@ class Guide:
         for i, rect in enumerate(self._tab_rects()):
             if i == self.page:
                 render.cover(canvas, rect, (*render.VIOLET, 255))
-            f.draw(canvas, f"{i + 1} {PAGES[i]}", (rect.x + 4, rect.y + 2),
+            f.draw(canvas, f"{i + 1} {page_name(PAGES[i])}", (rect.x + 4, rect.y + 2),
                    render.WHITE if i == self.page else render.VIOLET)
-        f.draw(canvas, "SPELL GUIDE", (BOX.right - f.width("SPELL GUIDE") - 5, BOX.y + 5),
+        title = t("guide.title")
+        f.draw(canvas, title, (BOX.right - f.width(title) - 5, BOX.y + 5),
                render.SAND)
         top = BOX.y + 18
         getattr(self, "_page_" + PAGES[self.page].lower().replace(" ", "_"))(canvas, top, now)
-        hint = "<- -> pages   UP/DOWN choose   ENTER write it on the page   F3/ESC close"
+        hint = t("guide.keys")
         f.draw(canvas, hint, (BOX.x + 5, BOX.bottom - 9), render.SLATE)
 
     def _text(self, canvas, lines, top, colour=render.INK) -> int:
@@ -167,7 +183,7 @@ class Guide:
             row = pygame.Rect(BOX.x + 3, y - 1, BOX.width - 6, 2 * render.LINE_H + 1)
             if i == self.choice:
                 render.cover(canvas, row, (*render.BUTTER, 255))
-            tag = "LOOK" if e["kind"] == "look" else "CAST"
+            tag = t("guide.look") if e["kind"] == "look" else t("guide.cast")
             tag_colour = render.TEAL if e["kind"] == "look" else render.RED
             if not e["ready"]:
                 tag_colour = render.GREY
@@ -175,21 +191,22 @@ class Guide:
             styles = colour_styles(e["sql"], locked, set(self.content["tables"]))
             colours = [STYLE_COLOURS[s] if e["ready"] else render.GREY for s in styles]
             render.draw_coloured(canvas, e["sql"][:COLS - 6], colours, (BOX.x + 5 + 5 * render.ADVANCE, y))
-            say = e["say"] if e["ready"] else f"learn {', '.join(sorted(set(e['needs']) - self.runes))} first"
+            say = e["say"] if e["ready"] else \
+                t("guide.learn_first", runes=", ".join(sorted(set(e["needs"]) - self.runes)))
             f.draw(canvas, say[:COLS - 6], (BOX.x + 5 + 5 * render.ADVANCE, y + render.LINE_H),
                    render.SLATE)
             y += 2 * render.LINE_H + 2
         if first + VISIBLE_EXAMPLES < len(examples):
-            f.draw(canvas, "v more", (BOX.right - 30, BOX.bottom - 18), render.SAND)
+            more = t("guide.more")
+            f.draw(canvas, more, (BOX.right - 6 - f.width(more), BOX.bottom - 18), render.SAND)
 
     def _page_runes(self, canvas, top, now) -> None:
         f, y = render.font(), top
-        y = self._text(canvas, ["Runes are SQL keywords. You learn each one from the guardian",
-                                "who uses it: watch its book, then copy it.", ""], y)
+        y = self._text(canvas, [t("guide.runes_intro"), t("guide.runes_intro2"), ""], y)
         for r in self.content["runes"]:
             known = r["rune"] in self.runes
             f.draw(canvas, r["rune"], (BOX.x + 5, y), render.GOLD if known else render.GREY)
-            f.draw(canvas, "known" if known else f"from {r['from']}",
+            f.draw(canvas, t("guide.known") if known else t("guide.from", who=r["from"]),
                    (BOX.x + 5 + 10 * render.ADVANCE, y), render.FOREST if known else render.SLATE)
             f.draw(canvas, r["does"][:COLS - 4], (BOX.x + 5 + 4 * render.ADVANCE, y + render.LINE_H),
                    render.INK if known else render.GREY)

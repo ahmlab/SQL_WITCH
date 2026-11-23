@@ -27,8 +27,7 @@ import json
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from i18n import CATALOG, locale
-from i18n.icu import format_message
+from i18n import CATALOG
 from magic.db import DATA_DIR
 from story.scenes import text_of
 from story.script import Line, evaluate, get, plain
@@ -177,7 +176,7 @@ class HintDirector:
         # The mode in words ("careful", "on the attack"): the brain's real mode, translated.
         args = {"mode": CATALOG.raw(f"hint.mode.{mode}") or mode,
                 "intent": names["foe"]["intent"], "guardian": self.guardian}
-        markup = format_message(text_of(line), args, locale())
+        markup = CATALOG.format(text_of(line), **args)
         hint = Hint(topic, node, line.speaker, line.key, markup, self.turn)
         self.said.add(node)
         self.progress[topic] = self.progress.get(topic, 0) + 1

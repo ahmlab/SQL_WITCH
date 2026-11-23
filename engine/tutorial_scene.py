@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pygame
 
+import i18n                                # i18n.t: "t" is the tutorial in this file
+
 from engine import render, scenery
 from engine.grimoire import LOOKS_AT, wrap
 from engine.scenes import (GROUND_SHADOW, GUIDE_BUTTON, TABLES_BUTTON, ADA_FEET, BattleScene,
@@ -40,6 +42,9 @@ PULSE_MS = 1300                               # how long a newly revealed part g
 class TutorialScene(BattleScene):
     # The dummy's HP panel goes mid-field: the strip and the bubble use the top of the screen.
     FOE_PANEL = pygame.Rect(64, 56, 120, 20)
+
+    def relocalise(self) -> None:
+        self.tutorial.relocalise()
     DANGER_MUSIC = False                     # nothing is at stake here
     HINTS = False                            # the coach is the only voice in practice
 
@@ -416,7 +421,7 @@ class TutorialScene(BattleScene):
         f = render.font()
         glowing = (self.time // 400) % 2 == 0
         render.panel(canvas, READY_BUTTON, fill=render.BUTTER if glowing else render.CREAM)
-        f.draw(canvas, "F5 READY", (READY_BUTTON.x + 8, READY_BUTTON.y + 3), render.FOREST)
+        f.draw(canvas, i18n.t("tutorial_ui.ready"), (READY_BUTTON.x + 8, READY_BUTTON.y + 3), render.FOREST)
 
     def _draw_bubble(self, canvas):
         if not self.bubble or self.time > self.bubble_until:

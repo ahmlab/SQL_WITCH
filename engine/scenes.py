@@ -38,14 +38,14 @@ from magic.cast import SCRY_PER_TURN, CastReport, effect_word
 from magic.db import DATA_DIR
 from magic.battle import _summary
 from magic.guard import Miscast
-from i18n import t
+from i18n import CATALOG, locale as i18n_locale, set_locale, t
 from story.codex import Codex
 from story.pacing import Typewriter, settings as settings_pacing, voice
-from story.scenes import INTRO, legacy, record
-from story.script import Choice, ScriptRunner, get as script_named, tokens as script_tokens
+from story.scenes import INTRO, legacy, record, text_of_key
+from story.script import Choice, ScriptRunner, get as script_named, plain as plain_text
+from story.script import tokens as script_tokens
 from story.hints import HintDirector, context_of
 from engine.dialogue import DialogueBox, draw_log
-from i18n import CATALOG, locale as i18n_locale
 
 LOG_KEEP = 60                      # lines the dialogue log remembers
 
@@ -112,7 +112,16 @@ class Game:
         self.codex = Codex()                 # what the player has learned (plan §4.2)
         self.scrolls: dict[str, str] = {}    # saved queries: name -> SQL (plan §4.4)
         self.scene: Scene | None = None
+        # A language switch re-renders what is open: most text is looked up every frame;
+        # what a scene keeps (its dialogue lines) is refreshed by its relocalise().
+        CATALOG.listen(self._relocalise)
         self.switch(TitleScene(self))
+
+    def _relocalise(self, locale: str) -> None:
+        self.dialogue = load_dialogue()
+        if hasattr(self.scene, "relocalise"):
+            self.scene.relocalise()
+
 
     def switch(self, scene: Scene) -> None:
         if self.scene:
@@ -226,7 +235,9 @@ def next_scene(game: "Game", key: str) -> Scene:
 
 class TitleScene(Scene):
     def handle(self, event):
-        if is_confirm_key(event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+            self.next_language()
+        elif is_confirm_key(event):
             self.game.audio.play("confirm")
             start = self.game.start
             # The story begins with the intro unless it starts at a later guardian.
@@ -241,13 +252,27 @@ class TitleScene(Scene):
         title = "SQL WITCH"
         f.draw_big(canvas, title, ((320 - f.big_width(title, TITLE_DOT)) // 2, 38),
                    render.BUTTER, TITLE_DOT, shadow=render.AMBER, outline=render.INK)
-        sub = "a turn-based RPG where your queries are spells"
+        sub = t("title.subtitle")
         f.draw(canvas, sub, ((320 - f.width(sub)) // 2, 74), render.LILAC)
         if (self.time // 500) % 2 == 0:
-            prompt = "press ENTER"
+            prompt = t("title.press_enter")
             f.draw(canvas, prompt, ((320 - f.width(prompt)) // 2, 140), render.WHITE,
                    shadow=render.INK)
-        f.draw(canvas, f"seed {self.game.seed}", (4, 172), render.GRASS)
+        f.draw(canvas, t("title.seed", seed=self.game.seed), (4, 172), render.GRASS)
+        here = i18n_locale()
+        name = CATALOG.name_of(here)
+        if CATALOG.is_draft(here):
+            name = t("title.draft", name=name)
+        language = t("title.language", name=name)
+        f.draw(canvas, language, (316 - f.width(language), 172), render.LILAC)
+
+    def next_language(self) -> None:
+        """L on the title: the next language of the menu (data/i18n/locales.json)."""
+        menu = CATALOG.menu_locales(include_pseudo=i18n_locale() == "qps")
+        here = i18n_locale()
+        nxt = menu[(menu.index(here) + 1) % len(menu)] if here in menu else menu[0]
+        self.game.audio.play("confirm")
+        set_locale(nxt)
 
 
 # ------------------------------------------------------------------ dialogue
@@ -337,6 +362,14 @@ class DialogueScene(Scene):
         self.done_for = 0
         self.game.dialogue_log.append((line["speaker"], line["text"]))
         del self.game.dialogue_log[:-LOG_KEEP]
+
+    def relocalise(self) -> None:
+        """The language changed: every line again from the catalog, the current one restarted
+        at the same moment."""
+        for line in self.lines:
+            line["markup"] = text_of_key(line["key"], line["markup"])
+            line["text"] = plain_text(line["markup"])
+        self.typer = Typewriter(self.line["markup"], self.line["speaker"], i18n_locale())
 
     def _advance(self) -> None:
         if self.index + 1 < len(self.lines):
@@ -483,7 +516,7 @@ class DialogueScene(Scene):
         elif self._line_done() and (self.time // 400) % 2 == 0:
             f.draw(canvas, "v", (box.right - 8, box.bottom - 9), render.VIOLET)
         if self.auto:
-            f.draw(canvas, "A", (box.right - 8, box.y + 3), render.GREY, small=True)
+            f.draw(canvas, t("ui.dialogue.auto"), (box.right - 8, box.y + 3), render.GREY, small=True)
         if self.show_log:
             draw_log(canvas, self.game.dialogue_log, t("ui.dialogue.log_close"))
 
@@ -715,52 +748,53 @@ class BattleScene(Scene):
             if kind == "cast":
                 _, _, _, spell, target, dmg, crit, mult = event
                 words = effect_word(mult)
-                text = f"{spell}: {dmg}" + (" CRIT!" if crit else "") + (f" {words}!" if words else "")
+                text = t("battle.hit", spell=spell, damage=dmg) + \
+                    (" " + t("battle.crit") if crit else "") + (f" {words}" if words else "")
                 self.say(text, 650, self._hit(self.side_of(target), dmg, crit, spell),
                          "crit" if crit else "hit", *(("hp_down",) if dmg else ()))
             elif kind in ("heal", "item"):
                 side = self.side_of(event[3])
                 amount = event[4] if kind == "heal" else event[5]
                 slot = 1 if kind == "item" and event[4] == "mp" else 0
-                self.say(f"{event[2]}: +{amount}", 600, self._add_shown(side, slot, amount),
+                self.say(t("battle.gain", spell=event[2], amount=amount), 600, self._add_shown(side, slot, amount),
                          "mp_up" if slot == 1 else "hp_up")
             elif kind == "ward":
-                self.say(f"{event[2]}: ward {event[4]}", 600, None, "cast")
+                self.say(t("battle.ward", spell=event[2], amount=event[4]), 600, None, "cast")
             elif kind == "fizzle":
                 if event[3] == "overflow":
                     margin += 1
                 elif event[3] == "duplicate":
-                    self.say(f"{event[2]} again: it fizzles", 600, None, "fizzle")
+                    self.say(t("battle.again", spell=event[2]), 600, None, "fizzle")
                 elif event[3] == "no_mana":
-                    self.say(f"{event[2]}: no MP left", 450, None, "fizzle")
+                    self.say(t("battle.no_mp", spell=event[2]), 450, None, "fizzle")
                 else:
-                    self.say(f"{event[2]}: none left", 450)
+                    self.say(t("battle.none_left", spell=event[2]), 450)
             elif kind == "mp":
                 _, name, before, after = event
                 if margin:
-                    self.say(f"{margin} spells fizzle in the margin", 800, None, "fizzle")
+                    self.say(t("battle.margin", count=margin), 800, None, "fizzle")
                     margin = 0
                 if before != after:
-                    self.say(f"MP {before} -> {after}", 600,
+                    self.say(t("battle.mp", before=before, after=after), 600,
                              self._set_shown(self.side_of(name), 1, after),
                              "mp_down" if after < before else "mp_up")
             elif kind == "deflect":
-                self.say(f"{event[2]} bounces off: not super-effective!", 750, None, "deflect")
+                self.say(t("battle.deflect", spell=event[2]), 750, None, "deflect")
             elif kind == "shatter":
-                self.say("The Ward of Relevance shatters!", 900, self._show_relevance(False),
+                self.say(t("battle.shatter"), 900, self._show_relevance(False),
                          "shatter")
             elif kind == "relevance":
-                self.say("Ward of Relevance is up: only super-effective spells pass", 1000,
+                self.say(t("battle.relevance_up"), 1000,
                          self._show_relevance(True), "ward_up")
             elif kind == "dispel":
-                self.say(f"{event[2]} removes Ada's ward ({event[4]})", 800,
+                self.say(t("battle.dispel", spell=event[2], amount=event[4]), 800,
                          None, "fizzle")
             elif kind == "exhausted":
-                self.say(f"{event[1].split()[-1]} is EXHAUSTED!", 800)
+                self.say(t("battle.exhausted", foe=event[1].split()[-1]), 800)
             elif kind == "faint":
-                self.say(f"{event[1]} faints!", 1000, None, "faint")
+                self.say(t("battle.faints", name=event[1]), 1000, None, "faint")
             elif kind == "scry":
-                self.say("A free look." if not event[2] else "Nothing castable: turn spent.", 600)
+                self.say(t("battle.free_look") if not event[2] else t("battle.nothing_castable"), 600)
             elif kind == "write":
                 key, args = _summary(report)
                 self.say(t("ui.write.done", summary=t(key, **args)), 900, None, "cast")
@@ -791,7 +825,7 @@ class BattleScene(Scene):
         end = self.battle.last_round
         if end and end.turn not in self.rounds_told:
             self.rounds_told.add(end.turn)
-            self.say(f"Round {end.turn} ends: +{end.mp_gained['ada']} MP", 700, self._sync_shown,
+            self.say(t("battle.round_end", turn=end.turn, mp=end.mp_gained["ada"]), 700, self._sync_shown,
                      *(("mp_up",) if end.mp_gained["ada"] else ()))
 
     def _sync_shown(self) -> None:
@@ -851,7 +885,7 @@ class BattleScene(Scene):
         if turn.movement is not None:
             self.order = turn.movement                 # steer as the brain planned
         name = self.battle.state.foe.name.split()[-1]
-        self.say(f"{name} casts!", 650, None, "scry" if turn.report.scry else "cast")
+        self.say(t("battle.foe_casts", foe=name), 650, None, "scry" if turn.report.scry else "cast")
         self.narrate(turn.report)
         self._tell_world(turn.report)
         if turn.acknowledged:                          # she already used it: no lesson needed
@@ -863,8 +897,8 @@ class BattleScene(Scene):
             def learn():
                 self.editor.unlocked.add(rune)
                 self.glow = (rune, self.time)
-            self.say(f"{rune} glows in {name}'s book!", 1200, learn, "invitation")
-            self.say(f"Ada copies the rune: {rune}", 1200)
+            self.say(t("battle.rune_glows", rune=rune, foe=name), 1200, learn, "invitation")
+            self.say(t("battle.copies_rune", rune=rune), 1200)
         self._tell_round_end()
 
     # ------------------------------------------------------------ input and time
@@ -1222,7 +1256,7 @@ class BattleScene(Scene):
         fill = render.TEAL if self.tables_open else render.FOAM
         pygame.draw.rect(canvas, render.INK, TABLES_BUTTON)
         pygame.draw.rect(canvas, fill, TABLES_BUTTON.inflate(-2, -2))
-        f.draw(canvas, "TABLES", (TABLES_BUTTON.x + 3, TABLES_BUTTON.y + 2),
+        f.draw(canvas, t("panel.tables"), (TABLES_BUTTON.x + 3, TABLES_BUTTON.y + 2),
                render.WHITE if self.tables_open else render.TEAL)
 
     def _draw_tables(self, canvas):
@@ -1231,8 +1265,9 @@ class BattleScene(Scene):
         render.cover(canvas, TABLES_PANEL, (*render.INK, 255))
         render.cover(canvas, TABLES_PANEL.inflate(-2, -2), (*render.CREAM, 255))
         x, y = TABLES_PANEL.x + 4, TABLES_PANEL.y + 4
-        f.draw(canvas, "TABLES  (click a name to write it)", (x, y), render.VIOLET)
-        f.draw(canvas, "F4/ESC close", (TABLES_PANEL.right - 52, y), render.SAND)
+        f.draw(canvas, t("panel.tables_title"), (x, y), render.VIOLET)
+        close = t("panel.tables_close")
+        f.draw(canvas, close, (TABLES_PANEL.right - 4 - f.width(close), y), render.SAND)
         y += render.LINE_H + 3
         self.table_rows = []
         for table, columns in self.schema:
@@ -1244,14 +1279,14 @@ class BattleScene(Scene):
             for part in wrap(", ".join(columns), room):     # a long list goes on the next line
                 f.draw(canvas, part, (x + 11 * render.ADVANCE, y), render.INK)
                 y += render.LINE_H + 1
-        f.draw(canvas, "A row with a 'name' from spells or items casts it. The rest is a free look.",
+        f.draw(canvas, t("panel.tables_rule"),
                (x, TABLES_PANEL.bottom - 9), render.WINE)
 
     def _draw_guide_button(self, canvas):
         f = render.font()
         glowing = not self.game.guide_seen and (self.time // 400) % 2 == 0
         render.panel(canvas, GUIDE_BUTTON, fill=render.BUTTER if glowing else render.CREAM)
-        f.draw(canvas, "? GUIDE F3", (GUIDE_BUTTON.x + 4, GUIDE_BUTTON.y + 3), render.VIOLET)
+        f.draw(canvas, t("panel.guide_button"), (GUIDE_BUTTON.x + 4, GUIDE_BUTTON.y + 3), render.VIOLET)
 
     def _draw_page_heat(self, canvas):
         """The left page lights up the faster you type; a finished keyword shines."""
@@ -1279,16 +1314,16 @@ class BattleScene(Scene):
         render.panel(canvas, box)
         f.draw(canvas, foe.name.upper(), (box.x + 4, box.y + 3), render.INK)
         if self.key in ORDER:                      # the training dummy has no level
-            f.draw(canvas, f"Lv{ORDER.index(self.key) + 1}", (box.right - 16, box.y + 3),
+            f.draw(canvas, t("panel.level", level=ORDER.index(self.key) + 1), (box.right - 16, box.y + 3),
                    render.SLATE)
-        f.draw(canvas, "HP", (box.x + 4, box.y + 11), render.AMBER)
+        f.draw(canvas, t("panel.hp"), (box.x + 4, box.y + 11), render.AMBER)
         hp = round(self.bars["foe"][0])           # the gliding bar: its colour changes as it drops
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 11, 100, 5), hp, foe.max_hp,
                      render.hp_colour(hp, foe.max_hp))
         if foe.exhausted:
-            f.draw(canvas, "EXHAUSTED", (box.right + 4, box.y + 3), render.RED, shadow=render.INK)
+            f.draw(canvas, t("panel.exhausted"), (box.right + 4, box.y + 3), render.RED, shadow=render.INK)
         if self.shown_relevance:
-            f.draw(canvas, "WARD OF RELEVANCE", (box.right + 4, box.y + 11), render.AQUA,
+            f.draw(canvas, t("panel.relevance"), (box.right + 4, box.y + 11), render.AQUA,
                    shadow=render.INK)
 
     def _draw_ada_panel(self, canvas):
@@ -1296,20 +1331,20 @@ class BattleScene(Scene):
         box = pygame.Rect(self.ADA_PANEL)
         render.panel(canvas, box)
         hp, mp = round(self.bars["ada"][0]), round(self.bars["ada"][1])
-        f.draw(canvas, "ADA", (box.x + 4, box.y + 3), render.INK)
+        f.draw(canvas, CATALOG.player["name"].upper(), (box.x + 4, box.y + 3), render.INK)
         f.draw(canvas, f"{hp}/{ada.max_hp}", (box.x + 52, box.y + 3), render.FOREST)
-        f.draw(canvas, f"Lv{self.battle.guardian.level}", (box.right - 16, box.y + 3), render.SLATE)
-        f.draw(canvas, "HP", (box.x + 4, box.y + 11), render.AMBER)
+        f.draw(canvas, t("panel.level", level=self.battle.guardian.level), (box.right - 16, box.y + 3), render.SLATE)
+        f.draw(canvas, t("panel.hp"), (box.x + 4, box.y + 11), render.AMBER)
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 11, 100, 5), hp, ada.max_hp,
                      render.hp_colour(hp, ada.max_hp))
-        f.draw(canvas, "MP", (box.x + 4, box.y + 18), render.BLUE)
+        f.draw(canvas, t("panel.mp"), (box.x + 4, box.y + 18), render.BLUE)
         render.meter(canvas, pygame.Rect(box.x + 14, box.y + 18, 70, 5), mp, ada.max_mp,
                      render.SKY)
         f.draw(canvas, f"{mp}/{ada.max_mp}", (box.x + 88, box.y + 18), render.NAVY)
-        runes = f"CODEX: {len(self.battle.codex.pages)}"
+        runes = t("panel.codex", count=len(self.battle.codex.pages))
         f.draw(canvas, runes, (box.x, box.y - 8), render.GOLD, shadow=render.INK)
         if ada.exhausted:
-            f.draw(canvas, "EXHAUSTED", (box.right - f.width("EXHAUSTED"), box.y - 8),
+            f.draw(canvas, t("panel.exhausted"), (box.right - f.width(t("panel.exhausted")), box.y - 8),
                    render.RED, shadow=render.INK)
 
     def _draw_debug(self, canvas):
@@ -1376,7 +1411,8 @@ class ResultScene(Scene):
     def draw(self, canvas):
         f = render.font()
         draw_backdrop(canvas, ground_y=150)
-        headline = "VICTORY" if self.won else "CONFUSION" if self.confused else "DEFEAT"
+        headline = t("result.victory") if self.won else t("result.confusion") if self.confused \
+            else t("result.defeat")
         colour, shade = (render.BUTTER, render.AMBER) if self.won else \
             (render.LAVENDER, render.DUSK) if self.confused else (render.RED, render.WINE)
         f.draw_big(canvas, headline, ((320 - f.big_width(headline, TITLE_DOT)) // 2, 14),
@@ -1388,8 +1424,8 @@ class ResultScene(Scene):
             f.draw(canvas, line, ((320 - f.width(line)) // 2, y), render.WHITE)
             y += 9
         state = self.battle.state
-        stats = [f"rounds {state.turn}   queries {self.queries}   spells cast {self.casts}",
-                 f"HP left {state.ada.hp}/{state.ada.max_hp}   seed {self.battle.seed}"]
+        stats = [t("result.stats", turn=state.turn, queries=self.queries, casts=self.casts),
+                 t("result.stats_hp", hp=state.ada.hp, max=state.ada.max_hp, seed=self.battle.seed)]
         y += 6
         for line in stats:
             f.draw(canvas, line, ((320 - f.width(line)) // 2, y), render.LILAC)
@@ -1398,18 +1434,18 @@ class ResultScene(Scene):
             y += 6
             box = pygame.Rect(30, y, 260, 30)
             render.panel(canvas, box)
-            f.draw(canvas, f"CODEX - {self.rune}, as {state.foe.name} cast it:",
+            f.draw(canvas, t("result.codex", rune=self.rune, foe=state.foe.name),
                    (box.x + 4, box.y + 3), render.VIOLET)
             for i, line in enumerate(wrap(self.codex, 62)[:2]):
                 f.draw(canvas, line, (box.x + 4, box.y + 12 + i * render.LINE_H), render.INK)
         if self.won and self.next is None:
             end = self.game.dialogue.get("end_of_slice", "")
             f.draw(canvas, end, ((320 - f.width(end)) // 2, 156), render.BUTTER)
-            prompt = "ENTER title    ESC quit"
+            prompt = t("result.to_title")
         elif self.won:
-            prompt = "ENTER continue    ESC quit"
+            prompt = t("result.continue")
         else:
-            prompt = "ENTER try again    ESC quit"
+            prompt = t("result.retry")
         if (self.time // 500) % 2 == 0:
             f.draw(canvas, prompt, ((320 - f.width(prompt)) // 2, 166), render.WHITE,
                    shadow=render.INK)

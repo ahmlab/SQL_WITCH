@@ -16,7 +16,12 @@ STATUS: canvas, scaling, palette, sharp text layer (5x7), small print, big title
 
 from __future__ import annotations
 
+import unicodedata
+
 import pygame
+
+from engine import fonts
+from i18n.width import cells, text_cells
 
 LOGICAL_W, LOGICAL_H = 320, 180
 
@@ -291,9 +296,27 @@ class PixelFont:
     def glyph(self, char: str, colour: tuple) -> pygame.Surface:
         key = ("lo", char, tuple(colour))
         if key not in self._cache:
-            self._cache[key] = self._build(_GLYPHS.get(char, _UNKNOWN), GLYPH_W, GLYPH_H,
-                                           colour, 1)
+            # 3x5 letters have no room for accents: an accented letter shows its base letter.
+            rows = _GLYPHS.get(char) or _GLYPHS.get(unicodedata.normalize("NFD", char)[:1],
+                                                    _UNKNOWN)
+            self._cache[key] = self._build(rows, GLYPH_W, GLYPH_H, colour, 1)
         return self._cache[key]
+
+    def fine(self, char: str, colour: tuple, dot: int, dot_y: int | None = None,
+             bold: int | None = None) -> tuple[pygame.Surface, int] | None:
+        """(glyph, lift in screen pixels) of a pixel letter, accents included, or None when
+        only the fallback font (engine/fonts.py) can draw the character."""
+        made = fonts.composed(char)
+        if made is None:
+            return None
+        rows, lift = made
+        dot_y = dot if dot_y is None else dot_y
+        bold = bold_px(dot) if bold is None else bold
+        key = ("fine", char, tuple(colour), dot, dot_y, bold)
+        if key not in self._cache:
+            self._cache[key] = self._build(list(rows), FINE_W, max(FINE_H, len(rows)), colour,
+                                           dot, bold, dot_y)
+        return self._cache[key], lift * dot_y
 
     def fine_glyph(self, char: str, colour: tuple, dot: int, dot_y: int | None = None,
                    bold: int | None = None) -> pygame.Surface:
@@ -318,7 +341,7 @@ class PixelFont:
 
     def width(self, text: str, scale: int = 1, small: bool = False) -> int:
         advance = SMALL_ADVANCE if small else ADVANCE
-        return max(0, len(text) * advance - 1) * scale
+        return max(0, text_cells(text) * advance - 1) * scale
 
     def draw(self, surface: pygame.Surface, text: str, pos: tuple[float, float],
              colour: tuple, scale: int = 1, shadow: tuple | None = None,
@@ -332,11 +355,13 @@ class PixelFont:
             surface.ops.append((kind, text, x, y, tuple(colour), surface.get_clip()))
             return self.width(text, small=small)
         advance = SMALL_ADVANCE if small else ADVANCE
-        for i, char in enumerate(text):
+        col = 0
+        for char in text:
             glyph = self.glyph(char, colour)
             if scale != 1:
                 glyph = pygame.transform.scale(glyph, (GLYPH_W * scale, GLYPH_H * scale))
-            surface.blit(glyph, (x + i * advance * scale, y))
+            surface.blit(glyph, (x + col * advance * scale, y))
+            col += cells(char)
         return self.width(text, scale, small)
 
     # Big titles use the detailed 5x7 letters as pixel art, each dot a dot x dot block.
@@ -344,7 +369,7 @@ class PixelFont:
 
     @staticmethod
     def big_width(text: str, dot: int) -> int:
-        return max(0, len(text) * (FINE_W + 1) - 1) * dot
+        return max(0, text_cells(text) * (FINE_W + 1) - 1) * dot
 
     def draw_big(self, surface: pygame.Surface, text: str, pos: tuple[float, float],
                  colour: tuple, dot: int = 3, shadow: tuple | None = None,
@@ -358,12 +383,23 @@ class PixelFont:
                 self.draw_big(surface, text, (x + dx, y + dy), outline, dot)
         if shadow is not None:
             self.draw_big(surface, text, (x, y + 1), shadow, dot)
-        for i, char in enumerate(text):
+        col = 0
+        for char in text:
             key = ("big", char, tuple(colour), dot)
             if key not in self._cache:
-                self._cache[key] = self._build(_GLYPHS_5X7.get(char, _UNKNOWN_5X7), FINE_W,
-                                               FINE_H, colour, dot)
-            surface.blit(self._cache[key], (x + i * (FINE_W + 1) * dot, y))
+                made = fonts.composed(char)
+                if made is not None:
+                    rows, lift = made
+                    glyph = self._build(list(rows), FINE_W, max(FINE_H, len(rows)), colour, dot)
+                    self._cache[key] = (glyph, lift * dot)
+                else:                                  # a Chinese title: Unifont, as big
+                    glyph = fonts.fallback_glyph(char, colour, 1, fonts.UNIFONT_PX, 8)
+                    times = max(1, round(FINE_H * dot / fonts.UNIFONT_PX))   # whole pixels
+                    size = (glyph.get_width() * times, glyph.get_height() * times)
+                    self._cache[key] = (pygame.transform.scale(glyph, size), 0)
+            glyph, lift = self._cache[key]
+            surface.blit(glyph, (x + col * (FINE_W + 1) * dot, y - lift))
+            col += cells(char)
         return self.big_width(text, dot)
 
 
@@ -390,8 +426,8 @@ def draw_coloured(surface: pygame.Surface, text: str, colours: list[tuple],
     advance = SMALL_ADVANCE if small else ADVANCE
     for i in range(1, len(text) + 1):
         if i == len(text) or colours[i] != colours[start]:
-            f.draw(surface, text[start:i], (x + start * advance, pos[1]), colours[start],
-                   small=small)
+            f.draw(surface, text[start:i], (x + text_cells(text[:start]) * advance, pos[1]),
+                   colours[start], small=small)
             start = i
 
 
@@ -425,14 +461,23 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
         kind, text, x, y, colour, _ = op
         small = kind == "small"
         advance, top = (SMALL_ADVANCE, small_dy) if small else (ADVANCE, dy)
-        for i, char in enumerate(text):
-            cx = (x + i * advance) * k
-            if k == 1:                                       # no room for detail at 1x
+        line_h = SMALL_LINE_H if small else LINE_H
+        col = 0
+        for char in text:
+            cx = (x + col * advance) * k
+            col += cells(char)
+            if char == " ":
+                continue
+            made = None if k == 1 else (f.fine(char, colour, *small_dots) if small
+                                        else f.fine(char, colour, dot))
+            if made is not None:
+                glyph, lift = made
+                frame.blit(glyph, (cx, y * k + top - lift))
+            elif k == 1 and fonts.composed(char) is not None:   # no room for detail at 1x
                 frame.blit(f.glyph(char, colour), (cx, y))
-            elif small:
-                frame.blit(f.fine_glyph(char, colour, *small_dots), (cx, y * k + top))
-            else:
-                frame.blit(f.fine_glyph(char, colour, dot), (cx, y * k + top))
+            else:                                    # Chinese, Greek, Cyrillic: Unifont
+                glyph = fonts.fallback_glyph(char, colour, k, line_h, advance)
+                frame.blit(glyph, (cx, y * k + (line_h * k - glyph.get_height()) // 2))
     frame.set_clip(None)
 
 

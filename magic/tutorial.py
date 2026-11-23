@@ -32,6 +32,7 @@ from magic import guard
 from magic.battle import Battle
 from magic.cast import PAGE_ROWS, CastReport, sync_state
 from magic.db import DATA_DIR
+from i18n.width import wrap as wrap_cells
 from magic.guard import Miscast
 
 # How much text each box of the tutorial screen holds (characters per line, lines). The scene
@@ -54,26 +55,8 @@ SAMPLE = {"rows": 12, "cast": 4, "lost": 8, "page": PAGE_ROWS, "mp_before": 30, 
 
 
 def wrap(text: str, width: int) -> list[str]:
-    """Greedy word wrap, the same rule as engine.grimoire.wrap (kept here to stay pygame-free;
-    a test checks the two agree on every line of the script)."""
-    lines, line = [], ""
-    for word in text.split():
-        while len(word) > width:
-            if line:
-                lines.append(line)
-                line = ""
-            lines.append(word[:width])
-            word = word[width:]
-        if not line:
-            line = word
-        elif len(line) + 1 + len(word) <= width:
-            line += " " + word
-        else:
-            lines.append(line)
-            line = word
-    if line:
-        lines.append(line)
-    return lines
+    """Word wrap in cells, the same rule as engine.grimoire.wrap (i18n.width.wrap)."""
+    return wrap_cells(text, width)
 
 
 # ------------------------------------------------------------------ the script
@@ -265,9 +248,16 @@ def load_script(path: Path | str = DATA_DIR / "tutorial.json") -> dict:
     refuse one whose lines would not fit the screen."""
     with open(path, encoding="utf-8") as f:
         script = with_words(json.load(f))
+    from i18n.sources import localise
+    script = localise("tutorial", script)                  # lesson titles and key reminders
     problems = script_problems(script)
     if problems:
-        raise ValueError("data/tutorial.json needs fixing:\n  " + "\n  ".join(problems))
+        from i18n import locale
+        if locale() == "en":                  # the writers' text must fit: refuse to start
+            raise ValueError("data/tutorial.json needs fixing:\n  " + "\n  ".join(problems))
+        # A translation that does not fit is a bug for the overflow test (tests/test_i18n.py)
+        # to catch; the game still starts.
+        print(f"[i18n] {locale()}: tutorial text too long:\n  " + "\n  ".join(problems))
     return script
 
 
@@ -401,6 +391,7 @@ class Tutorial:
         self.battle = Battle(seed=seed, guardian="dummy", foe_opens=False)
         self.chatter = random.Random(seed)       # picks the dummy's lines; not the battle's rng
         self.lessons: list[dict] = self.script["lessons"] + [self.script["practice"]]
+        self._own_script = script is None            # a script handed in is never reloaded
         self.index = -1
         self.phase = "opening"
         self.step: Step | None = None
@@ -418,6 +409,12 @@ class Tutorial:
             self._start_lesson(0)
 
     # ------------------------------------------------------------ reading the state
+
+    def relocalise(self) -> None:
+        """The language changed: the words again from the catalog (the lessons keep going)."""
+        if self._own_script:
+            self.script = load_script()
+            self.lessons = self.script["lessons"] + [self.script["practice"]]
 
     @property
     def lesson(self) -> dict | None:

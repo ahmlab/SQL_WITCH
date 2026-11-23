@@ -15,6 +15,10 @@ from __future__ import annotations
 
 import pygame
 
+from i18n import t
+
+from i18n.width import wrap as wrap_cells
+
 from engine import render
 from engine.textinput import QueryEditor, colour_styles, STYLE_COLOURS
 from magic.cast import PAGE_ROWS, CastReport, cell_text, column_widths
@@ -32,29 +36,11 @@ SCROLL_LEFT = pygame.Rect(RIGHT_PAGE.right - 15, RIGHT_PAGE.y - 1, 7, 8)
 GAP = render.ADVANCE             # one character between columns, as in magic.cast
 STATUS_BOX = pygame.Rect(LEFT_PAGE.x, LEFT_PAGE.bottom - 9, LEFT_PAGE.width, 9)
 LOOKS_AT = pygame.Rect(LEFT_PAGE.right - 29, LEFT_PAGE.y - 1, 30, 8)
-FOOTER = "CTRL+ENTER cast TAB complete F3 guide F6 rewind"
 
 
 def wrap(text: str, width: int) -> list[str]:
-    """Greedy word wrap to `width` characters; long words are cut."""
-    lines, line = [], ""
-    for word in text.split():
-        while len(word) > width:
-            if line:
-                lines.append(line)
-                line = ""
-            lines.append(word[:width])
-            word = word[width:]
-        if not line:
-            line = word
-        elif len(line) + 1 + len(word) <= width:
-            line += " " + word
-        else:
-            lines.append(line)
-            line = word
-    if line:
-        lines.append(line)
-    return lines
+    """Word wrap to `width` cells (a Chinese character takes two): i18n.width.wrap."""
+    return wrap_cells(text, width)
 
 
 def column_x(columns: list[str], rows: list[tuple]) -> list[int]:
@@ -120,7 +106,7 @@ class Grimoire:
         # The tutorial hides these until a lesson introduces them (progressive disclosure).
         self.show_looks = True
         self.show_status = True
-        self.footer = FOOTER
+        self.footer: str | None = None      # None: the usual keys (grimoire.footer)
         self.closed: str | None = None    # why the book is closed (turn lock), or None: open
 
     EDITOR_AT = (LEFT_PAGE.x, LEFT_PAGE.y + 9)
@@ -231,9 +217,9 @@ class Grimoire:
         pygame.draw.line(surface, render.SAND, (160, 104), (160, 172))
 
         # Left page: the query being written.
-        f.draw(surface, "YOUR QUERY", (LEFT_PAGE.x, LEFT_PAGE.y), render.VIOLET)
+        f.draw(surface, t("grimoire.your_query"), (LEFT_PAGE.x, LEFT_PAGE.y), render.VIOLET)
         if self.show_looks:
-            looks = f"looks {self.looks_left}"
+            looks = t("grimoire.looks", count=self.looks_left)
             f.draw(surface, looks, (LEFT_PAGE.right - f.width(looks), LEFT_PAGE.y), render.SAND)
         if self.closed:
             self._draw_closed(surface)
@@ -243,13 +229,14 @@ class Grimoire:
             self._draw_status(surface)
 
         # Right page: the result, cut by the page.
-        f.draw(surface, "RESULT", (RIGHT_PAGE.x, RIGHT_PAGE.y), render.VIOLET)
+        f.draw(surface, t("grimoire.result"), (RIGHT_PAGE.x, RIGHT_PAGE.y), render.VIOLET)
         if self.miscast:
             self._draw_miscast(surface)
         elif self.report:
             self._draw_result(surface, now)
 
-        f.draw(surface, self.footer, (8, 173), render.BUTTER)
+        f.draw(surface, self.footer if self.footer is not None else t("grimoire.footer"), (8, 173),
+               render.BUTTER)
 
     def _draw_closed(self, surface: pygame.Surface) -> None:
         """Turn lock: the left page is a closed cover with one line saying why."""
@@ -269,11 +256,10 @@ class Grimoire:
             return
         report = self.report
         if report.kind != "read" and not report.casts:       # it changed the world
-            text, border = f"the world changed | MP {report.mp_after}", render.VIOLET
+            text, border = t("grimoire.changed", mp=report.mp_after), render.VIOLET
         elif report.scry and not report.ends_turn:
-            n = len(report.rows)
-            text, border = f"{n} row{'' if n == 1 else 's'} | a free look | MP {report.mp_after}", \
-                render.TEAL
+            text = t("grimoire.free_look", rows=len(report.rows), mp=report.mp_after)
+            border = render.TEAL
         else:
             text = report.status_line()
             border = render.RED if report.overflow else render.INK
@@ -287,7 +273,7 @@ class Grimoire:
 
     def _draw_miscast(self, surface: pygame.Surface) -> None:
         f = render.font()
-        f.draw(surface, "*poof*", (RIGHT_PAGE.x, RIGHT_PAGE.y + 10), render.GREY)
+        f.draw(surface, t("grimoire.poof"), (RIGHT_PAGE.x, RIGHT_PAGE.y + 10), render.GREY)
         for i, line in enumerate(wrap(self.miscast, 36)[:6]):
             f.draw(surface, line, (RIGHT_PAGE.x, RIGHT_PAGE.y + 19 + i * render.LINE_H),
                    render.WINE)
@@ -295,7 +281,7 @@ class Grimoire:
     def _draw_result(self, surface: pygame.Surface, now: int) -> None:
         report = self.report
         if not report.rows:
-            render.font().draw(surface, "(the page stays blank)",
+            render.font().draw(surface, t("grimoire.blank"),
                                (RIGHT_PAGE.x, RIGHT_PAGE.y + 12), render.GREY)
             return
         rows_shown = 1 + (now - self.shown_at) // INK_MS            # ink in, row by row
@@ -323,7 +309,8 @@ class Grimoire:
         left, right = self.can_scroll(-1), self.can_scroll(1)
         if not (left or right):
             return
-        f.draw(surface, "SHIFT", (SCROLL_LEFT.x - 22, SCROLL_LEFT.y + 1), render.SAND)
+        shift = t("grimoire.shift")
+        f.draw(surface, shift, (SCROLL_LEFT.x - 2 - f.width(shift), SCROLL_LEFT.y + 1), render.SAND)
         for rect, glyph, lit in ((SCROLL_LEFT, "<", left), (SCROLL_RIGHT, ">", right)):
             pygame.draw.rect(surface, render.GOLD if lit else render.PARCHMENT, rect)
             f.draw(surface, glyph, (rect.x + 2, rect.y + 1), render.INK if lit else render.SAND)
@@ -362,13 +349,9 @@ def foe_summary(report: CastReport | None) -> str:
     if report is None:
         return ""
     if not report.casts:
-        n = len(report.rows)
-        return f"{n} row{'' if n == 1 else 's'} - nothing castable."
-    n = len(report.rows)
-    text = f"{n} row{'' if n == 1 else 's'}"
-    if report.overflow:
-        text += f" - {report.overflow} fell off its page"
-    return text + f". MP {report.mp_after}" + ("!" if report.mp_after == 0 else ".")
+        return t("grimoire.foe_nothing", rows=len(report.rows))
+    return t("grimoire.foe_summary", rows=len(report.rows), lost=report.overflow,
+             mp=report.mp_after)
 
 
 def foe_book_rect(rows: int) -> pygame.Rect:
@@ -380,7 +363,7 @@ def draw_foe_book(surface: pygame.Surface, foe_name: str, sql: str | None,
                   report: CastReport | None, glow_word: str | None, now: int) -> None:
     """The foe's last query, printed in its book. The signature rune glows (the Invitation)."""
     f = render.font()
-    lines = wrap(sql, FOE_LINE_CHARS) if sql else ["(waiting)"]
+    lines = wrap(sql, FOE_LINE_CHARS) if sql else [t("grimoire.foe_waiting")]
     # The query is the lesson: when it needs three lines it gets them, and the summary waits.
     show_summary = bool(sql) and len(lines) <= 2
     lines = lines[:3]
@@ -390,7 +373,7 @@ def draw_foe_book(surface: pygame.Surface, foe_name: str, sql: str | None,
 
     def row_y(n: int) -> int:
         return box.y + 3 + n * render.SMALL_LINE_H
-    title = f"{foe_name.split()[-1].upper()} CAST:"
+    title = t("grimoire.foe_title", foe=foe_name.split()[-1].upper())
     f.draw(surface, title, (x0, row_y(0)), render.RED, small=True)
     if not sql:
         f.draw(surface, lines[0], (x0, row_y(1)), render.GREY, small=True)

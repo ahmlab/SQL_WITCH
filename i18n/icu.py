@@ -79,7 +79,7 @@ def _branches(text: str) -> dict[str, str]:
 def _argument(body: str, args: dict, locale: str) -> str:
     parts = _split_top(body)
     name = parts[0]
-    value = args.get(name, "{" + name + "}")
+    value = _lookup(args, name)
     if len(parts) == 1:
         return str(value)
     kind = parts[1]
@@ -96,6 +96,19 @@ def _argument(body: str, args: dict, locale: str) -> str:
         chosen = branches.get(str(value), branches.get("other", ""))
         return format_message(chosen, args, locale)
     return str(value)
+
+
+def _lookup(args: dict, name: str):
+    """An argument by name; dotted names reach inside: player.gender."""
+    if name in args:
+        return args[name]
+    value = args
+    for part in name.split("."):
+        if isinstance(value, dict) and part in value:
+            value = value[part]
+        else:
+            return "{" + name + "}"                 # unknown: shown as written
+    return value
 
 
 @lru_cache(maxsize=None)
