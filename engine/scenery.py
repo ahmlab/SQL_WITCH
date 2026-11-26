@@ -250,6 +250,13 @@ def draw_book(canvas: pygame.Surface, centre: tuple[int, int], t: int, age: int,
                           render.BUTTER if i % 2 else render.LILAC)
     cy += render.snap(2 * math.sin(t / 380))                 # it floats
     gfx.ellipse(canvas, shadow, (cx - 10, ground_y - 2, 20, 4))          # shadow
+    if getattr(canvas, "scale", 1) >= render.WORLD_SCALE and grow >= 1.0:
+        from engine import hd_art
+        image = hd_art.book((t // 120) % 8, speaking)
+        float_y = centre[1] + 2 * math.sin(t / 380)       # whole HD pixels: a smooth float
+        gfx.blit_hd(canvas, image, (cx - image.get_width() / render.WORLD_SCALE / 2,
+                                    float_y - image.get_height() / render.WORLD_SCALE / 2))
+        return
     w, h = 16 * grow, 9 * grow
     if w < 2:
         return
@@ -288,6 +295,11 @@ def draw_dummy(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
     When hit it flashes and rocks on its post."""
     cx, cy = centre
     rock = (-1, 1, -1, 0)[(t // 60) % 4] if flash else 0
+    if getattr(canvas, "scale", 1) >= render.WORLD_SCALE:
+        from engine import hd_art
+        image = hd_art.dummy(flash)
+        gfx.blit_hd(canvas, image, (cx + rock - 16, cy + 19 - 40))
+        return
     straw, sack, wood, rope = ((render.WHITE,) * 4 if flash else
                                (render.BUTTER, render.SAND, render.BARK, render.LEATHER))
     gfx.rect(canvas, wood, (cx - 1, cy + 4, 3, 13))                 # the post
@@ -316,6 +328,12 @@ def draw_dummy(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
 
 def draw_keep(canvas: pygame.Surface, t: int, ground_y: int = 60) -> None:
     """The courtyard of the Filter Keep at dusk: battlements, a gate, banners and torches."""
+    if getattr(canvas, "scale", 1) >= render.WORLD_SCALE:
+        from engine import hd_art
+        gfx.blit_hd(canvas, hd_art.keep(ground_y), (0, 0))
+        for x in (90, 210):                                       # torches flicker
+            gfx.blit_hd(canvas, hd_art.flame((t // 110 + x) % 4), (x - 7.5, 14 + 9))
+        return
     gfx.rect(canvas, render.NIGHT, (0, 0, 320, ground_y))
     gfx.rect(canvas, render.DUSK, (0, 0, 320, 10))
     wall_top = 14
@@ -355,6 +373,12 @@ def draw_knight(canvas: pygame.Surface, centre: tuple[float, float], t: int, fla
     """Placeholder Sir Wherewell: blue tabard with a filter funnel, shield, sword, red plume.
     While his Ward of Relevance is up, a dashed shimmer circles him."""
     cx, cy = render.snap(centre[0]), render.snap(centre[1])
+    if getattr(canvas, "scale", 1) >= render.WORLD_SCALE and not fainted:
+        from engine import hd_art
+        image = hd_art.knight((t // 160) % 4, flash, relevance, moving)
+        gfx.blit_hd(canvas, image, (centre[0] - image.get_width() / render.WORLD_SCALE / 2,
+                                    centre[1] + 20 - image.get_height() / render.WORLD_SCALE))
+        return
     gfx.ellipse(canvas, render.SLATE, (cx - 12, cy + 16, 24, 5))         # shadow
     if fainted:
         gfx.rect(canvas, render.GREY, (cx - 16, cy + 10, 32, 7))

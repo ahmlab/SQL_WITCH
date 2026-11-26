@@ -33,7 +33,7 @@ and you still need to understand them, because understanding lets you direct the
 | D6 | Licence | Open. The author asked not to change it now (LICENSE is still CC0). |
 | D7 | Business model | Open; decide before Phase 2. |
 | D8 | AI in production | Decided: code and text AI-drafted, human-approved; visual design generative AI, credited. |
-| D9 | Text resolution | Decided: text and UI at 2x (640×360) over the 320×180 world. |
+| D9 | Resolution | Decided (revised 26 Nov 2026): HD 1280×720 canvas, laid out in the 320×180 grid (4 px per logical px); HD art and HD text (JetBrains Mono, Unifont for CJK). |
 | D10 | Expert freedom | Decided: triggers, indexes, views, transactions allowed and rewarded (Trickster). |
 | D11 | Platforms | Decided: desktop only (Windows, macOS, Linux). |
 | D12 | Defeat | Decided: losing restarts the level, unlimited retries, nothing lost. |

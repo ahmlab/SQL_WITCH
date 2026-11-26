@@ -61,3 +61,13 @@ python -m tools.import_sprites import path/to/export
 Until the art arrives, `python -m tools.import_sprites placeholders` draws simple programmatic
 layers for every option, so the creator, the battle and the portraits all work. The default look
 (Ada) keeps the artist's hand-made battle sprite (`assets/sprites/ada_back.png`).
+
+## HD (1280x720)
+
+The game draws on an HD canvas, four real pixels per logical pixel, laid out in the 320x180 grid
+(decision D9, revised). The guardians, backdrops, the Grimoire, Ada and the title are painted by
+code at full resolution in `engine/hd_art.py` (gradients and soft edges between palette colours),
+and placed with `gfx.blit_hd` at logical positions. An artist's HD sprite replaces a piece by
+being loaded there instead: paint it at 4x its logical size (Ada: 80 x 164 pixels for her 20 x 41
+grid) and keep its feet where the old sprite's were. The layered creator sheets above are still
+at 1x and enlarged with hard edges until they are redrawn at 4x.

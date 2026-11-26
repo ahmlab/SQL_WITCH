@@ -27,7 +27,7 @@ import pygame
 
 from engine import gfx
 
-from engine import fx, render, scenery
+from engine import fx, hd_art, render, scenery
 from engine.audio import Audio, Silent, pick_track
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
 from engine.guide import Guide
@@ -352,8 +352,16 @@ TREES, GRASS_EDGE, GRASS_FIELD = render.TEAL, render.TEAL, render.FOREST
 GROUND_SHADOW = render.TEAL       # shadows on the grass are darker than the grass
 
 
+def hd(canvas) -> bool:
+    """Is this the HD canvas? (Tests draw on plain 320x180 surfaces: the pixel art.)"""
+    return getattr(canvas, "scale", 1) >= render.WORLD_SCALE
+
+
 def draw_backdrop(canvas: pygame.Surface, ground_y: int = 60) -> None:
     """Night sky in bands, a few stars, the moon and the grass of the Tutorial Glade."""
+    if hd(canvas):
+        gfx.blit_hd(canvas, hd_art.glade(ground_y), (0, 0))
+        return
     bands = [(0, render.INK), (12, render.NIGHT), (28, render.DUSK), (44, render.VIOLET)]
     for y, colour in bands:
         gfx.rect(canvas, colour, (0, y, render.LOGICAL_W, ground_y - y))
@@ -374,6 +382,11 @@ def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
                exhausted: bool, fainted: bool) -> None:
     """Placeholder Asterisk Slime: a green dome with an asterisk heart (design doc fig. 11)."""
     cx, cy = centre
+    if hd(canvas):
+        image = hd_art.slime((t // 150) % 4, exhausted, fainted, flash)
+        gfx.blit_hd(canvas, image, (cx - image.get_width() / render.WORLD_SCALE / 2,
+                                    cy + 22 - image.get_height() / render.WORLD_SCALE))
+        return
     body, edge = (render.WHITE, render.WHITE) if flash else (render.GRASS, render.FOREST)
     if fainted:
         gfx.ellipse(canvas, edge, (cx - 20, cy + 10, 40, 8))
@@ -452,8 +465,12 @@ class TitleScene(Scene):
         f = render.font()
         draw_backdrop(canvas, ground_y=120)
         title = "SQL WITCH"
-        f.draw_big(canvas, title, ((320 - f.big_width(title, TITLE_DOT)) // 2, 38),
-                   render.BUTTER, TITLE_DOT, shadow=render.AMBER, outline=render.INK)
+        if hd(canvas):
+            image = hd_art.title(title)
+            gfx.blit_hd(canvas, image, ((320 - image.get_width() / render.WORLD_SCALE) / 2, 30))
+        else:
+            f.draw_big(canvas, title, ((320 - f.big_width(title, TITLE_DOT)) // 2, 38),
+                       render.BUTTER, TITLE_DOT, shadow=render.AMBER, outline=render.INK)
         sub = t("title.subtitle")
         f.draw(canvas, sub, ((320 - f.width(sub)) // 2, 74), render.LILAC)
         for i, (label, _) in enumerate(self.items()):

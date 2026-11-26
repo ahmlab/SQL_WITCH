@@ -545,10 +545,10 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
             if char == " ":
                 continue
             if k >= fonts.HD_FROM_K and fonts.hd_covers(char):
-                glyph, hd = fonts.hd_glyph(char, colour, advance * k, heavy)
+                glyph, hd = fonts.hd_glyph(char, colour, advance * k, heavy, line_h * k)
                 if glyph is not None:
-                    # The baseline three quarters down the line: room below for descenders.
-                    top = y * k + round(line_h * k * 0.78) - hd.get_ascent()
+                    # The baseline where the old letters had theirs: room below for descenders.
+                    top = y * k + round(line_h * k * 0.72) - hd.get_ascent()
                     frame.blit(glyph, (cx + (advance * k - glyph.get_width()) // 2, top))
                     continue
             made = None if k == 1 else (f.fine(char, colour, *small_dots) if small

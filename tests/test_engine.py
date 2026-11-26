@@ -309,3 +309,24 @@ def test_hd_text_is_drawn_with_the_hd_font_in_the_same_grid():
     inked = [x for x in range(16, 16 + 8 * 16) if any(frame.get_at((x, y))[:3] != render.CREAM
                                                      for y in range(80, 108))]
     assert inked and max(inked) < 16 + 8 * 16 and min(inked) >= 16     # inside 8 cells
+
+
+@pytest.mark.parametrize("scene_name", ["title", "slime", "knight", "tutorial", "story"])
+def test_every_scene_draws_in_hd_with_real_detail(scene_name):
+    """On the HD canvas the scenes use the HD art: far more colours than the 32 of the pixel
+    art (gradients, anti-aliased edges), and the same layout."""
+    from engine.scenes import BattleScene, DialogueScene, Game
+    from engine.tutorial_scene import TutorialScene
+    canvas = render.Canvas()
+    game = Game(canvas, seed=1)
+    scene = {"title": lambda: game.scene, "slime": lambda: BattleScene(game, "slime"),
+             "knight": lambda: BattleScene(game, "knight"), "tutorial": lambda: TutorialScene(game),
+             "story": lambda: DialogueScene(game, "knight_intro", "knight")}[scene_name]()
+    game.switch(scene)
+    for _ in range(30):
+        game.update(16)
+    game.draw()
+    frame = pygame.Surface((1280, 720))
+    frame.blit(canvas, (0, 0))
+    colours = {tuple(frame.get_at((x, y))) for x in range(0, 1280, 3) for y in range(0, 720, 3)}
+    assert len(colours) > 120, len(colours)

@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pygame
 
+from engine import render
+
 SPRITE_DIR = Path(__file__).resolve().parent.parent / "assets" / "sprites"
 _cache: dict[tuple[str, bool], pygame.Surface] = {}
 
@@ -39,6 +41,8 @@ def draw_ada(canvas: pygame.Surface, feet: tuple[int, int], flash: bool = False,
              anim=None) -> pygame.Rect:
     """Ada seen from behind, standing with her feet centred on `feet`. With an AdaAnimator,
     each pixel row is drawn at its own small offset (breathing, casting, fainting...)."""
+    if getattr(canvas, "scale", 1) >= render.WORLD_SCALE:
+        return _draw_ada_hd(canvas, feet, flash, anim)
     image = sprite("ada_back", flash)
     rect = image.get_rect(midbottom=feet)
     if anim is None:
@@ -53,4 +57,26 @@ def draw_ada(canvas: pygame.Surface, feet: tuple[int, int], flash: bool = False,
         for ox, oy in ((-size, 0), (size, 0), (0, -size), (0, size)):   # a twinkling cross
             canvas.set_at((cx + ox, cy + oy), colour)
         canvas.set_at((cx, cy), (251, 247, 239))                        # a white-hot core
+    return rect
+
+
+def _draw_ada_hd(canvas, feet, flash, anim) -> pygame.Rect:
+    """The HD Ada (engine/hd_art.py), on the same 20x41 grid: AdaAnimator's row offsets move
+    each logical row (four real rows) as they moved the pixel sprite."""
+    from engine import hd_art
+    image = hd_art.ada_back(flash)
+    s = render.WORLD_SCALE
+    w, h = image.get_width() // s, image.get_height() // s
+    rect = pygame.Rect(0, 0, w, h)
+    rect.midbottom = feet
+    rows = anim.pose() if anim is not None else [(0, 0)] * h
+    for y, (dx, dy) in reversed(list(enumerate(rows[:h]))):
+        pygame.Surface.blit(canvas, image, ((rect.x + dx) * s, (rect.y + y + dy) * s),
+                            (0, y * s, w * s, s))
+    if anim is not None:
+        for x, y, colour, size in anim.glows():
+            cx, cy = rect.x + x, rect.y + y
+            for ox, oy in ((-size, 0), (size, 0), (0, -size), (0, size)):
+                canvas.set_at((cx + ox, cy + oy), colour)
+            canvas.set_at((cx, cy), (251, 247, 239))
     return rect

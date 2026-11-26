@@ -173,12 +173,15 @@ def hd_covers(char: str) -> bool:
 
 
 @lru_cache(maxsize=None)
-def hd_font(cell_w: int, bold: bool = False) -> pygame.font.Font | None:
-    """The largest JetBrains Mono whose letters fit a cell `cell_w` real pixels wide."""
+def hd_font(cell_w: int, bold: bool = False, line_px: int = 0) -> pygame.font.Font | None:
+    """The largest JetBrains Mono whose letters fit a cell `cell_w` real pixels wide and whose
+    descenders stay inside a line `line_px` tall (the old letters' height)."""
     if not pygame.font.get_init():
         pygame.font.init()
     try:
         size = max(6, int(cell_w / 0.6) + 1)
+        if line_px:
+            size = min(size, int(line_px * 0.84))
         font = pygame.font.Font(str(HD_FONT[bold]), size)
         while size > 6 and font.size("M")[0] > cell_w:
             size -= 1
@@ -199,10 +202,10 @@ def reset() -> None:
     unifont.cache_clear()
 
 
-def hd_glyph(char: str, colour: tuple, cell_w: int, bold: bool = False):
+def hd_glyph(char: str, colour: tuple, cell_w: int, bold: bool = False, line_px: int = 0):
     """(surface, font) of one HD letter, cached."""
-    key = (char, tuple(colour), cell_w, bold)
-    font = hd_font(cell_w, bold)
+    key = (char, tuple(colour), cell_w, bold, line_px)
+    font = hd_font(cell_w, bold, line_px)
     if font is None:
         return None, None
     if key not in _HD:
@@ -210,7 +213,7 @@ def hd_glyph(char: str, colour: tuple, cell_w: int, bold: bool = False):
             _HD[key] = font.render(char, True, colour)
         except pygame.error:                   # a font from before pygame.quit(): reload
             reset()
-            font = hd_font(cell_w, bold)
+            font = hd_font(cell_w, bold, line_px)
             _HD[key] = font.render(char, True, colour)
     return _HD[key], font
 
