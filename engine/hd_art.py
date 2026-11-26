@@ -95,6 +95,7 @@ def glade(ground_y: int) -> pygame.Surface:
     s = pygame.Surface((W, H))
     vgradient(s, (0, 0, W, g), [(0, render.INK), (0.35, render.NIGHT), (0.75, render.DUSK),
                                 (1, render.VIOLET)])
+    _sky_table(s, g)
     rng = _Pattern(7)
     for _ in range(140):                                  # stars of three sizes
         x, y = rng.next() % W, rng.next() % int(g * 0.7)
@@ -130,6 +131,41 @@ def glade(ground_y: int) -> pygame.Surface:
             disc(s, colour, (x + 4 * math.cos(a * 1.26), y + 4 * math.sin(a * 1.26)), 2)
         disc(s, render.GOLD, (x, y), 2)
     return s
+
+
+SKY_COLUMNS = ("id", "name", "hp", "element", "weakness", "mp", "speed")
+
+
+def _sky_table(s, g) -> None:
+    """The sky is a table ("Why is the sky a table? Why does it have so many columns?"): a
+    faint header row of column names, column rules and row lines, fading towards the hills,
+    with a star sitting in some of its cells. Column names are SQL: they stay in English."""
+    W = s.get_width()
+    layer = pygame.Surface(s.get_size(), pygame.SRCALPHA)
+    col_w, row_h = 46 * S, 9 * S
+    header = 11 * S
+    pygame.draw.rect(layer, (*render.LILAC, 26), (0, 0, W, header))
+    pygame.draw.line(layer, (*render.LILAC, 90), (0, header), (W, header), 3)
+    font = pygame.font.Font(str(render.fonts.HD_FONT[False]), 5 * S)
+    for i, name in enumerate(SKY_COLUMNS):
+        label = font.render(name, True, render.LILAC)
+        label.set_alpha(120)
+        layer.blit(label, (i * col_w + 3 * S, (header - label.get_height()) // 2))
+    for y in range(header + row_h, g, row_h):              # row lines, fading downwards
+        fade = 1 - (y - header) / max(1, g - header)
+        pygame.draw.line(layer, (*render.LILAC, round(46 * fade)), (0, y), (W, y), 2)
+    for x in range(col_w, W, col_w):                       # column rules
+        for y in range(0, g, 4):                           # fading the same way
+            fade = 1 - y / max(1, g)
+            layer.set_at((x, y), (*render.LILAC, round(70 * fade)))
+            layer.set_at((x + 1, y), (*render.LILAC, round(70 * fade)))
+    rng = _Pattern(13)
+    for _ in range(18):                                    # a star in some cells: the values
+        col, row = rng.next() % len(SKY_COLUMNS), rng.next() % max(1, (g - header) // row_h - 2)
+        cx, cy = col * col_w + col_w // 2, header + row * row_h + row_h // 2
+        disc(layer, render.BUTTER, (cx, cy), 3, 200)
+        disc(layer, render.BUTTER, (cx, cy), 8, 40)
+    s.blit(layer, (0, 0))
 
 
 def _hills(s, base, colour, freq, amp, seed) -> None:
@@ -174,62 +210,115 @@ class _Pattern:
 
 # ------------------------------------------------------------------ the Asterisk Slime
 
+def _slime_outline(cx: float, base: float, half_w: float, height: float, frame: int,
+                   squash: float) -> list[tuple[float, float]]:
+    """The jelly's silhouette: a wide, sagging base that spills into a wavy puddle, bulging
+    sides, and a soft tip at the top that leans and curls as it wobbles."""
+    pts = []
+    lean = (0, 6, 10, 4)[frame % 4]
+    steps = 64
+    for i in range(steps + 1):
+        a = math.pi * i / steps                            # 0 = right side, pi = left side
+        # Wider low down (it sags under its own weight), a little wobble along the edge.
+        sag = 1 + 0.22 * (1 - math.sin(a)) ** 2 + 0.03 * math.sin(4 * a + frame)
+        x = cx + math.cos(a) * half_w * sag * (1 + squash * 0.15)
+        # An uneven, rounded mound: lumpier on one side, never a neat cone.
+        rise = math.sin(a) ** 0.75
+        lumps = 0.07 * math.sin(3 * a + 0.6 + frame * 0.5) + 0.05 * math.sin(5 * a + frame)
+        lump = 0.06 * math.exp(-((a - 2.2) / 0.35) ** 2)     # a lump on its left shoulder
+        y = base - height * (1 - squash * 0.18) * (rise * 0.82 + lumps * math.sin(a) + lump)
+        x += lean * math.exp(-((a - math.pi / 2) / 0.5) ** 2)
+        pts.append((x, y))
+    # The puddle: the base spreads beyond the body in soft lobes.
+    for i in range(24, -1, -1):
+        t = i / 24
+        x = cx - half_w * 1.18 + t * half_w * 2.36
+        y = base + 6 + 4 * math.sin(t * math.pi * 5 + frame * 0.8)
+        pts.append((x, y))
+    return pts
+
+
 @lru_cache(maxsize=64)
 def slime(frame: int, exhausted: bool, fainted: bool, flash: bool) -> pygame.Surface:
-    """A glossy jelly dome with an asterisk heart, 48x44 logical pixels."""
-    w, h = 48 * S, 44 * S
+    """The Asterisk Slime: a translucent, sagging jelly with a curling tip, drips sliding down
+    its sides, bubbles rising inside and its asterisk heart floating in the middle. 56x48
+    logical pixels; frames wobble (squash and stretch)."""
+    w, h = 56 * S, 48 * S
     s = pygame.Surface((w, h), pygame.SRCALPHA)
-    body, rim, dark = render.GRASS, render.FOREST, mix(render.FOREST, render.INK, 0.4)
+    body, rim = render.GRASS, render.FOREST
+    deep = mix(render.FOREST, render.INK, 0.45)
     if flash:
-        body = rim = dark = render.WHITE
-    cx = w // 2
-    if fainted:                                           # a puddle with crossed eyes
-        oval(s, rim, (cx - 90, h - 40, 180, 34))
-        oval(s, body, (cx - 84, h - 38, 168, 26))
-        for ex in (cx - 30, cx + 18):
-            pygame.draw.line(s, render.INK, (ex, h - 32), (ex + 12, h - 20), 4)
-            pygame.draw.line(s, render.INK, (ex + 12, h - 32), (ex, h - 20), 4)
+        body = rim = deep = render.WHITE
+    cx, base = w / 2, h - 26
+    if fainted:                                           # a sad puddle with crossed eyes
+        pts = [(cx + 96 * math.cos(a) * (1 + 0.12 * math.sin(5 * a)),
+                base + 10 + 22 * math.sin(a) * (1 + 0.1 * math.cos(4 * a)))
+               for a in [i * math.pi * 2 / 60 for i in range(60)]]
+        poly(s, deep, [(x, y + 4) for x, y in pts])
+        poly(s, body, pts)
+        for ex in (cx - 34, cx + 22):
+            pygame.draw.line(s, render.INK, (ex, base + 2), (ex + 12, base + 14), 4)
+            pygame.draw.line(s, render.INK, (ex + 12, base + 2), (ex, base + 14), 4)
         return s
-    squash = (0, 1, 2, 1)[frame % 4] + (3 if exhausted else 0)
-    top = 8 + squash * 3
-    bw = 76 + squash * 3
-    oval(s, mix(render.INK, render.FOREST, 0.3), (cx - bw - 6, h - 22, 2 * bw + 12, 20), 160)   # shadow
-    rect = (cx - bw, top, 2 * bw, h - top - 10)
-    oval(s, dark, (rect[0] - 4, rect[1] - 4, rect[2] + 8, rect[3] + 8))
-    oval(s, rim, rect)
-    inner = (rect[0] + 6, rect[1] + 4, rect[2] - 12, rect[3] - 14)
-    for i in range(24):                                   # volume: lighter towards the top
-        t = i / 23
-        x, y, w2, h2 = (round(inner[0] + i * 1.6), round(inner[1] + i * 0.6),
-                        round(inner[2] - i * 3.2), round(inner[3] - i * 2.2))
-        if w2 > 4 and h2 > 4:                             # filled only: no ring lines
-            pygame.gfxdraw.filled_ellipse(s, x + w2 // 2, y + h2 // 2, w2 // 2, h2 // 2,
-                                          (*mix(rim, body, 0.35 + 0.65 * t), 255))
+    squash = (0.0, 0.5, 1.0, 0.5)[frame % 4] + (1.2 if exhausted else 0.0)
+    half_w, height = 74, 150
+    oval(s, mix(render.INK, render.FOREST, 0.3), (cx - half_w * 1.4, base - 4, half_w * 2.8, 30), 140)
+    outline = _slime_outline(cx, base, half_w, height, frame, squash)
+    poly(s, deep, [(x, y + 5) for x, y in outline])          # the dark rim underneath
+    poly(s, rim, outline)
+    # Volume: layers shrink towards the upper left, where the light comes from.
+    for i in range(1, 30):                                   # filled only: no lines between
+        k = i / 30
+        layer = [(round(cx + (x - cx) * (1 - 0.6 * k) - 16 * k),
+                  round(base - (base - y) * (1 - 0.4 * k) - 12 * k)) for x, y in outline]
+        pygame.gfxdraw.filled_polygon(s, layer, (*mix(rim, body, 0.2 + 0.8 * k), 255))
     if flash:
         return s
-    oval(s, render.MINT, (cx - bw * 0.55, top + 14, 30, 18), 200)        # shine
-    disc(s, render.WHITE, (cx - bw * 0.45, top + 18), 5, 230)
-    heart_y = top + (h - top) * 0.58                      # the asterisk heart, glowing
-    disc(s, render.GOLD, (cx, heart_y), 22, 60)
+    top_y = min(y for _, y in outline)
+    # Translucency: the asterisk heart floats inside, softened by the jelly around it.
+    heart_x, heart_y = cx + 4, base - height * 0.24
+    disc(s, render.GOLD, (heart_x, heart_y), 30, 45)
     for a in range(3):
-        ang = a * math.pi / 3
-        dx, dy = 16 * math.cos(ang), 16 * math.sin(ang)
-        pygame.draw.line(s, render.GOLD, (cx - dx, heart_y - dy), (cx + dx, heart_y + dy), 7)
-    disc(s, render.BUTTER, (cx, heart_y), 5)
-    eye_y = top + (h - top) * 0.32
-    for ex in (cx - 28, cx + 28):                          # eyes: white, pupil, a spark
+        ang = a * math.pi / 3 + frame * 0.08
+        dx, dy = 18 * math.cos(ang), 18 * math.sin(ang)
+        pygame.draw.line(s, mix(render.GOLD, body, 0.25), (heart_x - dx, heart_y - dy),
+                         (heart_x + dx, heart_y + dy), 8)
+    disc(s, render.BUTTER, (heart_x, heart_y), 6)
+    for i in range(6):                                       # bubbles rising inside
+        bx = cx - 40 + (i * 23) % 80
+        by = base - 16 - ((frame * 9 + i * 31) % int(height * 0.7))
+        disc(s, mix(body, render.MINT, 0.6), (bx, by), 3 + i % 3, 170)
+        disc(s, render.WHITE, (bx - 1, by - 1), 1, 200)
+    for i, angle in enumerate((0.22, 2.92)):                 # drops sliding off its sides
+        ex, ey = outline[round(angle / math.pi * 64)]
+        ex += 6 if angle < 1 else -6
+        stretch = 6 + ((frame + i * 2) % 4) * 4              # they slowly stretch and fall
+        drop = [(ex - 6, ey - 4), (ex + 6, ey - 4), (ex + 5, ey + stretch),
+                (ex, ey + stretch + 9), (ex - 5, ey + stretch)]
+        poly(s, mix(rim, body, 0.55), drop)
+        disc(s, render.MINT, (ex - 1, ey + stretch - 1), 2, 220)
+    # A long glossy highlight along the upper left, and a rim light on the right.
+    shine = [(cx - 58, base - 50), (cx - 54, top_y + 56), (cx - 30, top_y + 28),
+             (cx - 38, top_y + 50), (cx - 46, base - 56)]
+    poly(s, render.MINT, shine, 190)
+    disc(s, render.WHITE, (cx - 30, top_y + 34), 6, 230)
+    eye_y = base - height * 0.6
+    for ex in (cx - 26, cx + 30):                            # eyes: big, wet, a spark
         if exhausted:
-            pygame.draw.line(s, render.INK, (ex - 9, eye_y + 2), (ex + 9, eye_y + 2), 4)
+            pygame.draw.arc(s, render.INK, (ex - 11, eye_y - 4, 22, 14), math.pi * 1.05,
+                            math.pi * 1.95, 4)
             continue
-        oval(s, render.WHITE, (ex - 10, eye_y - 12, 20, 24))
-        disc(s, render.INK, (ex + 2, eye_y + 2), 7)
-        disc(s, render.WHITE, (ex + 4, eye_y - 2), 2)
-    if exhausted:                                          # a drop of sweat
-        poly(s, render.SKY, [(cx + bw * 0.7, top + 20), (cx + bw * 0.62, top + 36),
-                             (cx + bw * 0.78, top + 36)])
+        oval(s, render.WHITE, (ex - 12, eye_y - 15, 24, 30))
+        disc(s, render.INK, (ex + 3, eye_y + 3), 8)
+        disc(s, render.WHITE, (ex + 6, eye_y - 2), 3)
+    mouth_y = eye_y + 20
+    if exhausted:                                            # panting, a drop of sweat
+        oval(s, deep, (cx - 8, mouth_y - 4, 18, 14))
+        poly(s, render.SKY, [(cx + half_w * 0.55, top_y + 40), (cx + half_w * 0.48, top_y + 58),
+                             (cx + half_w * 0.62, top_y + 58)])
     else:
-        pygame.draw.arc(s, render.INK, (cx - 12, eye_y + 10, 24, 14), math.pi * 1.1,
-                        math.pi * 1.9, 3)                  # a small smile
+        pygame.draw.arc(s, render.INK, (cx - 12, mouth_y - 10, 28, 16), math.pi * 1.1,
+                        math.pi * 1.9, 4)
     return s
 
 

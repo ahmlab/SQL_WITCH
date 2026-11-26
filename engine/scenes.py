@@ -400,7 +400,7 @@ def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
     if hd(canvas):
         image = hd_art.slime((t // 150) % 4, exhausted, fainted, flash)
         gfx.blit_hd(canvas, image, (cx - image.get_width() / render.WORLD_SCALE / 2,
-                                    cy + 22 - image.get_height() / render.WORLD_SCALE))
+                                    cy + 20 - image.get_height() / render.WORLD_SCALE))
         return
     body, edge = (render.WHITE, render.WHITE) if flash else (render.GRASS, render.FOREST)
     if fainted:
