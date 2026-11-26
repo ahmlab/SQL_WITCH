@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import pygame
 
+from engine import gfx
+
 import i18n                                # i18n.t: "t" is the tutorial in this file
 
 from engine import render, scenery
@@ -338,7 +340,7 @@ class TutorialScene(BattleScene):
         t, revealed = self.tutorial, self.tutorial.revealed
         draw_backdrop(canvas)
         hx, hy = self.foe_xy()
-        pygame.draw.ellipse(canvas, GROUND_SHADOW, (hx - 12, hy + 14, 24, 6))
+        gfx.ellipse(canvas, GROUND_SHADOW, (hx - 12, hy + 14, 24, 6))
         scenery.draw_dummy(canvas, (hx, hy), self.time,
                            self.flash["foe"] > 0 and (self.time // 40) % 2 == 0)
         if t.phase == "ending" and t.step is not None and t.step.narrator:
@@ -425,13 +427,13 @@ class TutorialScene(BattleScene):
         for i, lesson_id in enumerate(ids):
             dot = pygame.Rect(x + i * 7, y, 5, 5)
             done = lesson_id in t.passed or (i == t.index and t.phase == "success")
-            pygame.draw.rect(canvas, render.INK, dot.inflate(2, 2))
+            gfx.rect(canvas, render.INK, dot.inflate(2, 2))
             if done:
-                pygame.draw.rect(canvas, render.GOLD, dot)
+                gfx.rect(canvas, render.GOLD, dot)
             elif i == t.index and (self.time // 300) % 2 == 0:
-                pygame.draw.rect(canvas, render.LAVENDER, dot)
+                gfx.rect(canvas, render.LAVENDER, dot)
             else:
-                pygame.draw.rect(canvas, render.SLATE, dot)
+                gfx.rect(canvas, render.SLATE, dot)
         if t.lesson is not None:
             f.draw(canvas, t.lesson["title"], (x + len(ids) * 7 + 2, y - 1), render.BUTTER,
                    shadow=render.INK)
@@ -452,9 +454,9 @@ class TutorialScene(BattleScene):
         # A small pointer under the bubble, above the dummy's head.
         x = min(max(render.snap(self.body.position.x), box.x + 6), box.right - 6)
         tail = [(x - 3, box.bottom - 1), (x + 3, box.bottom - 1), (x, box.bottom + 3)]
-        pygame.draw.polygon(canvas, render.CREAM, tail)
-        pygame.draw.line(canvas, render.INK, tail[0], tail[2])
-        pygame.draw.line(canvas, render.INK, tail[1], tail[2])
+        gfx.polygon(canvas, render.CREAM, tail)
+        gfx.line(canvas, render.INK, tail[0], tail[2])
+        gfx.line(canvas, render.INK, tail[1], tail[2])
         for i, line in enumerate(lines):
             f.draw(canvas, line, (box.x + 4, box.y + 3 + i * render.LINE_H), render.BARK)
 
@@ -464,9 +466,9 @@ class TutorialScene(BattleScene):
         rect = self._part(point) if point else None
         if rect is not None:
             colour = render.GOLD if (self.time // 250) % 2 == 0 else render.RED
-            pygame.draw.rect(canvas, colour, rect.inflate(4, 4), 1)
+            gfx.rect(canvas, colour, rect.inflate(4, 4), 1)
             for corner in (rect.inflate(4, 4).topleft, rect.inflate(4, 4).bottomright):
-                pygame.draw.rect(canvas, colour, (corner[0] - 1, corner[1] - 1, 3, 3))
+                gfx.rect(canvas, colour, (corner[0] - 1, corner[1] - 1, 3, 3))
         for part, born in list(self.pulses.items()):
             age = self.time - born
             if age > PULSE_MS:
@@ -476,7 +478,7 @@ class TutorialScene(BattleScene):
             if area is not None:
                 grow = 2 + (age // 160) % 3
                 colour = render.WHITE if (age // 120) % 2 == 0 else render.LILAC
-                pygame.draw.rect(canvas, colour, area.inflate(grow * 2, grow * 2), 1)
+                gfx.rect(canvas, colour, area.inflate(grow * 2, grow * 2), 1)
 
     def _draw_skip(self, canvas):
         f = render.font()

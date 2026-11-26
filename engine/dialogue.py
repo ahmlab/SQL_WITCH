@@ -25,6 +25,8 @@ from pathlib import Path
 
 import pygame
 
+from engine import gfx
+
 from engine import render
 from i18n.width import text_cells, wrap
 from story.pacing import style_of
@@ -130,7 +132,7 @@ class DialogueBox:
                     dx = ((now // 45 + i * 7) % 3) - 1
                     dy += ((now // 60 + i * 5) % 3) - 1
                 if token.rune:
-                    pygame.draw.rect(canvas, render.BUTTER,
+                    gfx.rect(canvas, render.BUTTER,
                                      (x - 1, y - 1, measure(char) + 2, render.GLYPH_H + 1))
                 ink = colour(token.color, render.INK)
                 f.draw(canvas, char, (x + dx, y + dy), ink)

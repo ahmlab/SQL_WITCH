@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import pygame
 
+from engine import gfx
+
 from i18n import t
 
 from i18n.width import wrap as wrap_cells
@@ -79,11 +81,11 @@ def draw_table(surface: pygame.Surface, report: CastReport, rows_shown: int,
     shades = row_shades(report)
     for i in range(min(rows_shown, PAGE_ROWS + 1, len(rows))):
         if i in shades:                                         # behind the text
-            pygame.draw.rect(surface, shades[i],
+            gfx.rect(surface, shades[i],
                              (topleft[0], y0 + TABLE_TOP + i * ROW_H - 1, RIGHT_PAGE.width, ROW_H - 1))
     for name, x in zip(columns, xs):
         f.draw(surface, name, (x0 + x, y0), render.LEATHER)
-    pygame.draw.line(surface, render.LEATHER, (x0, y0 + render.GLYPH_H + 1),
+    gfx.line(surface, render.LEATHER, (x0, y0 + render.GLYPH_H + 1),
                      (x0 + total_w, y0 + render.GLYPH_H + 1))
     for i, row in enumerate(rows[:min(rows_shown, PAGE_ROWS + 1)]):   # nobody sees past row 5
         y = y0 + TABLE_TOP + i * ROW_H
@@ -210,11 +212,11 @@ class Grimoire:
     def draw(self, surface: pygame.Surface, now: int, focused: bool) -> None:
         f = render.font()
         # The book: leather cover, two cream pages and a spine.
-        pygame.draw.rect(surface, render.BARK, BOOK)
-        pygame.draw.rect(surface, render.LEATHER, BOOK.inflate(-4, -4))
+        gfx.rect(surface, render.BARK, BOOK)
+        gfx.rect(surface, render.LEATHER, BOOK.inflate(-4, -4))
         for page in (LEFT_PAGE, RIGHT_PAGE):
-            pygame.draw.rect(surface, render.CREAM, page.inflate(6, 6))
-        pygame.draw.line(surface, render.SAND, (160, 104), (160, 172))
+            gfx.rect(surface, render.CREAM, page.inflate(6, 6))
+        gfx.line(surface, render.SAND, (160, 104), (160, 172))
 
         # Left page: the query being written.
         f.draw(surface, t("grimoire.your_query"), (LEFT_PAGE.x, LEFT_PAGE.y), render.VIOLET)
@@ -242,7 +244,7 @@ class Grimoire:
         """Turn lock: the left page is a closed cover with one line saying why."""
         cover = pygame.Rect(LEFT_PAGE.x - 1, LEFT_PAGE.y + 8, LEFT_PAGE.width + 2, 44)
         render.cover(surface, cover, (*render.LEATHER, 235))
-        pygame.draw.rect(surface, render.GOLD, cover.inflate(-8, -8), 1)
+        gfx.rect(surface, render.GOLD, cover.inflate(-8, -8), 1)
         lines = wrap(self.closed, 30)[:3]
         f = render.font()
         y = cover.centery - len(lines) * render.LINE_H // 2
@@ -268,7 +270,7 @@ class Grimoire:
         for squeeze in ((" -> ", "->"), (" | ", "|")):
             if f.width(text) > box.width - 4:
                 text = text.replace(*squeeze)
-        pygame.draw.rect(surface, border, box, 1)
+        gfx.rect(surface, border, box, 1)
         f.draw(surface, text, (box.x + 2, box.y + 2), border)
 
     def _draw_miscast(self, surface: pygame.Surface) -> None:
@@ -312,7 +314,7 @@ class Grimoire:
         shift = t("grimoire.shift")
         f.draw(surface, shift, (SCROLL_LEFT.x - 2 - f.width(shift), SCROLL_LEFT.y + 1), render.SAND)
         for rect, glyph, lit in ((SCROLL_LEFT, "<", left), (SCROLL_RIGHT, ">", right)):
-            pygame.draw.rect(surface, render.GOLD if lit else render.PARCHMENT, rect)
+            gfx.rect(surface, render.GOLD if lit else render.PARCHMENT, rect)
             f.draw(surface, glyph, (rect.x + 2, rect.y + 1), render.INK if lit else render.SAND)
 
     def _draw_drips(self, surface: pygame.Surface, age_ms: int) -> None:
@@ -331,7 +333,7 @@ class Grimoire:
             if length <= 0:
                 continue
             px = RIGHT_PAGE.x + x + 2
-            pygame.draw.line(surface, render.GREY, (px, bottom), (px, bottom + length))
+            gfx.line(surface, render.GREY, (px, bottom), (px, bottom + length))
             surface.set_at((px - 1, bottom + length), render.GREY)
             surface.set_at((px + 1, bottom + length), render.GREY)
 
@@ -386,7 +388,7 @@ def draw_foe_book(surface: pygame.Surface, foe_name: str, sql: str | None,
             pulse = render.BUTTER if (now // 250) % 2 == 0 else render.GOLD
             glow = pygame.Rect(x0 + start * render.SMALL_ADVANCE - 1, y0 - 1,
                                len(glow_word) * render.SMALL_ADVANCE + 1, render.SMALL_LINE_H + 1)
-            pygame.draw.rect(surface, pulse, glow)
+            gfx.rect(surface, pulse, glow)
         render.draw_coloured(surface, line, [STYLE_COLOURS[st] for st in styles], (x0, y0),
                              small=True)
     if show_summary:

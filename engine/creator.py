@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import pygame
 
+from engine import gfx
+
 from engine import render
 from engine.animation import Character, default_look, spec
 from i18n import CATALOG, t
@@ -164,7 +166,7 @@ class CreatorScene:
         for i, row in enumerate(self.rows):
             chosen = i == self.row
             if chosen:
-                pygame.draw.rect(canvas, render.DUSK, (8, y - 2, 196, 9))
+                gfx.rect(canvas, render.DUSK, (8, y - 2, 196, 9))
             f.draw(canvas, t(f"creator.row.{row}"), (12, y), render.WHITE if chosen else render.LILAC)
             value = self.value(row)
             f.draw(canvas, value, (200 - text_cells(value) * render.ADVANCE, y), render.GOLD)

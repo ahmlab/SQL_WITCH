@@ -25,6 +25,8 @@ from typing import Callable
 
 import pygame
 
+from engine import gfx
+
 from engine import fx, render, scenery
 from engine.audio import Audio, Silent, pick_track
 from engine.grimoire import LEFT_PAGE, Grimoire, draw_foe_book, wrap
@@ -354,18 +356,18 @@ def draw_backdrop(canvas: pygame.Surface, ground_y: int = 60) -> None:
     """Night sky in bands, a few stars, the moon and the grass of the Tutorial Glade."""
     bands = [(0, render.INK), (12, render.NIGHT), (28, render.DUSK), (44, render.VIOLET)]
     for y, colour in bands:
-        pygame.draw.rect(canvas, colour, (0, y, render.LOGICAL_W, ground_y - y))
+        gfx.rect(canvas, colour, (0, y, render.LOGICAL_W, ground_y - y))
     for y, _ in bands[1:]:                             # one separator per colour change
-        pygame.draw.line(canvas, render.INK, (0, y - 1), (render.LOGICAL_W - 1, y - 1))    
+        gfx.line(canvas, render.INK, (0, y - 1), (render.LOGICAL_W - 1, y - 1))    
     for i in range(24):                                    # stars on a fixed pattern
         canvas.set_at(((i * 53 + 17) % 320, (i * 29 + 5) % 40), render.LILAC)
-    pygame.draw.circle(canvas, render.BUTTER, (292, 14), 7)
-    pygame.draw.circle(canvas, render.NIGHT, (296, 12), 6)  # the moon's shadow side
+    gfx.circle(canvas, render.BUTTER, (292, 14), 7)
+    gfx.circle(canvas, render.NIGHT, (296, 12), 6)  # the moon's shadow side
     for x in range(0, render.LOGICAL_W, 8):                # a jagged tree line
-        pygame.draw.polygon(canvas, TREES,
+        gfx.polygon(canvas, TREES,
                             [(x, ground_y), (x + 4, ground_y - 6 - (x // 8) % 3), (x + 8, ground_y)])
-    pygame.draw.rect(canvas, GRASS_EDGE, (0, ground_y, render.LOGICAL_W, 180 - ground_y))
-    pygame.draw.rect(canvas, GRASS_FIELD, (0, ground_y + 4, render.LOGICAL_W, 180 - ground_y))
+    gfx.rect(canvas, GRASS_EDGE, (0, ground_y, render.LOGICAL_W, 180 - ground_y))
+    gfx.rect(canvas, GRASS_FIELD, (0, ground_y + 4, render.LOGICAL_W, 180 - ground_y))
 
 
 def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: bool,
@@ -374,19 +376,19 @@ def draw_slime(canvas: pygame.Surface, centre: tuple[int, int], t: int, flash: b
     cx, cy = centre
     body, edge = (render.WHITE, render.WHITE) if flash else (render.GRASS, render.FOREST)
     if fainted:
-        pygame.draw.ellipse(canvas, edge, (cx - 20, cy + 10, 40, 8))
+        gfx.ellipse(canvas, edge, (cx - 20, cy + 10, 40, 8))
         return
     bob = (0, 1, 1, 0)[(t // 150) % 4] + (2 if exhausted else 0)   # idle: 4 frames x 150 ms
     top = cy - 16 + bob
-    pygame.draw.ellipse(canvas, edge, (cx - 18, top, 36, 34))
-    pygame.draw.rect(canvas, edge, (cx - 18, top + 17, 36, 16 - bob))
-    pygame.draw.ellipse(canvas, body, (cx - 17, top + 1, 34, 32))
-    pygame.draw.rect(canvas, body, (cx - 17, top + 17, 34, 15 - bob))
+    gfx.ellipse(canvas, edge, (cx - 18, top, 36, 34))
+    gfx.rect(canvas, edge, (cx - 18, top + 17, 36, 16 - bob))
+    gfx.ellipse(canvas, body, (cx - 17, top + 1, 34, 32))
+    gfx.rect(canvas, body, (cx - 17, top + 17, 34, 15 - bob))
     if not flash:
-        pygame.draw.rect(canvas, render.MINT, (cx - 10, top + 5, 3, 3))   # shine
+        gfx.rect(canvas, render.MINT, (cx - 10, top + 5, 3, 3))   # shine
         eye = 1 if exhausted else 3
-        pygame.draw.rect(canvas, render.INK, (cx - 7, top + 13, 2, eye))
-        pygame.draw.rect(canvas, render.INK, (cx + 5, top + 13, 2, eye))
+        gfx.rect(canvas, render.INK, (cx - 7, top + 13, 2, eye))
+        gfx.rect(canvas, render.INK, (cx + 5, top + 13, 2, eye))
         render.font().draw(canvas, "*", (cx - 3, top + 18), render.GOLD, scale=2)
 
 
@@ -1483,7 +1485,7 @@ class BattleScene(Scene):
         else:
             draw_backdrop(canvas)
             home = HOME[self.key]
-            pygame.draw.ellipse(canvas, GROUND_SHADOW, (home[0] - 28, home[1] + 12, 56, 10))
+            gfx.ellipse(canvas, GROUND_SHADOW, (home[0] - 28, home[1] + 12, 56, 10))
             draw_slime(canvas, self.foe_xy(), self.time, flash, state.foe.exhausted, fainted)
         # Seen from behind, standing at the bottom left of the battlefield.
         draw_protagonist(self.game, canvas, ADA_FEET,
@@ -1606,8 +1608,8 @@ class BattleScene(Scene):
     def _draw_tables_button(self, canvas):
         f = render.font()
         fill = render.TEAL if self.tables_open else render.FOAM
-        pygame.draw.rect(canvas, render.INK, TABLES_BUTTON)
-        pygame.draw.rect(canvas, fill, TABLES_BUTTON.inflate(-2, -2))
+        gfx.rect(canvas, render.INK, TABLES_BUTTON)
+        gfx.rect(canvas, fill, TABLES_BUTTON.inflate(-2, -2))
         f.draw(canvas, t("panel.tables"), (TABLES_BUTTON.x + 3, TABLES_BUTTON.y + 2),
                render.WHITE if self.tables_open else render.TEAL)
 
@@ -1646,19 +1648,19 @@ class BattleScene(Scene):
             rect, born = self.word_glow
             age = self.time - born
             if age < 140:
-                pygame.draw.rect(canvas, render.BUTTER, rect)
+                gfx.rect(canvas, render.BUTTER, rect)
             elif age < 420:
-                pygame.draw.rect(canvas, render.GOLD, rect, 1)
+                gfx.rect(canvas, render.GOLD, rect, 1)
             else:
                 self.word_glow = None
         heat = self.streak.level(self.time)
         if heat > 0.25:
             edge = LEFT_PAGE.inflate(5, 5)
             colour = render.LILAC if heat > 0.7 else render.LAVENDER
-            pygame.draw.rect(canvas, colour, edge, 1)
+            gfx.rect(canvas, colour, edge, 1)
             if heat > 0.7 and (self.time // 120) % 2 == 0:
                 for corner in (edge.topleft, edge.topright, edge.bottomleft, edge.bottomright):
-                    pygame.draw.rect(canvas, render.GOLD, (corner[0] - 1, corner[1] - 1, 3, 3))
+                    gfx.rect(canvas, render.GOLD, (corner[0] - 1, corner[1] - 1, 3, 3))
 
     def _draw_foe_panel(self, canvas):
         f, foe = render.font(), self.battle.state.foe

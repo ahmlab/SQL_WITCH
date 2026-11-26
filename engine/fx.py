@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 
 import pygame
 
+from engine import gfx
+
 from engine import render
 
 SPARK_COLOURS = (render.BUTTER, render.GOLD, render.LILAC, render.SKY, render.WHITE)
@@ -105,9 +107,9 @@ class Effects:
             if len(b.points) < 2 or (b.age // 32) % 3 == 2:   # flicker
                 continue
             for dx, dy in ((1, 0), (-1, 0), (0, 1)):         # glow first, then the core
-                pygame.draw.lines(canvas, b.glow, False,
+                gfx.lines(canvas, b.glow, False,
                                   [(x + dx, y + dy) for x, y in b.points])
-            pygame.draw.lines(canvas, b.core, False, b.points)
+            gfx.lines(canvas, b.core, False, b.points)
         for s in self.sparks:
             colour = s.colour if s.age < s.life * 0.6 else render.GREY
             canvas.set_at((render.snap(s.x), render.snap(s.y)), colour)

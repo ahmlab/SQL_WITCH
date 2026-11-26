@@ -20,6 +20,8 @@ import unicodedata
 
 import pygame
 
+from engine import gfx
+
 from engine import fonts
 from i18n.width import cells, text_cells
 
@@ -266,16 +268,26 @@ def small_print_dots(k: int) -> tuple[int, int, int]:
     return dot_x, dot_y, bold
 
 
-class Canvas(pygame.Surface):
-    """The 320x180 game surface, plus the text drawn on it this frame.
+WORLD_SCALE = 4                  # real pixels per logical pixel: 320x180 -> 1280x720 (HD 720p)
 
-    Text is not painted into the canvas: it is recorded, and Screen.present() draws it on top
-    of the scaled frame at the window's real resolution. Letters keep the same 4-pixel grid
-    (so PAGE_WIDTH still means 36 characters), but each one gets far more detail.
+
+class Canvas(pygame.Surface):
+    """The game surface: laid out in logical 320x180 coordinates, stored at 1280x720.
+
+    Scenes draw as they always did, in the 320x180 grid (the page is 36 characters wide, every
+    box keeps its place), through engine/gfx.py and the methods below, which multiply by
+    `scale`. Pixel art drawn at 1x is enlarged with hard edges, so it looks as before; HD art
+    (gfx.blit_hd, fractional coordinates, quarter-pixel lines) uses all 1280x720 pixels.
+
+    Text is not painted into the canvas: it is recorded, and drawn on top of the finished HD
+    frame (draw_text_layer), letter by letter in the same 4-pixel grid.
     """
 
-    def __init__(self, size=(LOGICAL_W, LOGICAL_H)):
-        super().__init__(size)
+    def __init__(self, size=(LOGICAL_W, LOGICAL_H), scale: int = WORLD_SCALE):
+        super().__init__((size[0] * scale, size[1] * scale))
+        self.scale = scale
+        self.logical = pygame.Rect(0, 0, *size)
+        self._clip = None
         self.ops: list[tuple] = []
 
     def begin_frame(self) -> None:
@@ -284,6 +296,65 @@ class Canvas(pygame.Surface):
     def texts(self) -> list[str]:
         """Every string drawn this frame (handy for tests)."""
         return [op[1] for op in self.ops if op[0] in ("text", "small")]
+
+    # ------------------------------------------------------------ the logical surface
+
+    def get_size(self):
+        return self.logical.size
+
+    def get_width(self):
+        return self.logical.w
+
+    def get_height(self):
+        return self.logical.h
+
+    def get_rect(self, **kw):
+        rect = self.logical.copy()
+        for key, value in kw.items():
+            setattr(rect, key, value)
+        return rect
+
+    def _hd(self, rect) -> pygame.Rect:
+        rect = pygame.Rect(rect)
+        s = self.scale
+        return pygame.Rect(rect.x * s, rect.y * s, rect.w * s, rect.h * s)
+
+    def fill(self, colour, rect=None, special_flags=0):
+        return super().fill(colour, None if rect is None else self._hd(rect), special_flags)
+
+    def set_at(self, pos, colour):
+        s = self.scale
+        super().fill(colour, (int(pos[0]) * s, int(pos[1]) * s, s, s))
+
+    def get_at(self, pos):
+        s = self.scale
+        return super().get_at((int(pos[0]) * s, int(pos[1]) * s))
+
+    def scroll(self, dx=0, dy=0):
+        super().scroll(dx * self.scale, dy * self.scale)
+
+    def set_clip(self, rect=None):
+        self._clip = None if rect is None else pygame.Rect(rect)
+        super().set_clip(None if rect is None else self._hd(rect))
+
+    def get_clip(self):
+        return self._clip.copy() if self._clip is not None else self.logical.copy()
+
+    def blit(self, source, dest, area=None, special_flags=0):
+        """A logical (1x) image at a logical position, enlarged with hard edges."""
+        s = self.scale
+        if area is not None:
+            area = pygame.Rect(area)
+            source = source.subsurface(area.clip(source.get_rect()))
+        x, y = (dest.x, dest.y) if isinstance(dest, pygame.Rect) else dest
+        w, h = source.get_size()
+        big = pygame.transform.scale(source, (w * s, h * s))
+        super().blit(big, (round(x * s), round(y * s)), None, special_flags)
+        return pygame.Rect(int(x), int(y), w, h)
+
+    def hd_pixels(self) -> pygame.Surface:
+        """The real 1280x720 pixels (for composing the frame)."""
+        return self
 
 
 class PixelFont:
@@ -466,13 +537,20 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
         small = kind == "small"
         advance, top = (SMALL_ADVANCE, small_dy) if small else (ADVANCE, dy)
         line_h = SMALL_LINE_H if small else LINE_H
+        heavy = HEAVY_TEXT[0] and y >= GRIMOIRE_TOP and not small
         col = 0
         for char in text:
             cx = (x + col * advance) * k
             col += cells(char)
             if char == " ":
                 continue
-            heavy = HEAVY_TEXT[0] and y >= GRIMOIRE_TOP and not small
+            if k >= fonts.HD_FROM_K and fonts.hd_covers(char):
+                glyph, hd = fonts.hd_glyph(char, colour, advance * k, heavy)
+                if glyph is not None:
+                    # The baseline three quarters down the line: room below for descenders.
+                    top = y * k + round(line_h * k * 0.78) - hd.get_ascent()
+                    frame.blit(glyph, (cx + (advance * k - glyph.get_width()) // 2, top))
+                    continue
             made = None if k == 1 else (f.fine(char, colour, *small_dots) if small
                                         else f.fine(char, colour, dot, None,
                                                     bold_px(dot) + (1 if heavy else 0)))
@@ -548,6 +626,8 @@ class Screen:
                 # "largest that fits" would shrink a little every time the display is set.
                 w, h = desktop_size()
                 scale = fit((w - 80, h - 120))[0]
+                if scale >= WORLD_SCALE:          # a whole multiple of 1280x720: the crispest
+                    scale -= scale % WORLD_SCALE
             self.window = pygame.display.set_mode((LOGICAL_W * scale, LOGICAL_H * scale),
                                                   pygame.RESIZABLE)
             self.scale = scale
@@ -560,14 +640,22 @@ class Screen:
             (pos[1] - oy) * LOGICAL_H // max(1, size[1])
 
     def compose(self) -> tuple[pygame.Surface, int]:
-        """The finished frame at window scale: pixel art scaled up, then the sharp text."""
-        k, size, _ = letterbox(self.window.get_size(), self.fill)
-        # pygame.transform.scale is nearest-neighbour: exactly what pixel art needs.
-        frame = pygame.transform.scale(self.canvas, (LOGICAL_W * k, LOGICAL_H * k))
-        draw_text_layer(frame, self.canvas.ops, k)
-        if frame.get_size() != size:                    # fill: stretch the finished frame
-            frame = pygame.transform.scale(frame, size)
-        return frame, k
+        """The finished frame: the HD canvas with its text drawn at HD resolution, then fitted
+        to the window: a whole multiple when one fits, else smoothly (fill, or a window smaller
+        than 1280x720)."""
+        canvas = self.canvas
+        frame = pygame.Surface(canvas.get_size() if not isinstance(canvas, Canvas) else
+                               (LOGICAL_W * canvas.scale, LOGICAL_H * canvas.scale))
+        frame.blit(canvas if not isinstance(canvas, Canvas) else canvas.hd_pixels(), (0, 0))
+        hd = canvas.scale if isinstance(canvas, Canvas) else 1
+        draw_text_layer(frame, canvas.ops if isinstance(canvas, Canvas) else [], hd)
+        _, size, _ = letterbox(self.window.get_size(), self.fill)
+        if size != frame.get_size():
+            if size[0] % frame.get_width() == 0 and size[1] % frame.get_height() == 0:
+                frame = pygame.transform.scale(frame, size)        # a whole multiple: crisp
+            else:
+                frame = pygame.transform.smoothscale(frame, size)
+        return frame, hd
 
     def present(self, rng=None) -> None:
         frame, k = self.compose()
@@ -586,9 +674,9 @@ class Screen:
 def panel(surface: pygame.Surface, rect: pygame.Rect, fill=CREAM, border=INK,
           inner=PARCHMENT) -> None:
     """A bordered box in the style of the battle-screen mock-up (design doc 4.4)."""
-    pygame.draw.rect(surface, border, rect)
-    pygame.draw.rect(surface, fill, rect.inflate(-2, -2))
-    pygame.draw.line(surface, inner, (rect.left + 1, rect.bottom - 2),
+    gfx.rect(surface, border, rect)
+    gfx.rect(surface, fill, rect.inflate(-2, -2))
+    gfx.line(surface, inner, (rect.left + 1, rect.bottom - 2),
                      (rect.right - 2, rect.bottom - 2))
 
 
@@ -625,9 +713,9 @@ def set_palette(name: str, palettes: dict) -> None:
 def meter(surface: pygame.Surface, rect: pygame.Rect, value: int, maximum: int,
           colour: tuple, back=SLATE) -> None:
     """An HP or MP bar. The filled width is a whole number of pixels."""
-    pygame.draw.rect(surface, INK, rect)
-    pygame.draw.rect(surface, back, rect.inflate(-2, -2))
+    gfx.rect(surface, INK, rect)
+    gfx.rect(surface, back, rect.inflate(-2, -2))
     inner = rect.inflate(-2, -2)
     filled = snap(inner.width * value / maximum) if maximum else 0
     if filled > 0:
-        pygame.draw.rect(surface, colour, (inner.left, inner.top, filled, inner.height))
+        gfx.rect(surface, colour, (inner.left, inner.top, filled, inner.height))

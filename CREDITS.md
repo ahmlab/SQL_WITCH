@@ -33,6 +33,7 @@ SQL Witch is itself an argument about working with machines, so we say plainly h
 | Font | Licence | Used for |
 |---|---|---|
 | The game's own 3x5 and 5x7 pixel fonts (`engine/render.py`), with accents composed in the same style (`engine/fonts.py`) | the game's licence | Latin text in every EU language |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (`assets/fonts/JetBrainsMono-*.ttf`) | Apache-2.0 (as shipped by Debian's fonts-jetbrains-mono; licence text in `assets/fonts/`) | HD text: Latin, Greek, Cyrillic on the 1280x720 canvas |
 | [GNU Unifont](https://unifoundry.com/unifont/) (`assets/fonts/unifont.otf`) | SIL OFL 1.1, or GPL-2.0-or-later with the GNU font embedding exception (dual-licensed upstream) | Chinese, Greek, Cyrillic and every character the pixel fonts lack |
 
 Candidates evaluated for Chinese and not bundled (see `docs/spikes/ime.md`): Fusion Pixel Font and

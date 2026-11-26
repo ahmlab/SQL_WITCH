@@ -281,3 +281,31 @@ def test_the_battle_turns_key_repeat_on_and_off():
     assert pygame.key.get_repeat() == (KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL)
     game.scene.exit()
     assert pygame.key.get_repeat() == (0, 0)
+
+
+def test_the_canvas_is_hd_and_keeps_logical_coordinates():
+    """1280x720 real pixels, laid out in the 320x180 grid (the page is still 36 characters)."""
+    from engine import gfx
+    canvas = render.Canvas()
+    assert canvas.get_size() == (320, 180) and canvas.get_rect().width == 320
+    assert pygame.Surface.get_size(canvas) == (1280, 720)
+    canvas.fill(render.INK)
+    gfx.rect(canvas, render.GOLD, (10, 10, 2, 2))
+    assert canvas.get_at((10, 10))[:3] == render.GOLD and canvas.get_at((12, 12))[:3] == render.INK
+    real = pygame.Surface.get_at
+    assert real(canvas, (40, 40))[:3] == render.GOLD and real(canvas, (47, 47))[:3] == render.GOLD
+    assert real(canvas, (48, 48))[:3] == render.INK
+    gfx.line(canvas, render.RED, (0, 100), (20, 100.25), 0.25)    # a quarter-pixel line: HD detail
+    assert real(canvas, (40, 402))[:3] == render.RED and canvas.get_at((10, 99))[:3] == render.INK
+
+
+def test_hd_text_is_drawn_with_the_hd_font_in_the_same_grid():
+    canvas = render.Canvas()
+    canvas.fill(render.CREAM)
+    render.font().draw(canvas, "SELECT é", (4, 20), render.INK)
+    frame = pygame.Surface((1280, 720))
+    frame.blit(canvas, (0, 0))
+    render.draw_text_layer(frame, canvas.ops, 4)
+    inked = [x for x in range(16, 16 + 8 * 16) if any(frame.get_at((x, y))[:3] != render.CREAM
+                                                     for y in range(80, 108))]
+    assert inked and max(inked) < 16 + 8 * 16 and min(inked) >= 16     # inside 8 cells

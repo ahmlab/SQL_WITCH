@@ -25,9 +25,16 @@ from pathlib import Path
 
 import pygame
 
+from engine import gfx
+
 from i18n.width import cells
 
-UNIFONT = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "unifont.otf"
+FONTS = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+UNIFONT = FONTS / "unifont.otf"
+# HD text (a 1280x720 canvas): JetBrains Mono, monospaced, sized to the 4-pixel grid's cell,
+# for every Latin, Greek and Cyrillic character; Chinese stays with Unifont.
+HD_FONT = {False: FONTS / "JetBrainsMono-SemiBold.ttf", True: FONTS / "JetBrainsMono-ExtraBold.ttf"}
+HD_FROM_K = 3                     # from this many real pixels per logical pixel, text is HD
 UNIFONT_PX = 16
 
 # Accents above, as rows 5 dots wide, and below (cedilla, ogonek, comma).
@@ -157,6 +164,57 @@ def covered(char: str) -> bool:
     return char.isspace() or composed(char) is not None or unifont_has(char)
 
 
+def hd_covers(char: str) -> bool:
+    """Characters JetBrains Mono draws: Latin (with every EU accent), Greek, Cyrillic,
+    punctuation, currency. Everything else (Chinese) goes to Unifont."""
+    code = ord(char)
+    return code < 0x0530 or 0x1E00 <= code <= 0x1FFF or 0x2000 <= code <= 0x20CF or \
+        0x2100 <= code <= 0x214F
+
+
+@lru_cache(maxsize=None)
+def hd_font(cell_w: int, bold: bool = False) -> pygame.font.Font | None:
+    """The largest JetBrains Mono whose letters fit a cell `cell_w` real pixels wide."""
+    if not pygame.font.get_init():
+        pygame.font.init()
+    try:
+        size = max(6, int(cell_w / 0.6) + 1)
+        font = pygame.font.Font(str(HD_FONT[bold]), size)
+        while size > 6 and font.size("M")[0] > cell_w:
+            size -= 1
+            font = pygame.font.Font(str(HD_FONT[bold]), size)
+        return font
+    except (OSError, pygame.error):
+        return None
+
+
+_HD: dict[tuple, pygame.Surface] = {}
+
+
+def reset() -> None:
+    """Forget every loaded font (pygame was shut down and started again: they are dead)."""
+    _HD.clear()
+    _GLYPHS.clear()
+    hd_font.cache_clear()
+    unifont.cache_clear()
+
+
+def hd_glyph(char: str, colour: tuple, cell_w: int, bold: bool = False):
+    """(surface, font) of one HD letter, cached."""
+    key = (char, tuple(colour), cell_w, bold)
+    font = hd_font(cell_w, bold)
+    if font is None:
+        return None, None
+    if key not in _HD:
+        try:
+            _HD[key] = font.render(char, True, colour)
+        except pygame.error:                   # a font from before pygame.quit(): reload
+            reset()
+            font = hd_font(cell_w, bold)
+            _HD[key] = font.render(char, True, colour)
+    return _HD[key], font
+
+
 def unifont_scale(k: int, line_h: int) -> int:
     """Whole-number size of Unifont at window scale k, about the height of a line."""
     return max(1, round(line_h * k / UNIFONT_PX))
@@ -172,7 +230,7 @@ def fallback_glyph(char: str, colour: tuple, k: int, line_h: int, cell_w: int) -
         font = unifont()
         if font is None:
             surface = pygame.Surface((cell_w * k, line_h * k), pygame.SRCALPHA)
-            pygame.draw.rect(surface, colour, surface.get_rect(), 1)
+            gfx.rect(surface, colour, surface.get_rect(), 1)
         else:
             surface = font.render(char, False, colour)
             scale = unifont_scale(k, line_h)

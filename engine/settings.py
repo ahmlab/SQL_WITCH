@@ -21,6 +21,8 @@ import json
 
 import pygame
 
+from engine import gfx
+
 from engine import render
 from i18n import CATALOG, set_locale, t
 from magic.db import DATA_DIR
@@ -201,7 +203,7 @@ class SettingsScene:
             row = ROWS[i]
             colour = render.WHITE if i == self.row else render.LILAC
             if i == self.row:
-                pygame.draw.rect(canvas, render.DUSK, (8, y - 2, 304, 9))
+                gfx.rect(canvas, render.DUSK, (8, y - 2, 304, 9))
             f.draw(canvas, t(f"settings.row.{row}"), (12, y), colour)
             value = self.value(row)
             f.draw(canvas, value, (308 - f.width(value), y), render.GOLD)

@@ -28,6 +28,8 @@ from pathlib import Path
 
 import pygame
 
+from engine import gfx
+
 from engine import render
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -203,7 +205,7 @@ class Character:
                                                                unsetcolor=(0, 0, 0, 0))
         rect = image.get_rect(midbottom=(round(feet[0]), round(feet[1])))
         if shadow:
-            pygame.draw.ellipse(canvas, render.FOREST, (rect.centerx - 7, rect.bottom - 3, 14, 4))
+            gfx.ellipse(canvas, render.FOREST, (rect.centerx - 7, rect.bottom - 3, 14, 4))
         canvas.blit(image, rect)
         return rect
 

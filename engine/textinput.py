@@ -21,6 +21,8 @@ from __future__ import annotations
 from typing import Callable
 
 import pygame
+
+from engine import gfx
 import sqlglot
 from sqlglot.errors import TokenError
 from sqlglot.tokens import TokenType
@@ -572,14 +574,14 @@ class QueryEditor:
             for i, style in enumerate(styles):
                 if style == "locked":       # strike-through: a rune Ada cannot read yet
                     x = x0 + i * render.ADVANCE
-                    pygame.draw.line(surface, render.RED, (x - 1, y + 2), (x + 3, y + 2))
+                    gfx.line(surface, render.RED, (x - 1, y + 2), (x + 3, y + 2))
         ghost = self.suggestion() if focused else ""
         advice = self.hint() if focused else ""
         cursor_col = self.cursor_cells()[1]                        # in cells, not characters
         if self.composing and focused and first <= cursor_line < first + self.visible_lines:
             px, py = x0 + cursor_col * render.ADVANCE, y0 + (cursor_line - first) * render.LINE_H
             f.draw(surface, self.composing, (px, py), render.VIOLET)
-            pygame.draw.line(surface, render.VIOLET, (px, py + render.GLYPH_H),
+            gfx.line(surface, render.VIOLET, (px, py + render.GLYPH_H),
                              (px + f.width(self.composing), py + render.GLYPH_H))
             cursor_col += text_cells(self.composing)
             ghost = advice = ""                                     # the IME has the floor
@@ -591,7 +593,7 @@ class QueryEditor:
                 lead = len(shown) - len(shown.lstrip())             # no band under a space
                 band = pygame.Rect(gx + lead * render.ADVANCE - 1, gy - 1,
                                    (len(shown) - lead) * render.ADVANCE + 1, render.GLYPH_H + 1)
-                pygame.draw.rect(surface, GHOST_SHADE, band)
+                gfx.rect(surface, GHOST_SHADE, band)
                 render.font().draw(surface, shown, (gx, gy), GHOST_COLOUR)
             else:
                 lines_left = room if room >= len(advice) + 1 else 0
@@ -601,4 +603,4 @@ class QueryEditor:
         if focused and (time_ms // 500) % 2 == 0:                     # blinking cursor
             cx = x0 + cursor_col * render.ADVANCE - 1
             cy = y0 + (cursor_line - first) * render.LINE_H
-            pygame.draw.line(surface, render.INK, (cx, cy - 1), (cx, cy + render.GLYPH_H - 1))
+            gfx.line(surface, render.INK, (cx, cy - 1), (cx, cy + render.GLYPH_H - 1))

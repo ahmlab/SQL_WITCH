@@ -457,7 +457,7 @@ def test_changing_the_language_never_shrinks_the_window(monkeypatch):
     monkeypatch.setattr(render, "desktop_size", lambda: (1920, 1080))
     screen = render.Screen()
     size = screen.window.get_size()
-    assert size == (1600, 900)                         # scale 5 fits 1920x1080 with margins
+    assert size == (1280, 720)              # HD: the largest whole multiple of 1280x720 that fits
     # As on a real desktop: once a window exists, Info() reports the window, not the monitor.
     monkeypatch.setattr(pygame.display, "Info",
                         lambda: type("Info", (), {"current_w": screen.window.get_width(),
