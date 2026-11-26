@@ -674,6 +674,9 @@ class BattleScene(Scene):
 
     def say(self, text: str, ms: int = 700, effect=None, *sounds: str, speaker: str = "",
             markup: str = "") -> None:
+        if speaker and text:
+            # Someone speaks: give the player time to read it (data/pacing.json).
+            ms += settings_pacing()["battle_speech"]["extra_ms"]
         self.beats.append(Beat(text, ms, effect, sounds, speaker, markup))
 
     def speak_hint(self, hint) -> None:
@@ -1207,6 +1210,7 @@ class BattleScene(Scene):
         self.fx.draw(canvas)
         self._draw_guide_button(canvas)
         self._draw_tables_button(canvas)
+        self._draw_speech(canvas)                     # over the battle, under the overlays
         if self.tables_open:
             self._draw_tables(canvas)
         if self.rewind_open:
@@ -1251,14 +1255,7 @@ class BattleScene(Scene):
         """The current beat in its little box, and the floating damage numbers."""
         f = render.font()
         if self.beat is not None and self.beat.text and self.beat.speaker:
-            # Someone speaks (a reaction, a trick, a hint): a wide box with their name on a tag,
-            # opaque over the panels behind (their text is on the text layer). A script line
-            # keeps its effects and types out.
-            beat = self.beat
-            tokens = script_tokens(beat.markup or beat.text)
-            shown = Typewriter(tokens, beat.speaker, i18n_locale()).visible(
-                beat.ms - self.beat_left) if beat.markup else 10 ** 6
-            self.speech_box.draw(canvas, beat.speaker, tokens, shown, self.time)
+            pass                                      # drawn on top of everything: _draw_speech
         elif self.beat is not None and self.beat.text:
             box = pygame.Rect(64, 80, 128, 17)
             render.panel(canvas, box)
@@ -1267,6 +1264,23 @@ class BattleScene(Scene):
         for p in self.popups:
             f.draw(canvas, p.text, (p.pos[0] - f.width(p.text) // 2, p.pos[1] - p.age // 60),
                    p.colour, shadow=render.INK)
+
+    def _draw_speech(self, canvas):
+        """Someone speaks (a reaction, a trick, a hint, a plea): the rest of the screen darkens
+        and a wide box with their name on a tag sits on top, opaque over the panels behind
+        (their text is on the text layer). A script line keeps its effects and types out."""
+        beat = self.beat
+        if beat is None or not beat.text or not beat.speaker:
+            return
+        look = settings_pacing()["battle_speech"]
+        elapsed, fade = beat.ms - self.beat_left, max(1, look["fade_ms"])
+        ramp = min(1.0, elapsed / fade, self.beat_left / fade)
+        if ramp > 0 and look["dim"] > 0:
+            render.cover(canvas, canvas.get_rect(), (*render.INK, round(look["dim"] * ramp)))
+        tokens = script_tokens(beat.markup or beat.text)
+        shown = Typewriter(tokens, beat.speaker, i18n_locale()).visible(elapsed) \
+            if beat.markup else 10 ** 6
+        self.speech_box.draw(canvas, beat.speaker, tokens, shown, self.time)
 
     def _draw_tables_button(self, canvas):
         f = render.font()

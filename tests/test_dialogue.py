@@ -533,3 +533,26 @@ def test_the_battle_scene_lets_the_fallen_slime_beg_for_mercy():
     assert len(faints) == 1 and len(begging) == 3
     assert len(set(begging)) == 3                                    # it grows more desperate
     assert said[-1][0] == "Grimoire" or any(s == "Grimoire" and "LIMIT" in x for s, x in said)
+
+
+def test_speech_in_battle_lasts_longer_and_darkens_everything_but_its_box():
+    from engine import render
+    from story.pacing import settings as pacing
+    look = pacing()["battle_speech"]
+    canvas = render.Canvas()
+    game = Game(canvas, seed=1, audio=Recorder())
+    scene = BattleScene(game, "slime", battle=overkill_battle())
+    game.switch(scene)
+    scene.beats.clear()
+    scene.say("plain narration", 700)
+    scene.say("I yield!", 700, None, speaker="Asterisk Slime")
+    assert [b.ms for b in scene.beats] == [700, 700 + look["extra_ms"]]
+    scene.beats.pop(0)
+    for _ in range(30):                                # into the beat, past the fade-in
+        game.update(16)
+    game.draw()
+    whole = canvas.get_rect()
+    dims = [i for i, op in enumerate(canvas.ops) if op[0] == "fill" and op[1] == whole]
+    assert dims and canvas.ops[dims[-1]][2][3] == look["dim"]
+    box_text = [i for i, op in enumerate(canvas.ops) if op[0] == "text" and op[1] == "I"]
+    assert box_text and box_text[0] > dims[-1]         # the box is drawn over the darkness

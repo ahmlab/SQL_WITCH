@@ -352,6 +352,7 @@ class TutorialScene(BattleScene):
         elif t.practising and t.phase == "task":
             self._draw_ready_button(canvas)
         self._draw_highlights(canvas)
+        self._draw_speech(canvas)                     # over the lesson, under the overlays
         if self.tables_open:
             self._draw_tables(canvas)
         if self.game.debug:
