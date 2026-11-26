@@ -111,9 +111,20 @@ def _lookup(args: dict, name: str):
     return value
 
 
+def _english_rule(number) -> str:
+    return "one" if number == 1 else "other"
+
+
 @lru_cache(maxsize=None)
 def _plural_rule(locale: str):
-    from babel import Locale
+    try:
+        from babel import Locale
+    except ImportError:
+        # Babel is in requirements.txt; without it the game still runs (English plural rules
+        # for every language) instead of crashing in the middle of a battle.
+        print("[i18n] Babel is not installed: plurals follow English rules. "
+              "Run: pip install -r requirements.txt")
+        return _english_rule
     try:
         return Locale.parse(locale.replace("-", "_")).plural_form
     except Exception:                                   # an unknown locale: English rules

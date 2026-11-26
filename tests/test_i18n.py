@@ -99,6 +99,20 @@ def test_plural_messages_pick_the_language_form():
     assert format_message("{n, plural, =0 {none} other {# left}}", {"n": 0}, "en") == "none"
 
 
+def test_without_babel_plurals_fall_back_to_english_instead_of_crashing(monkeypatch, capsys):
+    import sys
+
+    from i18n import icu
+    monkeypatch.setitem(sys.modules, "babel", None)        # as if it were not installed
+    icu._plural_rule.cache_clear()
+    try:
+        assert t("battle.margin", count=1) == "1 spell fizzles in the margin"
+        assert t("battle.margin", count=4) == "4 spells fizzle in the margin"
+        assert "pip install -r requirements.txt" in capsys.readouterr().out
+    finally:
+        icu._plural_rule.cache_clear()
+
+
 def test_gender_select_on_the_player():
     line = "{player.gender, select, feminine {la bruja} masculine {el brujo} other {x}}"
     assert CATALOG.format(line) == "la bruja"
