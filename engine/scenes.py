@@ -546,6 +546,12 @@ class Beat:
     sounds: tuple[str, ...] = ()          # event names in assets/audio/sounds.json
     speaker: str = ""                     # set: someone talks (a reaction), in a wider box
     markup: str = ""                      # a script line's inline effects ({wave}...), if any
+    age: int = 0                          # ms since it started (the typewriter's clock)
+    dismissed: bool = False               # the player pressed ENTER: it fades out now
+
+    @property
+    def speech(self) -> bool:
+        return bool(self.speaker and self.text)
 
 
 @dataclass
@@ -674,9 +680,10 @@ class BattleScene(Scene):
 
     def say(self, text: str, ms: int = 700, effect=None, *sounds: str, speaker: str = "",
             markup: str = "") -> None:
-        if speaker and text:
-            # Someone speaks: give the player time to read it (data/pacing.json).
-            ms += settings_pacing()["battle_speech"]["extra_ms"]
+        look = settings_pacing()["battle_speech"]
+        if speaker and text and not look["wait_for_enter"]:
+            # Someone speaks and the line closes by itself: time to read it (data/pacing.json).
+            ms += look["extra_ms"]
         self.beats.append(Beat(text, ms, effect, sounds, speaker, markup))
 
     def speak_hint(self, hint) -> None:
@@ -934,7 +941,41 @@ class BattleScene(Scene):
             self.game.guide_seen = True
             self.game.audio.play("scry")
 
+    # ------------------------------------------------------------ someone speaks
+
+    def speech_waiting(self) -> bool:
+        """A speech box is on screen, waiting for the player to read it and press ENTER."""
+        beat = self.beat
+        return beat is not None and beat.speech and not beat.dismissed and \
+            settings_pacing()["battle_speech"]["wait_for_enter"]
+
+    def _speech_typer(self, beat: Beat) -> Typewriter:
+        return Typewriter(script_tokens(beat.markup or beat.text), beat.speaker, i18n_locale())
+
+    def advance_speech(self) -> None:
+        """ENTER (or a click) on a speech box: finish typing it, or close it."""
+        beat = self.beat
+        total = self._speech_typer(beat).total_ms if beat.markup else 0
+        if beat.age < total:
+            beat.age = int(total) + 1                 # show the rest of the line at once
+            return
+        beat.dismissed = True
+        self.beat_left = settings_pacing()["battle_speech"]["fade_ms"]
+        self.game.audio.play("next")
+
+    def speech_key(self, event) -> bool:
+        """While someone speaks, ENTER moves on and every other key is held back (so a key
+        meant for the speech never lands in the query). True if the event was taken."""
+        if not self.speech_waiting():
+            return False
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self.advance_speech()
+        return event.type in (pygame.KEYDOWN, pygame.TEXTINPUT, pygame.TEXTEDITING)
+
     def click(self, x: int, y: int) -> None:
+        if self.speech_waiting():
+            self.advance_speech()
+            return
         if GUIDE_BUTTON.collidepoint(x, y):
             self.toggle_guide()
         elif TABLES_BUTTON.collidepoint(x, y):
@@ -1004,6 +1045,8 @@ class BattleScene(Scene):
             self._last_thud = self.time
 
     def handle(self, event):
+        if self.speech_key(event):
+            return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F6:
             self.toggle_rewind()
             return
@@ -1143,9 +1186,11 @@ class BattleScene(Scene):
 
     def _update_beats(self, dt: int) -> None:
         if self.beat is not None:
-            self.beat_left -= dt
-            if self.beat_left <= 0:
-                self.beat = None
+            self.beat.age += dt
+            if not self.speech_waiting():          # someone speaks: it waits for ENTER
+                self.beat_left -= dt
+                if self.beat_left <= 0:
+                    self.beat = None
         if self.beat is None and self.beats:
             self.beat = self.beats.pop(0)
             self.beat_left = self.beat.ms
@@ -1273,14 +1318,19 @@ class BattleScene(Scene):
         if beat is None or not beat.text or not beat.speaker:
             return
         look = settings_pacing()["battle_speech"]
-        elapsed, fade = beat.ms - self.beat_left, max(1, look["fade_ms"])
-        ramp = min(1.0, elapsed / fade, self.beat_left / fade)
+        fade = max(1, look["fade_ms"])
+        closing = beat.dismissed or not look["wait_for_enter"]
+        ramp = min(1.0, beat.age / fade, self.beat_left / fade if closing else 1.0)
         if ramp > 0 and look["dim"] > 0:
             render.cover(canvas, canvas.get_rect(), (*render.INK, round(look["dim"] * ramp)))
-        tokens = script_tokens(beat.markup or beat.text)
-        shown = Typewriter(tokens, beat.speaker, i18n_locale()).visible(elapsed) \
-            if beat.markup else 10 ** 6
-        self.speech_box.draw(canvas, beat.speaker, tokens, shown, self.time)
+        typer = self._speech_typer(beat)
+        shown = typer.visible(beat.age) if beat.markup else 10 ** 6
+        box = self.speech_box.draw(canvas, beat.speaker, typer.tokens, shown, self.time)
+        if self.speech_waiting() and shown >= len(typer) and (self.time // 400) % 2 == 0:
+            f = render.font()
+            more = t("ui.speech.continue")             # the line waits: say how to go on
+            f.draw(canvas, more, (box.right - 6 - f.width(more, small=True), box.bottom - 8),
+                   render.VIOLET, small=True)
 
     def _draw_tables_button(self, canvas):
         f = render.font()

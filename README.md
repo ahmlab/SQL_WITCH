@@ -68,7 +68,7 @@ python main.py
 
 | Key | Action |
 |---|---|
-| `Enter` | Title and dialogue: continue (hold it to type faster). In the editor: new line. |
+| `Enter` | Title and dialogue: continue (hold it to type faster). In battle, when the Grimoire or a guardian speaks: show the whole line, then close it (the battle waits for you). In the editor: new line. |
 | `L` | Title: next language. Dialogue: the log of everything said. |
 | `A` / hold `Ctrl` | Dialogue: auto-advance / skip. |
 | `Ctrl+Enter` | Cast the query (also fast-forwards the battle narration). |

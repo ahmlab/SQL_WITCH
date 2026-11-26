@@ -215,6 +215,9 @@ class TutorialScene(BattleScene):
         t = self.tutorial
         if self.confirm_skip:
             return
+        if self.speech_waiting():
+            self.advance_speech()
+            return
         if t.practising and t.phase == "task" and READY_BUTTON.collidepoint(x, y):
             self._ready()
         elif self._strip_rect().collidepoint(x, y) and t.phase in TALK_PHASES + ("demo",):
@@ -232,6 +235,8 @@ class TutorialScene(BattleScene):
             self._watch()
 
     def handle(self, event):
+        if self.speech_key(event):                  # someone speaks: ENTER first
+            return
         t = self.tutorial
         key = event.key if event.type == pygame.KEYDOWN else None
         if self.confirm_skip:                    # "Skip the tutorial?" ENTER skips, ESC stays

@@ -249,6 +249,9 @@
     },
     "write": {
       "done": "The world changed: {summary}."
+    },
+    "speech": {
+      "continue": "ENTER v"
     }
   },
   "battle": {

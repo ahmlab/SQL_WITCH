@@ -556,3 +556,70 @@ def test_speech_in_battle_lasts_longer_and_darkens_everything_but_its_box():
     assert dims and canvas.ops[dims[-1]][2][3] == look["dim"]
     box_text = [i for i, op in enumerate(canvas.ops) if op[0] == "text" and op[1] == "I"]
     assert box_text and box_text[0] > dims[-1]         # the box is drawn over the darkness
+
+
+def speech_scene():
+    from engine import render
+    canvas = render.Canvas()
+    game = Game(canvas, seed=1, audio=Recorder())
+    scene = BattleScene(game, "slime", battle=overkill_battle())
+    game.switch(scene)
+    scene.beats.clear()
+    scene.beat = None
+    return game, scene, canvas
+
+
+def press_enter(game, mod=0):
+    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, mod=mod))
+    game.handle(pygame.event.Event(pygame.KEYUP, key=pygame.K_RETURN, mod=mod))
+
+
+@pytest.mark.speech_waits
+def test_a_speech_box_stays_until_enter_however_long_it_takes():
+    game, scene, canvas = speech_scene()
+    scene.say("I yield! I yield!", 700, None, speaker="Asterisk Slime", markup="I yield! I yield!")
+    run(game, 20000)                                   # twenty seconds of reading
+    assert scene.beat is not None and scene.beat.text == "I yield! I yield!"
+    shown = set()
+    for _ in range(60):                                 # the prompt blinks
+        game.update(16)
+        game.draw()
+        shown |= set(canvas.texts())
+    assert "ENTER v" in shown
+    press_enter(game)
+    run(game, 400)                                     # it fades out, then it is gone
+    assert scene.beat is None
+
+
+@pytest.mark.speech_waits
+def test_the_first_enter_finishes_the_line_the_second_closes_it():
+    game, scene, _ = speech_scene()
+    text = "A long line that takes a while to type out, letter by letter, on purpose."
+    scene.say(text, 700, None, speaker="Grimoire", markup=text)
+    run(game, 100)
+    press_enter(game)                                  # still typing: show it all
+    assert scene.speech_waiting() and not scene.beat.dismissed
+    press_enter(game)                                  # now it closes
+    assert scene.beat.dismissed
+
+
+@pytest.mark.speech_waits
+def test_keys_during_speech_never_reach_the_query():
+    game, scene, _ = speech_scene()
+    scene.phase = "input"
+    scene.say("Stuck?", 700, None, speaker="Grimoire", markup="Stuck?")
+    run(game, 1000)                                    # fully typed: it waits
+    for char in "SELECT":
+        game.handle(pygame.event.Event(pygame.TEXTINPUT, text=char))
+    press_enter(game, pygame.KMOD_CTRL)                 # Ctrl+Enter: moves the speech on
+    assert scene.editor.text == "" and scene.beat.dismissed
+
+
+@pytest.mark.speech_waits
+def test_the_battle_waits_for_the_player_to_read():
+    game, scene, _ = speech_scene()
+    scene.phase = "wait"
+    scene.say("Hold! I am down!", 700, None, speaker="Sir Wherewell", markup="Hold! I am down!")
+    turn = scene.battle.whose_turn
+    run(game, 5000)
+    assert scene.battle.whose_turn == turn and scene.beat is not None   # nothing moved on

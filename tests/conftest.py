@@ -19,3 +19,26 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "speech_waits: speech boxes wait for ENTER, as in play")
+
+
+@pytest.fixture(autouse=True)
+def _speech_closes_by_itself(request):
+    """In play, a battle's speech box waits for ENTER (data/pacing.json). Tests that play
+    whole battles by time let it close by itself, unless marked speech_waits."""
+    if request.node.get_closest_marker("speech_waits"):
+        yield
+        return
+    try:
+        from story.pacing import settings
+    except Exception:                       # a test module that never touches the story
+        yield
+        return
+    look = settings()["battle_speech"]
+    before = look["wait_for_enter"]
+    look["wait_for_enter"] = False
+    yield
+    look["wait_for_enter"] = before
