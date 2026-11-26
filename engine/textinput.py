@@ -220,6 +220,7 @@ class QueryEditor:
         self.lines: list[str] = [""]
         self.row = self.col = 0
         self.composing = ""                # IME text not committed yet (TEXTEDITING)
+        self.cast_key = None               # a binding that casts (None: CTRL+ENTER)
         self.history: list[str] = []
         self._history_pos: int | None = None
         self._draft = ""
@@ -479,6 +480,8 @@ class QueryEditor:
         key, ctrl = event.key, bool(event.mod & pygame.KMOD_CTRL)
         if key != pygame.K_TAB:
             self._tab = None
+        if self.cast_key is not None and self.cast_key(event):   # the cast binding (settings)
+            return self.submit()
         if key in (pygame.K_RETURN, pygame.K_KP_ENTER):
             if ctrl:
                 return self.submit()

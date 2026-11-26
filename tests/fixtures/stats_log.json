@@ -1,0 +1,16 @@
+{
+  "_help": "A hand-made log for tests/test_saves.py: the expected numbers are worked out by hand in the test.",
+  "log": [
+    {"t": 1, "run": "r1", "guardian": "slime", "turn": 1, "sql": "SELECT * FROM enemies", "kind": "read", "techniques": [], "tables": ["enemies"], "rows": 1, "read": 1, "cast": 0, "overflow": 0, "fizzles": 0, "mp_spent": 0, "mp_wasted": 0, "ms": 0.4, "scanned": 1, "plan": ["SCAN enemies"], "scry": true, "miscast": false},
+    {"t": 2, "run": "r1", "guardian": "slime", "turn": 1, "sql": "SELECT name FROM spells", "kind": "read", "techniques": [], "tables": ["spells"], "rows": 12, "read": 4, "cast": 4, "overflow": 8, "fizzles": 8, "mp_spent": 30, "mp_wasted": 18, "ms": 0.6, "scanned": 12, "plan": ["SCAN spells"], "scry": false, "miscast": false},
+    {"t": 3, "run": "r1", "guardian": "slime", "turn": 2, "sql": "SELEC x", "miscast": true},
+    {"t": 4, "run": "r1", "guardian": "slime", "turn": 2, "sql": "SELECT name FROM spells LIMIT 2", "kind": "read", "techniques": ["LIMIT"], "tables": ["spells"], "rows": 2, "read": 2, "cast": 2, "overflow": 0, "fizzles": 0, "mp_spent": 6, "mp_wasted": 0, "ms": 0.5, "scanned": 12, "plan": ["SCAN spells"], "scry": false, "miscast": false},
+    {"t": 5, "run": "r1", "guardian": "knight", "turn": 1, "sql": "SELECT name FROM spells WHERE element = 'Tide' LIMIT 1", "kind": "read", "techniques": ["LIMIT", "WHERE"], "tables": ["spells"], "rows": 1, "read": 1, "cast": 1, "overflow": 0, "fizzles": 0, "mp_spent": 5, "mp_wasted": 0, "ms": 0.7, "scanned": 12, "plan": ["SEARCH spells USING INDEX idx_element (element=?)"], "scry": false, "miscast": false},
+    {"t": 6, "run": "r2", "guardian": "slime", "turn": 1, "sql": "SELECT name FROM items LIMIT 1", "kind": "read", "techniques": ["LIMIT"], "tables": ["items"], "rows": 1, "read": 1, "cast": 1, "overflow": 0, "fizzles": 0, "mp_spent": 0, "mp_wasted": 0, "ms": 0.3, "scanned": 2, "plan": ["SCAN items"], "scry": false, "miscast": false}
+  ],
+  "battles": [
+    {"run": "r1", "guardian": "slime", "result": "foe", "rounds": 3, "seconds": 60, "rewinds": 1, "tricks": 0, "scrolls": 0, "fatigue": 0.02},
+    {"run": "r1", "guardian": "slime", "result": "ada", "rounds": 4, "seconds": 90, "rewinds": 0, "tricks": 1, "scrolls": 1, "fatigue": 0.02},
+    {"run": "r1", "guardian": "knight", "result": "ada", "rounds": 5, "seconds": 120, "rewinds": 2, "tricks": 0, "scrolls": 0, "fatigue": 0.02}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "Grace",
+  "runes": ["LIMIT"],
+  "progress": "knight",
+  "beaten": ["slime"],
+  "scrolls": {"fire": "SELECT name FROM spells WHERE element = 'Fire' LIMIT 1"},
+  "playtime": 754.5,
+  "saved_at": 1764000000
+}

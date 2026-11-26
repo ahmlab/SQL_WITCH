@@ -442,6 +442,10 @@ def cover(surface: pygame.Surface, rect: pygame.Rect, rgba: tuple) -> None:
     surface.blit(box, rect.topleft)
 
 
+HEAVY_TEXT = [False]              # settings: the large Grimoire font (heavier letters)
+GRIMOIRE_TOP = 104                # canvas rows from here down are the Grimoire's pages
+
+
 def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
     """Replay the frame's text on the scaled frame, at k screen pixels per game pixel."""
     f = font()
@@ -468,8 +472,10 @@ def draw_text_layer(frame: pygame.Surface, ops: list[tuple], k: int) -> None:
             col += cells(char)
             if char == " ":
                 continue
+            heavy = HEAVY_TEXT[0] and y >= GRIMOIRE_TOP and not small
             made = None if k == 1 else (f.fine(char, colour, *small_dots) if small
-                                        else f.fine(char, colour, dot))
+                                        else f.fine(char, colour, dot, None,
+                                                    bold_px(dot) + (1 if heavy else 0)))
             if made is not None:
                 glyph, lift = made
                 frame.blit(glyph, (cx, y * k + top - lift))
@@ -492,35 +498,66 @@ def fit(window_size: tuple[int, int]) -> tuple[int, tuple[int, int]]:
     return k, ((w - LOGICAL_W * k) // 2, (h - LOGICAL_H * k) // 2)
 
 
-class Screen:
-    """Owns the window and the logical canvas. Scenes draw on .canvas, then call present()."""
+def letterbox(window_size: tuple[int, int], fill: bool = False
+              ) -> tuple[int, tuple[int, int], tuple[int, int]]:
+    """How the 320x180 frame sits in a window: (k for the text layer, frame size, offset).
+    Integer scaling with black bars by default; fill: the largest size that keeps the aspect,
+    not a whole multiple (no bars on 16:9, a slight softness instead)."""
+    w, h = window_size
+    k, offset = fit(window_size)
+    if not fill:
+        return k, (LOGICAL_W * k, LOGICAL_H * k), offset
+    s = min(w / LOGICAL_W, h / LOGICAL_H)
+    size = (round(LOGICAL_W * s), round(LOGICAL_H * s))
+    return max(1, int(s)), size, ((w - size[0]) // 2, (h - size[1]) // 2)
 
-    def __init__(self, scale: int | None = None, title: str = "SQL Witch"):
-        if scale is None:
-            info = pygame.display.Info()
-            scale = fit((info.current_w - 80, info.current_h - 120))[0]
-        self.window = pygame.display.set_mode((LOGICAL_W * scale, LOGICAL_H * scale),
-                                              pygame.RESIZABLE)
+
+class Screen:
+    """Owns the window and the logical canvas. Scenes draw on .canvas, then call present().
+    Windowed (a whole-number scale) or fullscreen (the whole display, letterboxed at a whole
+    number by default, or filled); set_display() switches at any time."""
+
+    def __init__(self, scale: int | None = None, title: str = "SQL Witch",
+                 display: str = "windowed", fill: bool = False):
         pygame.display.set_caption(title)
         self.canvas = Canvas()
         self.shake = 0           # frames of screen shake left (design doc 7.3)
+        self.mode, self.fill, self.scale = "windowed", False, scale
+        self.set_display(display, scale, fill)
+
+    def set_display(self, mode: str = "windowed", scale: int | None = None,
+                    fill: bool = False) -> None:
+        self.fill = fill
+        if mode == "fullscreen":
+            self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        else:
+            if scale is None:
+                info = pygame.display.Info()
+                scale = fit((info.current_w - 80, info.current_h - 120))[0]
+            self.window = pygame.display.set_mode((LOGICAL_W * scale, LOGICAL_H * scale),
+                                                  pygame.RESIZABLE)
+            self.scale = scale
+        self.mode = mode
 
     def to_logical(self, pos: tuple[int, int]) -> tuple[int, int]:
         """A window pixel (e.g. a mouse click) -> a canvas pixel, undoing scale and letterbox."""
-        k, (ox, oy) = fit(self.window.get_size())
-        return (pos[0] - ox) // k, (pos[1] - oy) // k
+        _, size, (ox, oy) = letterbox(self.window.get_size(), self.fill)
+        return (pos[0] - ox) * LOGICAL_W // max(1, size[0]), \
+            (pos[1] - oy) * LOGICAL_H // max(1, size[1])
 
     def compose(self) -> tuple[pygame.Surface, int]:
         """The finished frame at window scale: pixel art scaled up, then the sharp text."""
-        k, _ = fit(self.window.get_size())
+        k, size, _ = letterbox(self.window.get_size(), self.fill)
         # pygame.transform.scale is nearest-neighbour: exactly what pixel art needs.
         frame = pygame.transform.scale(self.canvas, (LOGICAL_W * k, LOGICAL_H * k))
         draw_text_layer(frame, self.canvas.ops, k)
+        if frame.get_size() != size:                    # fill: stretch the finished frame
+            frame = pygame.transform.scale(frame, size)
         return frame, k
 
     def present(self, rng=None) -> None:
         frame, k = self.compose()
-        _, (ox, oy) = fit(self.window.get_size())
+        _, _, (ox, oy) = letterbox(self.window.get_size(), self.fill)
         if self.shake > 0 and rng is not None:
             ox += rng.choice((-1, 1)) * rng.randint(1, 2) * k
             oy += rng.choice((-1, 1)) * rng.randint(0, 1) * k
@@ -545,14 +582,30 @@ def panel(surface: pygame.Surface, rect: pygame.Rect, fill=CREAM, border=INK,
 HP_WARN, HP_DANGER = 0.5, 0.25           # below half: orange; below a quarter: red
 
 
+HP_COLOURS = [GRASS, GOLD, RED]          # healthy, below half, below a quarter (set_palette)
+_NORMAL_ELEMENTS = dict(ELEMENT_COLOURS)
+
+
 def hp_colour(value: float, maximum: float) -> tuple:
-    """Green from full down to half, orange below half, red below a quarter."""
+    """Green from full down to half, orange below half, red below a quarter (or the
+    colour-blind palette's three colours)."""
     ratio = value / maximum if maximum else 0.0
     if ratio < HP_DANGER:
-        return RED
+        return HP_COLOURS[2]
     if ratio < HP_WARN:
-        return GOLD
-    return GRASS
+        return HP_COLOURS[1]
+    return HP_COLOURS[0]
+
+
+def set_palette(name: str, palettes: dict) -> None:
+    """A colour-blind palette for the HP bars and the element colours (data/accessibility.json),
+    always picked from the game's 32 colours."""
+    chosen = palettes.get(name) or {}
+    HP_COLOURS[:] = [globals()[c] for c in chosen.get("hp", ("GRASS", "GOLD", "RED"))]
+    ELEMENT_COLOURS.clear()
+    ELEMENT_COLOURS.update(_NORMAL_ELEMENTS)
+    ELEMENT_COLOURS.update({element: globals()[c]
+                            for element, c in chosen.get("elements", {}).items()})
 
 
 def meter(surface: pygame.Surface, rect: pygame.Rect, value: int, maximum: int,

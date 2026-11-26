@@ -1,0 +1,14 @@
+{
+  "_help": "Colour-blind palettes (settings: palette). hp: the HP bar's three colours (healthy, below half, below a quarter); elements: the colour of each element's bolts and glows. Colour names come from the game's 32-colour palette (engine/render.py), so nothing ever clashes. Chosen so that the three HP states and Fire/Nature/Tide/Storm differ in brightness, not only in hue.",
+  "palettes": {
+    "normal": {},
+    "deuteranopia": {"hp": ["BLUE", "GOLD", "WINE"],
+                     "elements": {"Fire": "AMBER", "Nature": "AQUA", "Tide": "NAVY", "Storm": "BUTTER"}},
+    "protanopia": {"hp": ["BLUE", "BUTTER", "DUSK"],
+                   "elements": {"Fire": "GOLD", "Nature": "SKY", "Tide": "NAVY", "Storm": "WHITE"}},
+    "tritanopia": {"hp": ["FOREST", "PEACH", "RED"],
+                   "elements": {"Tide": "TEAL", "Nature": "FOREST", "Storm": "PEACH", "Arcane": "WINE"}}
+  },
+  "text_speeds": {"slow": 0.6, "normal": 1.0, "fast": 1.8, "instant": 0},
+  "defeat_fatigue": 0.02
+}

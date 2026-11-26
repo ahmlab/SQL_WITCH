@@ -18,6 +18,8 @@ from __future__ import annotations
 import json
 import random
 import re
+import time
+import uuid
 from dataclasses import dataclass
 from typing import Callable
 
@@ -40,6 +42,12 @@ from magic.battle import _summary
 from magic.guard import Miscast
 from i18n import CATALOG, locale as i18n_locale, set_locale, t
 from story.codex import Codex
+from save.settings_file import Settings, SettingsFile
+from save.state import GameState
+from save.telemetry import Telemetry
+from save.stats import cast_record, miscast_record
+from magic.tutorial import tables_read
+from engine import settings as settings_screen
 from story.pacing import Typewriter, settings as settings_pacing, voice
 from story.scenes import INTRO, legacy, mercy_line, overkill_lesson, record, text_of_key
 from story.script import Choice, ScriptRunner, get as script_named, plain as plain_text
@@ -91,7 +99,8 @@ class Game:
     """Holds the current scene and what all scenes share. main.py runs the loop."""
 
     def __init__(self, canvas: pygame.Surface, seed: int, screen=None,
-                 audio: Audio | None = None, start: str = "slime"):
+                 audio: Audio | None = None, start: str = "slime", saves=None,
+                 settings=None, skip_creator: bool = True, locale: str | None = None):
         self.canvas = canvas
         # Where the story begins: "tutorial", "slime" or "knight". main.py starts at the
         # tutorial; the default here stays "slime" so a bare Game() is the classic slice.
@@ -112,10 +121,128 @@ class Game:
         self.codex = Codex()                 # what the player has learned (plan §4.2)
         self.scrolls: dict[str, str] = {}    # saved queries: name -> SQL (plan §4.4)
         self.scene: Scene | None = None
+        # Profiles, slots and settings (save/, prompt 05). Without a save folder (tests, the
+        # smoke test) the game plays as before: nothing is written, nothing is asked.
+        self.saves = saves
+        self.settings_file = SettingsFile(saves.root) if saves else None
+        self.first_launch = bool(self.settings_file and self.settings_file.first_launch)
+        self.settings = settings or (self.settings_file.load() if self.settings_file
+                                     else Settings())
+        if locale:
+            self.settings.language = locale            # --locale wins for this session
+        self.skip_creator = skip_creator
+        self.profile_id: str | None = None
+        self.state = GameState(at=start)
+        self.session = {"start": round(time.time()), "seconds": 0.0}
+        self.state.sessions.append(self.session)
+        self.telemetry = Telemetry(saves.root, lambda: self.settings.telemetry,
+                                   lambda: self.settings.share_queries) if saves else None
         # A language switch re-renders what is open: most text is looked up every frame;
         # what a scene keeps (its dialogue lines) is refreshed by its relocalise().
         CATALOG.listen(self._relocalise)
+        settings_screen.apply(self)
         self.switch(TitleScene(self))
+
+    # ------------------------------------------------------------ saves and the log
+
+    def save_settings(self) -> None:
+        if self.settings_file is not None:
+            self.settings_file.save(self.settings)
+
+    def snapshot(self) -> GameState:
+        """The state to write: what the session holds now (never a battle in progress)."""
+        state = self.state
+        state.runes = sorted(self.runes)
+        state.codex = self.codex.to_json()
+        state.scrolls = dict(self.scrolls)
+        state.player.name = CATALOG.player["name"]
+        state.player.gender = CATALOG.player["gender"]
+        state.settings = self.settings.to_dict()
+        state.telemetry = {"consent": self.settings.telemetry,
+                           "share_queries": self.settings.share_queries}
+        return state
+
+    def restore(self, state: GameState) -> None:
+        self.state = state
+        self.session = {"start": round(time.time()), "seconds": 0.0}
+        state.sessions.append(self.session)
+        self.runes = set(state.runes)
+        self.codex = Codex.from_json(state.codex)
+        self.scrolls = dict(state.scrolls)
+        self.start = state.at
+        CATALOG.set_player(state.player.name, state.player.gender)
+
+    def autosave(self) -> bool:
+        """After every guardian defeated (and at the Hearth, later). Never mid-battle."""
+        if self.saves is None or self.profile_id is None:
+            return False
+        self.saves.save(self.profile_id, "auto", self.snapshot())
+        return True
+
+    def save_slot(self, slot: str) -> bool:
+        if self.saves is None or self.profile_id is None:
+            return False
+        self.saves.save(self.profile_id, slot, self.snapshot())
+        return True
+
+    def record_cast(self, record: dict) -> None:
+        record.update(run=self.state.run_id, battle=getattr(self.scene, "battle_id", ""))
+        self.state.log.append(record)
+        if not record.get("miscast"):
+            outcome = "overflow" if record["overflow"] else "look" if record["scry"] else "cast"
+            self.track("cast", guardian=record["guardian"], turn=record["turn"],
+                       techniques=record["techniques"], kind=record["kind"], outcome=outcome,
+                       rows=record["rows"], read=record["read"], overflow=record["overflow"],
+                       mp_spent=record["mp_spent"], sql=record["sql"])
+
+    def record_battle(self, record: dict) -> None:
+        record.update(run=self.state.run_id, fatigue=self.state.fatigue)
+        self.state.battles.append(record)
+        self.track("battle_end", **record)
+
+    def track(self, event: str, **fields) -> None:
+        if self.telemetry is not None:
+            self.telemetry.record(event, **fields)
+
+    # ------------------------------------------------------------ starting and continuing
+
+    def begin_story(self) -> None:
+        """Into the story at the point the state holds (a new game: the intro)."""
+        at = self.state.at
+        if at == "end":
+            self.switch(TitleScene(self))
+            return
+        key = "intro" if at in ("tutorial", "slime") else f"{at}_intro"
+        self.switch(DialogueScene(self, key, at))
+
+    def new_game(self) -> None:
+        """A new profile and run: the first-launch flow (language, consent, the creator)."""
+        from engine.menus import first_launch_steps
+        self.state = GameState(at=self.start)
+        self.state.sessions.append(self.session)
+        self.runes, self.codex, self.scrolls = set(), Codex(), {}
+        first_launch_steps(self)
+
+    def start_profile(self) -> None:
+        """The flow is done: the profile exists from now on, the story begins."""
+        if self.saves is not None:
+            self.profile_id = self.saves.create_profile(CATALOG.player["name"],
+                                                        self.state.player.look)
+        self.begin_story()
+
+    def continue_game(self) -> bool:
+        found = self.saves.latest() if self.saves else None
+        if found is None:
+            return False
+        self.load(*found)
+        return True
+
+    def load(self, profile: str, slot: str, backup: bool = False) -> None:
+        state = self.saves.load_backup(profile, slot) if backup else \
+            self.saves.load(profile, slot)
+        self.profile_id = profile
+        self.restore(state)
+        self.begin_story()
 
     def _relocalise(self, locale: str) -> None:
         self.dialogue = load_dialogue()
@@ -138,15 +265,16 @@ class Game:
             self.held.discard(event.key)
         if event.type == pygame.QUIT:
             self.running = False
-        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_F1, pygame.K_F2, pygame.K_F3,
-                                                             pygame.K_F4):
+        elif any(settings_screen.pressed(event, action, self.settings)
+                 for action in ("debug", "mute", "help", "tables")):
+            # The key bindings of the settings (F1 debug, F2 mute, F3 guide, F4 tables).
             if repeat:
                 return                         # holding F1 must not make it flicker
-            if event.key == pygame.K_F1:
+            if settings_screen.pressed(event, "debug", self.settings):
                 self.debug = not self.debug
-            elif event.key == pygame.K_F2:
+            elif settings_screen.pressed(event, "mute", self.settings):
                 self.audio.toggle_mute()
-            elif event.key == pygame.K_F4:
+            elif settings_screen.pressed(event, "tables", self.settings):
                 if hasattr(self.scene, "toggle_tables"):
                     self.scene.toggle_tables()
             elif hasattr(self.scene, "toggle_guide"):
@@ -161,6 +289,11 @@ class Game:
     def update(self, dt: int) -> None:
         self.scene.update(dt)
         self.audio.update(dt)                     # music fades move on with the game's clock
+        seconds = dt / 1000
+        self.state.playtime_s += seconds
+        self.session["seconds"] = round(self.session["seconds"] + seconds, 3)
+        place = getattr(self.scene, "PLACE", "menu")
+        self.state.time_in[place] = round(self.state.time_in.get(place, 0.0) + seconds, 3)
 
     def draw(self) -> None:
         if isinstance(self.canvas, render.Canvas):
@@ -168,7 +301,7 @@ class Game:
         self.scene.draw(self.canvas)
 
     def shake(self, frames: int = 6) -> None:
-        if self.screen is not None:
+        if self.screen is not None and self.settings.screen_shake:   # reduced motion: still
             self.screen.shake = frames
 
 
@@ -234,15 +367,45 @@ def next_scene(game: "Game", key: str) -> Scene:
 
 
 class TitleScene(Scene):
+    """The title: Continue (when a save exists: the most recent), New Game, Load, Settings,
+    Statistics, Credits, Quit. UP/DOWN choose, ENTER opens, L changes the language."""
+
+    def __init__(self, game):
+        super().__init__(game)
+        self.choice = 0
+
+    def items(self) -> list[tuple[str, Callable[[], None]]]:
+        from engine import menus
+        from engine.stats import StatsScene
+        game, saves = self.game, self.game.saves
+        out = []
+        latest = saves.latest() if saves else None
+        if latest:
+            out.append((t("menu.continue"), game.continue_game))
+        out.append((t("menu.new_game"), game.new_game))
+        if saves and saves.profiles():
+            out.append((t("menu.load"), lambda: game.switch(menus.LoadScene(game, self))))
+        out.append((t("menu.settings"),
+                    lambda: game.switch(settings_screen.SettingsScene(game, self))))
+        state = saves.load(*latest) if latest else None
+        out.append((t("menu.statistics"), lambda: game.switch(StatsScene(game, self, state))))
+        out.append((t("menu.credits"), lambda: game.switch(menus.CreditsScene(game, self))))
+        out.append((t("menu.quit"), self.quit))
+        return out
+
+    def quit(self) -> None:
+        self.game.running = False
+
     def handle(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_l:
             self.next_language()
+        elif event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_DOWN):
+            count = len(self.items())
+            self.choice = (self.choice + (1 if event.key == pygame.K_DOWN else -1)) % count
         elif is_confirm_key(event):
             self.game.audio.play("confirm")
-            start = self.game.start
-            # The story begins with the intro unless it starts at a later guardian.
-            key = "intro" if start in ("tutorial", "slime") else f"{start}_intro"
-            self.game.switch(DialogueScene(self.game, key, start))
+            items = self.items()
+            items[min(self.choice, len(items) - 1)][1]()
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.game.running = False
 
@@ -254,10 +417,13 @@ class TitleScene(Scene):
                    render.BUTTER, TITLE_DOT, shadow=render.AMBER, outline=render.INK)
         sub = t("title.subtitle")
         f.draw(canvas, sub, ((320 - f.width(sub)) // 2, 74), render.LILAC)
-        if (self.time // 500) % 2 == 0:
-            prompt = t("title.press_enter")
-            f.draw(canvas, prompt, ((320 - f.width(prompt)) // 2, 140), render.WHITE,
-                   shadow=render.INK)
+        for i, (label, _) in enumerate(self.items()):
+            y = 96 + i * 10
+            chosen = i == self.choice
+            if chosen and (self.time // 500) % 2 == 0:
+                f.draw(canvas, ">", ((320 - f.width(label)) // 2 - 8, y), render.GOLD)
+            f.draw(canvas, label, ((320 - f.width(label)) // 2, y),
+                   render.WHITE if chosen else render.LILAC, shadow=render.INK)
         f.draw(canvas, t("title.seed", seed=self.game.seed), (4, 172), render.GRASS)
         here = i18n_locale()
         name = CATALOG.name_of(here)
@@ -278,6 +444,7 @@ class TitleScene(Scene):
 # ------------------------------------------------------------------ dialogue
 
 class DialogueScene(Scene):
+    PLACE = "story"
     """A story scene played from a script node (data/story/intro.script): Ada falls asleep at
     her desk, dies, and wakes up in Codd, where a floating book speaks to her; or a guardian
     arrives. Each line's directions name its backdrop ([scene]), Ada's sleepiness ([sleep 0-3]),
@@ -350,7 +517,8 @@ class DialogueScene(Scene):
             if name == "wait" and args:
                 self.line_ms -= float(args[0])
             elif name == "shake":
-                self.shake_until = self.time + int(args[0]) if args else self.time + 400
+                if self.game.settings.screen_shake:          # reduced motion: no tremble
+                    self.shake_until = self.time + int(args[0]) if args else self.time + 400
             elif name == "music" and args:
                 self.game.audio.play_music(args[0])
         if line.get("book") and self.book_born is None:
@@ -414,6 +582,9 @@ class DialogueScene(Scene):
             return
         if event.key == pygame.K_ESCAPE:
             self.game.switch(next_scene(self.game, self.guardian))
+        elif event.key == pygame.K_p:              # pause: save, settings, statistics
+            from engine.menus import PauseScene
+            self.game.switch(PauseScene(self.game, self))
         elif event.key in ctrl:
             self.skipping = True
         elif event.key == pygame.K_l:
@@ -580,6 +751,7 @@ ADA_BODY = (ADA_AT[0] + 18, ADA_AT[1] + 22)
 
 
 class BattleScene(Scene):
+    PLACE = "battle"                       # for the statistics: time spent in battle
     WAIT_MS = 350                          # a short breath between turns
     DANGER_MUSIC = True                    # the tutorial turns this off: nothing is at stake
     HINTS = True                           # the tutorial turns this off: its coach talks
@@ -588,6 +760,13 @@ class BattleScene(Scene):
 
     def __init__(self, game, guardian: str = "slime", battle: Battle | None = None):
         super().__init__(game)
+        self.battle_id = uuid.uuid4().hex[:8]          # the log's link between casts
+        self.codex_open = False
+        self.rewinds = self.tricks_found = self.scrolls_made = 0
+        if guardian in ORDER:                          # Continue resumes at this battle's start
+            game.state.at = guardian
+        game.track("battle_start", guardian=guardian, seed=game.seed,
+                   retry=game.state.retries.get(guardian, 0))
         self.key = guardian
         runes = set(game.runes) | set(GUARDIANS[guardian].ada_runes)
         # A scene may be handed its battle (the tutorial runs its own); otherwise a new one.
@@ -604,6 +783,7 @@ class BattleScene(Scene):
         conn = self.battle.conn
         self.editor = QueryEditor(names=schema_words(conn), tables=schema_tables(conn),
                                   unlocked=set(self.battle.state.ada.runes), visible_lines=6)
+        self.editor.cast_key = lambda e: settings_screen.pressed(e, "cast", game.settings)
         self.grimoire = Grimoire(self.editor)
         self.beats: list[Beat] = []
         self.beat: Beat | None = None
@@ -688,6 +868,7 @@ class BattleScene(Scene):
 
     def speak_hint(self, hint) -> None:
         """Someone speaks during Ada's turn (story/hints.py): typed out, long enough to read."""
+        self.game.track("hint", guardian=self.key, topic=hint.topic, node=hint.node)
         ms = int(Typewriter(hint.markup, hint.speaker, i18n_locale()).total_ms) + 2600
         self.say(hint.text, ms, None, *voice(hint.speaker)[:1], speaker=hint.speaker,
                  markup=hint.markup)
@@ -718,7 +899,7 @@ class BattleScene(Scene):
             self.fx.bolt(start, end, render.ELEMENT_COLOURS.get(self._element_of(spell),
                                                                  render.LILAC))
             self.shown[side][0] = max(0, self.shown[side][0] - damage)
-            self.flash[side] = 160
+            self.flash[side] = 160 if self.game.settings.flashes else 0   # reduced motion
             if side == "ada":
                 self.ada.hit()
             x, y = (self.foe_xy()[0], self.foe_xy()[1] - 28) if side == "foe" \
@@ -863,6 +1044,8 @@ class BattleScene(Scene):
     # ------------------------------------------------------------ turns
 
     def cast(self, sql: str) -> None:
+        turn = self.battle.state.turn
+        started = time.perf_counter()
         try:
             report = self.battle.ada_cast(sql)
         except Miscast as miscast:
@@ -870,7 +1053,17 @@ class BattleScene(Scene):
             self.game.audio.play("miscast")
             if self.hints is not None:
                 self.hints.miscast()
+            self.game.record_cast(miscast_record(sql, self.key, turn, miscast.key))
             return
+        ms = (time.perf_counter() - started) * 1000            # real, measured
+        plan, scanned = self.battle.explain(sql) if report.kind == "read" else ([], 0)
+        try:
+            tables = tables_read(sql)
+        except Exception:
+            tables = set()
+        self.game.record_cast(cast_record(report, sql, self.key, turn, ms, plan, scanned,
+                                          tables))
+        self.tricks_found += len(report.tricks)
         self.game.audio.play("scry" if report.scry else "cast")
         self._ada_casts(report)
         if self.hints is not None:
@@ -1022,6 +1215,8 @@ class BattleScene(Scene):
         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and count:
             self.rewind_open = False
             report = self.battle.rewind(self.rewind_choice)
+            self.rewinds += 1
+            self.game.track("rewind", guardian=self.key, turn=self.battle.state.turn)
             self.grimoire.clear()
             self.narrate(report)
             self._tell_world(report)
@@ -1035,6 +1230,7 @@ class BattleScene(Scene):
             return
         view = book.save(self.last_cast)
         self.game.scrolls = dict(book.scrolls)
+        self.scrolls_made += 1
         self.editor.names.append(view)                # TAB completes it from now on
         self.say(t("ui.scroll.saved", name=view), 1600, None, "invitation")
 
@@ -1047,10 +1243,17 @@ class BattleScene(Scene):
     def handle(self, event):
         if self.speech_key(event):
             return
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_F6:
+        if self.codex_open:                         # the Codex page takes the keyboard
+            if event.type == pygame.KEYDOWN:
+                self.codex_open = False
+            return
+        if settings_screen.pressed(event, "codex", self.game.settings):
+            self.codex_open = True
+            return
+        if settings_screen.pressed(event, "rewind", self.game.settings):
             self.toggle_rewind()
             return
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_F7:
+        if settings_screen.pressed(event, "scroll", self.game.settings):
             self.save_scroll()
             return
         if self.rewind_open:                        # the Rewind page takes the keyboard
@@ -1085,7 +1288,7 @@ class BattleScene(Scene):
                 return
             self._typing_feedback(event, before)
             return
-        if is_cast_key(event):                      # Ctrl+Enter while waiting: fast-forward
+        if settings_screen.pressed(event, "cast", self.game.settings):   # waiting: fast-forward
             self.beat_left = 0
         elif event.type == pygame.TEXTINPUT or (event.type == pygame.KEYDOWN and
                                                 event.key not in (pygame.K_LCTRL, pygame.K_RCTRL,
@@ -1172,6 +1375,11 @@ class BattleScene(Scene):
         self.idle = 0
         turn = self.battle.whose_turn
         if self.phase == "end":
+            self.battle.stats = {"battle": self.battle_id, "guardian": self.key,
+                                 "result": self.battle.winner, "rounds": self.battle.state.turn,
+                                 "seconds": round(self.time / 1000, 1), "rewinds": self.rewinds,
+                                 "tricks": self.tricks_found, "scrolls": self.scrolls_made,
+                                 "retries": self.game.state.retries.get(self.key, 0)}
             self.game.switch(ResultScene(self.game, self.battle))
         elif turn == "foe":
             self.foe_turn()
@@ -1260,6 +1468,8 @@ class BattleScene(Scene):
             self._draw_tables(canvas)
         if self.rewind_open:
             self._draw_rewind(canvas)
+        if self.codex_open:
+            self._draw_codex(canvas)
         if self.game.debug:
             self._draw_debug(canvas)
         self.guide.draw(canvas, self.time)
@@ -1309,6 +1519,27 @@ class BattleScene(Scene):
         for p in self.popups:
             f.draw(canvas, p.text, (p.pos[0] - f.width(p.text) // 2, p.pos[1] - p.age // 60),
                    p.colour, shadow=render.INK)
+
+    def _draw_codex(self, canvas):
+        """The Codex (F8): every technique the player has used or seen, in their own words."""
+        f = render.font()
+        box = pygame.Rect(8, 6, 304, 168)
+        render.cover(canvas, box, (*render.INK, 245))
+        f.draw(canvas, t("codex.screen.title"), (box.x + 6, box.y + 5), render.BUTTER)
+        y = box.y + 16
+        pages = self.battle.codex.unlocked()
+        if not pages:
+            f.draw(canvas, t("codex.screen.empty"), (box.x + 6, y), render.GREY)
+        for page in pages:
+            if y > box.bottom - 24:
+                break
+            f.draw(canvas, page.title, (box.x + 6, y), render.GOLD)
+            y += render.LINE_H
+            for line in wrap(page.text, 72)[:2]:
+                f.draw(canvas, line, (box.x + 10, y), render.LILAC)
+                y += render.LINE_H
+            y += 2
+        f.draw(canvas, t("codex.screen.close"), (box.x + 6, box.bottom - 9), render.GREY)
 
     def _draw_speech(self, canvas):
         """Someone speaks (a reaction, a trick, a hint, a plea): the rest of the screen darkens
@@ -1468,6 +1699,20 @@ class ResultScene(Scene):
         self.rune = battle.guardian.signature
         self.codex = next((sql for sql in battle.state.foe_book if self.rune in sql), None)
         self.next = next_guardian(self.key) if self.won else self.key
+        if self.key in ORDER:
+            game.record_battle(dict(getattr(battle, "stats", {}) or
+                                    {"guardian": self.key, "result": battle.winner,
+                                     "rounds": battle.state.turn}))
+        self.saved = False
+        if self.won and self.key in ORDER:
+            # Autosave after every guardian defeated (D12): the runes it grants are kept, and
+            # the story stands at the next guardian (or the end of this build).
+            state = game.state
+            game.runes |= battle.state.ada.runes | {self.rune}
+            if self.key not in state.beaten:
+                state.beaten.append(self.key)
+            state.at = self.next or "end"
+            self.saved = game.autosave()
 
     def enter(self):
         self.game.audio.play("victory" if self.won else "defeat")
@@ -1477,8 +1722,12 @@ class ResultScene(Scene):
             self.game.running = False
         elif is_confirm_key(event):
             self.game.seed += 1                      # a new, still reproducible battle
-            if not self.won:                         # try the same guardian again
-                self.game.switch(BattleScene(self.game, self.key))
+            if not self.won:                         # try the same guardian again (D12)
+                state = self.game.state
+                state.retries[self.key] = state.retries.get(self.key, 0) + 1
+                tired = settings_screen.ACCESSIBILITY.get("defeat_fatigue", 0.0)
+                state.fatigue = round(min(1.0, state.fatigue + tired), 3)
+                self.game.switch(BattleScene(self.game, self.key))   # HP and MP restored
                 return
             # Runes are kept after a victory, and a defeated guardian always grants its own
             # (design doc 2.4: "each region's guardian grants the keyword"), even if Ada won

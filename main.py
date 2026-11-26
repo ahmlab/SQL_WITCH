@@ -1,5 +1,5 @@
 """SQL Witch: python main.py [--seed N] [--scale K] [--start tutorial|slime|knight] [--locale L]
-[--smoke-test]
+[--save-dir DIR] [--skip-creator] [--smoke-test]
 
 Boots pygame, opens the window and runs the scenes with a fixed 60 Hz timestep: the game
 always advances in steps of 1/60 s, however fast or slow the machine draws, so animations
@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import os
 import time
+from pathlib import Path
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
@@ -49,6 +50,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--locale", default=None,
                         help="language, e.g. es, zh-Hans, zh-Hant; qps is the pseudo-locale "
                              "for testing (default: English)")
+    parser.add_argument("--save-dir", default=None,
+                        help="where profiles, saves and settings live (default: the user data "
+                             "folder of this OS)")
+    parser.add_argument("--skip-creator", action="store_true",
+                        help="new games skip the character creator (tests)")
     parser.add_argument("--frames", type=int, default=None, help=argparse.SUPPRESS)  # smoke tests
     parser.add_argument("--smoke-test", action="store_true",
                         help="start, show the title, quit (for CI and packaged builds)")
@@ -56,12 +62,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def run(seed: int, scale: int | None = None, max_frames: int | None = None,
-        start: str = "tutorial") -> int:
+        start: str = "tutorial", save_dir: str | None = None, skip_creator: bool = False,
+        locale: str | None = None) -> int:
+    from save.files import read_json
+    from save.profiles import SaveSystem
+    from save.settings_file import SettingsFile
+    from save.telemetry import https_sender
     init_mixer()                                   # before pygame.init(): low-latency sound
     pygame.init()
+    saves = SaveSystem(save_dir)
+    settings = SettingsFile(saves.root).load()
+    game = None
     try:
-        screen = render.Screen(scale=scale)
-        game = Game(screen.canvas, seed, screen=screen, audio=Audio(), start=start)
+        screen = render.Screen(scale=scale or settings.scale, display=settings.display,
+                               fill=settings.fill)
+        game = Game(screen.canvas, seed, screen=screen, audio=Audio(), start=start,
+                    saves=saves, settings=settings, skip_creator=skip_creator, locale=locale)
         clock = pygame.time.Clock()
         updates, lag_ms, last = 0, 0.0, time.perf_counter()
         frames = 0
@@ -84,6 +100,9 @@ def run(seed: int, scale: int | None = None, max_frames: int | None = None,
     except KeyboardInterrupt:
         pass                                   # Ctrl+C in the terminal: leave quietly
     finally:
+        if game is not None and game.telemetry is not None:   # only with consent, if anywhere
+            config, _ = read_json(Path(__file__).parent / "data" / "telemetry.json")
+            game.telemetry.flush(https_sender((config or {}).get("endpoint")))
         pygame.quit()
     return 0
 
@@ -100,12 +119,16 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         set_locale(args.locale)
     if args.smoke_test:
-        code = run(seed=1, scale=1, max_frames=SMOKE_FRAMES, start=args.start)
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:      # never touch the player's saves
+            code = run(seed=1, scale=1, max_frames=SMOKE_FRAMES, start=args.start,
+                       save_dir=args.save_dir or folder, locale=args.locale)
         print("smoke test: the title was shown and the game quit cleanly")
         return code
     seed = args.seed if args.seed is not None else int(time.time())
     print(f"SQL Witch - seed {seed} (replay this battle with --seed {seed})")
-    return run(seed, args.scale, args.frames, args.start)
+    return run(seed, args.scale, args.frames, args.start, args.save_dir, args.skip_creator,
+               args.locale)
 
 
 if __name__ == "__main__":

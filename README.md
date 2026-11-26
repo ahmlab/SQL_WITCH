@@ -64,12 +64,16 @@ python main.py
 | `--start tutorial` | The default: intro, then the tutorial, then the Slime. |
 | `--start slime` | Skip the tutorial: the intro leads straight to the Slime. |
 | `--start knight` | Start the story at the second guardian (with `LIMIT` already learned). |
+| `--save-dir FOLDER` | Keep profiles, saves and settings in this folder (default: your user data folder, see `docs/SAVES.md`). |
+| `--skip-creator` | New games skip the character creator (tests). |
 | `--locale es` | Play in another language: `es`, `zh-Hans`, `zh-Hant` (drafts awaiting review), or `qps`, the pseudo-locale for testing. |
 
 | Key | Action |
 |---|---|
 | `Enter` | Title and dialogue: continue (hold it to type faster). In battle, when the Grimoire or a guardian speaks: show the whole line, then close it (the battle waits for you). In the editor: new line. |
 | `L` | Title: next language. Dialogue: the log of everything said. |
+| `P` | Outside battles: pause (save to a slot, settings, statistics, back to the title). |
+| `F8` | The Codex: every technique you have used or seen. |
 | `A` / hold `Ctrl` | Dialogue: auto-advance / skip. |
 | `Ctrl+Enter` | Cast the query (also fast-forwards the battle narration). |
 | `Tab` or `→` | Accept the shaded suggestion after the cursor: the rest of a word (`SE` → `SELECT`) or the next piece of the query (`SELECT` → `name` → `FROM spells`). |
@@ -169,6 +173,8 @@ and the window scenes. Engine tests run headless through SDL's dummy drivers.
 | `story/pacing.py` | The typewriter: time-based pacing per speaker and language, voices, box styles. |
 | `story/hints.py` | The Hint Director: who speaks up when the player is stuck, and what they say. |
 | `story/scenes.py` | Script lines as story-scene records (backdrop, Ada's sleepiness, who is on stage). |
+| `save/` | Profiles, slots and the autosave, settings, statistics, opt-in telemetry (`docs/SAVES.md`). |
+| `engine/menus.py`, `engine/settings.py`, `engine/stats.py` | Title menu, first launch, load, pause, credits; settings applied live; the statistics screen. |
 | `i18n/` | The text catalogs (`data/i18n/`), ICU plurals and gender, text width and wrapping, the qps pseudo-locale, overflow checks. |
 | `engine/fonts.py` | The font service: pixel letters, composed accents, Unifont for Chinese, Greek and Cyrillic. |
 | `tools/translate.py`, `tools/i18n_report.py` | Translation drafts and review marks; coverage, overflow and gender reports. |

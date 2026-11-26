@@ -1,0 +1,5 @@
+{
+  "_help": "Telemetry (opt-in, off by default; docs/TELEMETRY.md). endpoint: the HTTPS URL that receives batches; null means nothing is ever sent, the queue stays on the player's machine. batch: events per request.",
+  "endpoint": null,
+  "batch": 200
+}

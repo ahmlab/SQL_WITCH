@@ -46,6 +46,9 @@ def init_mixer() -> bool:
         return False
 
 
+UI_SOUNDS = {"confirm", "next", "typing", "erase", "newline", "rune", "locked"}
+
+
 class Audio:
     def __init__(self, config_path: Path = CONFIG, enabled: bool = True):
         self.config = self._read_config(config_path)
@@ -63,6 +66,10 @@ class Audio:
         # Each channel's fade: [volume now, volume wanted, what to do once silent].
         self._fades = {THEME: [0.0, 0.0, None], DANGER: [0.0, 0.0, None]}
         self._channels: tuple | None = None
+        # The player's volume sliders (settings), on top of sounds.json: master, music,
+        # effects (spells, hits) and ui (keys, menus, voices). set_levels() applies them live.
+        self.levels = {"master": 1.0, "music": 1.0, "effects": 1.0, "ui": 1.0}
+        self._base: dict[str, tuple[float, str]] = {}   # cached sound -> (volume, category)
 
     @staticmethod
     def _read_config(path: Path) -> dict:
@@ -82,8 +89,23 @@ class Audio:
         except pygame.error:
             return False                 # no sound card (or a CI machine): stay silent
 
-    def _volume(self, entry: dict) -> float:
-        return float(entry.get("volume", 1.0)) * float(self.config.get("master_volume", 1.0))
+    def _volume(self, entry: dict, category: str = "effects") -> float:
+        return float(entry.get("volume", 1.0)) * float(self.config.get("master_volume", 1.0)) \
+            * self.levels["master"] * self.levels[category]
+
+    @staticmethod
+    def category(name: str) -> str:
+        return "ui" if name in UI_SOUNDS or name.startswith("voice_") else "effects"
+
+    def set_levels(self, **levels: float) -> None:
+        """Change the volume sliders (0 to 1): every loaded sound follows at once."""
+        for key, value in levels.items():
+            if key in self.levels:
+                self.levels[key] = max(0.0, min(1.0, float(value)))
+        for key, sound in self._sounds.items():
+            if sound is not None and key in self._base:
+                volume, category = self._base[key]
+                sound.set_volume(self._volume({"volume": volume}, category))
 
     def _path(self, entry: dict | None, name: str) -> Path | None:
         if not entry or "file" not in entry:
@@ -110,7 +132,8 @@ class Audio:
             if path is not None:
                 try:
                     sound = pygame.mixer.Sound(str(path))
-                    sound.set_volume(self._volume(entry))
+                    self._base[key] = (float(entry.get("volume", 1.0)), self.category(name))
+                    sound.set_volume(self._volume(entry, self.category(name)))
                 except pygame.error as error:
                     print(f"[audio] '{name}': cannot play {path.name} ({error}).")
             self._sounds[key] = sound
@@ -143,7 +166,8 @@ class Audio:
             if path is not None:
                 try:
                     sound = pygame.mixer.Sound(str(path))
-                    sound.set_volume(self._volume(entry))
+                    self._base[key] = (float(entry.get("volume", 1.0)), "music")
+                    sound.set_volume(self._volume(entry, "music"))
                 except pygame.error as error:
                     print(f"[audio] music '{name}': cannot play {path.name} ({error}).")
             self._sounds[key] = sound

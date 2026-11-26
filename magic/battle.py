@@ -138,6 +138,24 @@ class Battle:
 
     # ------------------------------------------------------------ the two sides
 
+    def explain(self, sql: str) -> tuple[list[str], int]:
+        """The query plan SQLite chose (SCAN, SEARCH ... USING INDEX) and how many rows the
+        scanned tables hold: the statistics screen shows rows scanned against rows returned.
+        Only for a read; it runs nothing (EXPLAIN never touches the data)."""
+        try:
+            plan = [row[3] for row in self.conn.execute(f"EXPLAIN QUERY PLAN {sql}")]
+        except Exception:
+            return [], 0
+        scanned = 0
+        for step in plan:
+            words = step.split()
+            if len(words) >= 2 and words[0] == "SCAN" and words[1].isidentifier():
+                try:
+                    scanned += self.conn.execute(f'SELECT COUNT(*) FROM "{words[1]}"').fetchone()[0]
+                except Exception:
+                    pass
+        return plan, scanned
+
     def ada_cast(self, sql: str) -> CastReport:
         """Ada's query. Raises guard.Miscast for a rejected query; in Apprentice mode a miscast
         is free, so her turn simply continues. A scry does not end the turn either."""

@@ -12,7 +12,8 @@ as the typing notes. voice() says which.
 
 Never imports pygame.
 
-STATUS: schedule by time, CJK speed, per-language punctuation, pauses, instant, voices.
+STATUS: schedule by time, CJK speed, per-language punctuation, pauses, instant, voices,
+the player's text speed.
 """
 
 from __future__ import annotations
@@ -37,6 +38,14 @@ def is_cjk(char: str) -> bool:
             or 0xF900 <= code <= 0xFAFF or 0xFF00 <= code <= 0xFFEF)
 
 
+# The player's text speed (settings): a multiple of every speed; 0 shows lines at once.
+SPEED = {"factor": 1.0}
+
+
+def set_text_speed(factor: float) -> None:
+    SPEED["factor"] = factor
+
+
 class Typewriter:
     def __init__(self, markup: str | list[Token], speaker: str = "", locale: str = "en"):
         data = settings()
@@ -46,7 +55,7 @@ class Typewriter:
         punctuation.update(data["punctuation"].get(locale, {}))
         self.times: list[float] = []              # when character i appears, in ms
         self.text = ""
-        t, speed, instant = 0.0, 1.0, False
+        t, speed, instant = 0.0, 1.0, SPEED["factor"] <= 0
         for token in self.tokens:
             if token.kind == "pause":
                 t += token.value
@@ -56,7 +65,8 @@ class Typewriter:
                 instant = True
             else:
                 for char in token.text:
-                    cps = data["cps"]["cjk" if is_cjk(char) else "latin"] * base * speed
+                    cps = data["cps"]["cjk" if is_cjk(char) else "latin"] * base * speed * \
+                        max(SPEED["factor"], 0.01)
                     if not instant:
                         t += 1000.0 / cps
                     self.times.append(t)

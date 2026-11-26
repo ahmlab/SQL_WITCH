@@ -98,7 +98,8 @@ working branch, `claude/happy-goldberg-og671f`.)
 - `python -m pytest -q` runs the suite (headless: SDL dummy drivers in `tests/conftest.py`);
   `--runslow` adds the full music re-render.
 - `python main.py --start tutorial|slime|knight`, `--seed N`, `--locale es|zh-Hans|zh-Hant|qps`,
-  `--smoke-test` (CI and packaging).
+  `--save-dir DIR`, `--skip-creator`, `--smoke-test` (CI and packaging; it never touches real
+  saves).
 - Text: dialogue in `data/story/*.script` (docs/WRITING.md); UI keys in `data/i18n/en.json`;
   translations via `tools/translate.py`, checks via `tools/i18n_report.py` (docs/LOCALISATION.md).
 - Module headers follow one style: purpose, how it works, what it must not do, `STATUS:` line.

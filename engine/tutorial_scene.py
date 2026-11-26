@@ -40,11 +40,22 @@ PULSE_MS = 1300                               # how long a newly revealed part g
 
 
 class TutorialScene(BattleScene):
+    PLACE = "tutorial"
     # The dummy's HP panel goes mid-field: the strip and the bubble use the top of the screen.
     FOE_PANEL = pygame.Rect(64, 56, 120, 20)
 
     def relocalise(self) -> None:
         self.tutorial.relocalise()
+
+    def _time_lessons(self) -> None:
+        """How long each lesson took (telemetry, only with consent: lesson id and seconds)."""
+        index = self.tutorial.index
+        seen = getattr(self, "_lesson_at", None)
+        if seen is None or seen[0] != index:
+            if seen is not None and 0 <= seen[0] < len(self.tutorial.lessons):
+                self.game.track("lesson", lesson=self.tutorial.lessons[seen[0]]["id"],
+                                seconds=round((self.time - seen[1]) / 1000, 1))
+            self._lesson_at = (index, self.time)
     DANGER_MUSIC = False                     # nothing is at stake here
     HINTS = False                            # the coach is the only voice in practice
 
@@ -274,6 +285,7 @@ class TutorialScene(BattleScene):
     def update(self, dt):
         # Not BattleScene.update: there are no turns to run, the tutorial settles each query.
         self.time += dt
+        self._time_lessons()
         self._update_beats(dt)
         self._update_visuals(dt)
         self._update_ada(dt)

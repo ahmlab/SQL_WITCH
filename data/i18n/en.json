@@ -206,6 +206,11 @@
         "text": "You broke a guardian with what you know about databases. That counts.",
         "dialects": ""
       }
+    },
+    "screen": {
+      "title": "CODEX: what you know, in your own queries",
+      "empty": "Nothing yet: every technique you use or see is written here.",
+      "close": "Any key: back to the battle"
     }
   },
   "hint": {
@@ -357,5 +362,127 @@
     "_help": "Names shown on a speaker's tag. Guardians use their names from the database (data, in English); the Grimoire and the protagonist are translated here.",
     "Grimoire": "Grimoire",
     "Ada": "{player.name}"
+  },
+  "menu": {
+    "_help": "The title and system screens (engine/menus.py). at.*: where a save stands, shown in the Load list.",
+    "continue": "Continue",
+    "new_game": "New Game",
+    "load": "Load",
+    "settings": "Settings",
+    "statistics": "Statistics",
+    "credits": "Credits",
+    "quit": "Quit",
+    "language": "Language",
+    "pause": "PAUSE",
+    "resume": "Resume",
+    "save_to": "Save to slot {n}",
+    "saved": "Saved to slot {n}.",
+    "to_title": "Back to the title",
+    "slot": "Slot {n}",
+    "autosave": "Autosave",
+    "empty": "(empty)",
+    "damaged": "(damaged)",
+    "damaged_backup": "(damaged: ENTER loads the last good copy)",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}",
+    "at": {
+      "tutorial": "the tutorial",
+      "slime": "the Asterisk Slime",
+      "knight": "the Filter Keep",
+      "end": "the end"
+    }
+  },
+  "consent": {
+    "title": "Help us make the game better?",
+    "text": "If you agree, the game sends anonymous notes about how battles go: which techniques you use (SELECT, WHERE...), how long a lesson takes, when hints appear. Never your name, never what you type, never anything that identifies you. It is off unless you say yes, and you can change it any time in Settings.",
+    "yes": "Yes, send anonymous notes",
+    "no": "No, thank you"
+  },
+  "settings": {
+    "_help": "The settings screen (engine/settings.py). row.*: the name of each setting; value.*: a setting's value in words.",
+    "title": "SETTINGS",
+    "on": "on",
+    "off": "off",
+    "auto": "auto",
+    "keys": "UP/DOWN choose   LEFT/RIGHT change   ENTER rebind a key   ESC back",
+    "row": {
+      "language": "Language",
+      "display": "Display",
+      "scale": "Window scale",
+      "fill": "Fullscreen: fill (no bars)",
+      "volume.master": "Volume",
+      "volume.music": "Music",
+      "volume.effects": "Effects",
+      "volume.ui": "Interface sounds",
+      "text_speed": "Text speed",
+      "auto_advance": "Auto-advance dialogue",
+      "screen_shake": "Screen shake",
+      "flashes": "Flashes",
+      "palette": "Colour palette",
+      "grimoire_font": "Grimoire letters",
+      "telemetry": "Anonymous notes (telemetry)",
+      "share_queries": "Also share my queries",
+      "bind.cast": "Key: cast",
+      "bind.help": "Key: spell guide",
+      "bind.tables": "Key: tables",
+      "bind.rewind": "Key: rewind",
+      "bind.scroll": "Key: save Scroll",
+      "bind.codex": "Key: Codex"
+    },
+    "value": {
+      "windowed": "windowed",
+      "fullscreen": "fullscreen",
+      "slow": "slow",
+      "normal": "normal",
+      "fast": "fast",
+      "instant": "instant",
+      "deuteranopia": "deuteranopia",
+      "protanopia": "protanopia",
+      "tritanopia": "tritanopia",
+      "large": "large"
+    }
+  },
+  "stats": {
+    "_help": "The statistics screen (engine/stats.py).",
+    "title": "STATISTICS",
+    "this_run": "This run  (R: every run)",
+    "all_runs": "Every run  (R: this run)",
+    "keys": "LEFT/RIGHT pages   R this run / all   E export   ESC back",
+    "none": "Nothing yet.",
+    "exported": "Exported to {folder}",
+    "page": {
+      "casting": "CASTING",
+      "technique": "TECHNIQUE",
+      "tables": "TABLES",
+      "queries": "QUERIES",
+      "battles": "BATTLES",
+      "habits": "HABITS"
+    },
+    "casting": {
+      "queries": "{queries} queries, {free_looks} free looks, {miscasts} miscasts",
+      "waste": "{overflows} overflows, {fizzles} fizzles, MP spent {mp_spent}, MP wasted {mp_wasted}",
+      "rows": "rows summoned {rows_summoned}, rows read {rows_read}, {rows_per_query} rows per query",
+      "trend": "rows read per row summoned, last casts (%): {trend}"
+    },
+    "technique": {
+      "uses": "{name}: {count}",
+      "learned": "You used {technique} {before, plural, one {# time} other {# times}} before meeting {guardian}, and {since, plural, one {# time} other {# times}} since."
+    },
+    "tables": {
+      "uses": "{name}: {count}",
+      "never": "Never opened: {tables}. The Grimoire would like a word."
+    },
+    "queries": {
+      "line": "  {ms} ms, scanned {scanned} rows, returned {returned}, plan: {plan}"
+    },
+    "battles": {
+      "total": "{battles} battles, {won} won, {rounds} rounds, {rewinds} rewinds, {tricks} tricks, {scrolls} Scrolls",
+      "time": "{minutes} minutes in battle",
+      "retries": "retries against {guardian}: {count}"
+    },
+    "habits": {
+      "sessions": "{count} sessions, {minutes} minutes",
+      "places": "minutes per place: {places}",
+      "fatigue": "Fatigue after each battle (%): {values}"
+    }
   }
 }
