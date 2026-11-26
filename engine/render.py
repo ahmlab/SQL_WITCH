@@ -512,6 +512,18 @@ def letterbox(window_size: tuple[int, int], fill: bool = False
     return max(1, int(s)), size, ((w - size[0]) // 2, (h - size[1]) // 2)
 
 
+def desktop_size() -> tuple[int, int]:
+    """The size of the monitor the game opens on (not of the game's window)."""
+    try:
+        sizes = pygame.display.get_desktop_sizes()
+        if sizes and sizes[0][0] > 0:
+            return sizes[0]
+    except (AttributeError, pygame.error):
+        pass
+    info = pygame.display.Info()
+    return info.current_w, info.current_h
+
+
 class Screen:
     """Owns the window and the logical canvas. Scenes draw on .canvas, then call present().
     Windowed (a whole-number scale) or fullscreen (the whole display, letterboxed at a whole
@@ -532,8 +544,10 @@ class Screen:
             self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             if scale is None:
-                info = pygame.display.Info()
-                scale = fit((info.current_w - 80, info.current_h - 120))[0]
+                # The monitor's size, never the window's: measured from the window, the
+                # "largest that fits" would shrink a little every time the display is set.
+                w, h = desktop_size()
+                scale = fit((w - 80, h - 120))[0]
             self.window = pygame.display.set_mode((LOGICAL_W * scale, LOGICAL_H * scale),
                                                   pygame.RESIZABLE)
             self.scale = scale

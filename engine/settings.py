@@ -35,8 +35,7 @@ def apply(game, settings: Settings | None = None) -> None:
     s = settings or game.settings
     if s.language and s.language != CATALOG.locale and s.language in CATALOG.settings()["locales"]:
         set_locale(s.language)
-    if game.screen is not None and (game.screen.mode, game.screen.fill, game.screen.scale) != \
-            (s.display, s.fill, s.scale if s.display == "windowed" else game.screen.scale):
+    if game.screen is not None and display_changed(game.screen, s):
         game.screen.set_display(s.display, s.scale, s.fill)
     if hasattr(game.audio, "set_levels"):
         game.audio.set_levels(**s.volume)
@@ -44,6 +43,14 @@ def apply(game, settings: Settings | None = None) -> None:
     game.auto_advance = s.auto_advance
     render.set_palette(s.palette, ACCESSIBILITY["palettes"])
     render.HEAVY_TEXT[0] = s.grimoire_font == "large"
+
+
+def display_changed(screen, s: Settings) -> bool:
+    """Only a real change of display touches the window: changing the language (or a volume)
+    must never re-open it. A scale of None means "as it is now"."""
+    if screen.mode != s.display or screen.fill != s.fill:
+        return True
+    return s.display == "windowed" and s.scale is not None and s.scale != screen.scale
 
 
 # ------------------------------------------------------------------ key bindings

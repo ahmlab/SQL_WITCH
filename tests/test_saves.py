@@ -449,3 +449,27 @@ def test_a_game_without_consent_queues_nothing(tmp_path):
     game.settings.telemetry = True
     game.track("language", locale="es")
     assert [e["event"] for e in game.telemetry.pending()] == ["language"]
+
+
+def test_changing_the_language_never_shrinks_the_window(monkeypatch):
+    """The bug: each settings change re-opened the window at the "largest scale that fits",
+    measured from the window itself, so it shrank one step at a time."""
+    monkeypatch.setattr(render, "desktop_size", lambda: (1920, 1080))
+    screen = render.Screen()
+    size = screen.window.get_size()
+    assert size == (1600, 900)                         # scale 5 fits 1920x1080 with margins
+    # As on a real desktop: once a window exists, Info() reports the window, not the monitor.
+    monkeypatch.setattr(pygame.display, "Info",
+                        lambda: type("Info", (), {"current_w": screen.window.get_width(),
+                                                  "current_h": screen.window.get_height()})())
+    game = Game(screen.canvas, seed=1, screen=screen, audio=Silent())
+    for language in ("es", "zh-Hans", "zh-Hant", "en", "es"):
+        game.settings.language = language
+        settings_screen.apply(game)
+        assert screen.window.get_size() == size
+    game.settings.volume["music"] = 0.3                 # any other setting: the same
+    settings_screen.apply(game)
+    assert screen.window.get_size() == size
+    game.settings.scale = 2                             # a real change still applies
+    settings_screen.apply(game)
+    assert screen.window.get_size() == (640, 360)
