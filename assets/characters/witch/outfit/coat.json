@@ -5,398 +5,398 @@
    "frame": {
     "x": 0,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "coat 1",
    "frame": {
-    "x": 20,
+    "x": 80,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "coat 2",
    "frame": {
-    "x": 40,
+    "x": 160,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "coat 3",
    "frame": {
-    "x": 60,
+    "x": 240,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "coat 4",
    "frame": {
-    "x": 80,
+    "x": 320,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "coat 5",
    "frame": {
-    "x": 100,
+    "x": 400,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "coat 6",
    "frame": {
-    "x": 120,
+    "x": 480,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "coat 7",
    "frame": {
-    "x": 140,
+    "x": 560,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "coat 8",
    "frame": {
-    "x": 160,
+    "x": 640,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "coat 9",
    "frame": {
-    "x": 180,
+    "x": 720,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "coat 10",
    "frame": {
-    "x": 200,
+    "x": 800,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 80
   },
   {
    "filename": "coat 11",
    "frame": {
-    "x": 220,
+    "x": 880,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 80
   },
   {
    "filename": "coat 12",
    "frame": {
-    "x": 240,
+    "x": 960,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 80
   },
   {
    "filename": "coat 13",
    "frame": {
-    "x": 260,
+    "x": 1040,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "coat 14",
    "frame": {
-    "x": 280,
+    "x": 1120,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "coat 15",
    "frame": {
-    "x": 300,
+    "x": 1200,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "coat 16",
    "frame": {
-    "x": 320,
+    "x": 1280,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "coat 17",
    "frame": {
-    "x": 340,
+    "x": 1360,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "coat 18",
    "frame": {
-    "x": 360,
+    "x": 1440,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "coat 19",
    "frame": {
-    "x": 380,
+    "x": 1520,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "coat 20",
    "frame": {
-    "x": 400,
+    "x": 1600,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "coat 21",
    "frame": {
-    "x": 420,
+    "x": 1680,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "coat 22",
    "frame": {
-    "x": 440,
+    "x": 1760,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 600
   },
   {
    "filename": "coat 23",
    "frame": {
-    "x": 460,
+    "x": 1840,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 600
   },
   {
    "filename": "coat 24",
    "frame": {
-    "x": 480,
+    "x": 1920,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 25",
    "frame": {
-    "x": 500,
+    "x": 2000,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 26",
    "frame": {
-    "x": 520,
+    "x": 2080,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 27",
    "frame": {
-    "x": 540,
+    "x": 2160,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 28",
    "frame": {
-    "x": 560,
+    "x": 2240,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 29",
    "frame": {
-    "x": 580,
+    "x": 2320,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 30",
    "frame": {
-    "x": 600,
+    "x": 2400,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 31",
    "frame": {
-    "x": 620,
+    "x": 2480,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 32",
    "frame": {
-    "x": 640,
+    "x": 2560,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 33",
    "frame": {
-    "x": 660,
+    "x": 2640,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 34",
    "frame": {
-    "x": 680,
+    "x": 2720,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 35",
    "frame": {
-    "x": 700,
+    "x": 2800,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 36",
    "frame": {
-    "x": 720,
+    "x": 2880,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 37",
    "frame": {
-    "x": 740,
+    "x": 2960,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 38",
    "frame": {
-    "x": 760,
+    "x": 3040,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "coat 39",
    "frame": {
-    "x": 780,
+    "x": 3120,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   }
@@ -404,8 +404,8 @@
  "meta": {
   "app": "tools/import_sprites.py placeholders",
   "size": {
-   "w": 800,
-   "h": 41
+   "w": 3200,
+   "h": 164
   },
   "frameTags": [
    {

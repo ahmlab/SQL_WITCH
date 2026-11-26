@@ -143,7 +143,11 @@ class DialogueBox:
         who, emotion = (portrait + ("neutral",))[:2]
         frame = pygame.Rect(self.rect.right - 36, self.rect.y - 34, 32, 32)
         if who in portraits:
-            canvas.blit(portraits[who](emotion), frame)
+            image = portraits[who](emotion)
+            if image.get_width() > frame.width:           # an HD portrait (4x): place it as HD
+                gfx.blit_hd(canvas, image, frame.topleft)
+            else:
+                canvas.blit(image, frame)
             return
         path = PORTRAITS / f"{who}_{emotion}.png"
         if path.exists():

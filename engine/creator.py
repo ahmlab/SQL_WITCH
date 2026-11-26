@@ -172,11 +172,12 @@ class CreatorScene:
             f.draw(canvas, value, (200 - text_cells(value) * render.ADVANCE, y), render.GOLD)
             y += 10
         # The preview: the sprite (idle, twice the size) and the portrait, same choices.
+        # Twice the size in the preview: HD sheets are placed with gfx.blit_hd.
         sprite = pygame.transform.scale_by(self.preview.frame(), 2)
-        canvas.blit(sprite, (262, 88))
+        gfx.blit_hd(canvas, sprite, (262, 88))
         portrait = pygame.transform.scale_by(self.preview.portrait(), 2)
         render.panel(canvas, pygame.Rect(250, 14, 68, 68))
-        canvas.blit(portrait, (252, 16))
+        gfx.blit_hd(canvas, portrait, (252, 16))
         if self.refusal:
             key, suggestion = self.refusal
             from engine.grimoire import wrap

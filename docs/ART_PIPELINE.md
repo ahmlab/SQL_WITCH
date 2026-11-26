@@ -13,8 +13,8 @@ assets/characters/witch/portrait/<layer>/<option>.png + .json   the dialogue por
 
 Export from Aseprite with `--format json-array --list-tags`: frames one after another, each with
 its duration, and one tag per animation. Every option of every layer must have **every tag**
-with the **same number of frames** and the **same frame size** (20 x 41 for the sprite,
-32 x 32 for the portrait):
+with the **same number of frames** and the **same frame size** (80 x 164 for the sprite, the
+20 x 41 logical grid at HD, and 128 x 128 for the portrait):
 
 | Tag | Frames | Notes |
 |---|---|---|
@@ -69,5 +69,6 @@ The game draws on an HD canvas, four real pixels per logical pixel, laid out in 
 code at full resolution in `engine/hd_art.py` (gradients and soft edges between palette colours),
 and placed with `gfx.blit_hd` at logical positions. An artist's HD sprite replaces a piece by
 being loaded there instead: paint it at 4x its logical size (Ada: 80 x 164 pixels for her 20 x 41
-grid) and keep its feet where the old sprite's were. The layered creator sheets above are still
-at 1x and enlarged with hard edges until they are redrawn at 4x.
+grid) and keep its feet where the old sprite's were. The layered creator sheets are HD too (80 x 164,
+hd_scale 4 in `witch.json`): paint them with hard pixels (no anti-aliasing), so every pixel is a
+palette or swap colour and the creator's colours replace the swap colours exactly.

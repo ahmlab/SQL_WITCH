@@ -5,398 +5,398 @@
    "frame": {
     "x": 0,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "glasses 1",
    "frame": {
-    "x": 20,
+    "x": 80,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "glasses 2",
    "frame": {
-    "x": 40,
+    "x": 160,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "glasses 3",
    "frame": {
-    "x": 60,
+    "x": 240,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 220
   },
   {
    "filename": "glasses 4",
    "frame": {
-    "x": 80,
+    "x": 320,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "glasses 5",
    "frame": {
-    "x": 100,
+    "x": 400,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "glasses 6",
    "frame": {
-    "x": 120,
+    "x": 480,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "glasses 7",
    "frame": {
-    "x": 140,
+    "x": 560,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "glasses 8",
    "frame": {
-    "x": 160,
+    "x": 640,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "glasses 9",
    "frame": {
-    "x": 180,
+    "x": 720,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 90
   },
   {
    "filename": "glasses 10",
    "frame": {
-    "x": 200,
+    "x": 800,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 80
   },
   {
    "filename": "glasses 11",
    "frame": {
-    "x": 220,
+    "x": 880,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 80
   },
   {
    "filename": "glasses 12",
    "frame": {
-    "x": 240,
+    "x": 960,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 80
   },
   {
    "filename": "glasses 13",
    "frame": {
-    "x": 260,
+    "x": 1040,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "glasses 14",
    "frame": {
-    "x": 280,
+    "x": 1120,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "glasses 15",
    "frame": {
-    "x": 300,
+    "x": 1200,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "glasses 16",
    "frame": {
-    "x": 320,
+    "x": 1280,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "glasses 17",
    "frame": {
-    "x": 340,
+    "x": 1360,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 140
   },
   {
    "filename": "glasses 18",
    "frame": {
-    "x": 360,
+    "x": 1440,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "glasses 19",
    "frame": {
-    "x": 380,
+    "x": 1520,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "glasses 20",
    "frame": {
-    "x": 400,
+    "x": 1600,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "glasses 21",
    "frame": {
-    "x": 420,
+    "x": 1680,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 150
   },
   {
    "filename": "glasses 22",
    "frame": {
-    "x": 440,
+    "x": 1760,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 600
   },
   {
    "filename": "glasses 23",
    "frame": {
-    "x": 460,
+    "x": 1840,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 600
   },
   {
    "filename": "glasses 24",
    "frame": {
-    "x": 480,
+    "x": 1920,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 25",
    "frame": {
-    "x": 500,
+    "x": 2000,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 26",
    "frame": {
-    "x": 520,
+    "x": 2080,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 27",
    "frame": {
-    "x": 540,
+    "x": 2160,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 28",
    "frame": {
-    "x": 560,
+    "x": 2240,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 29",
    "frame": {
-    "x": 580,
+    "x": 2320,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 30",
    "frame": {
-    "x": 600,
+    "x": 2400,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 31",
    "frame": {
-    "x": 620,
+    "x": 2480,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 32",
    "frame": {
-    "x": 640,
+    "x": 2560,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 33",
    "frame": {
-    "x": 660,
+    "x": 2640,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 34",
    "frame": {
-    "x": 680,
+    "x": 2720,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 35",
    "frame": {
-    "x": 700,
+    "x": 2800,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 36",
    "frame": {
-    "x": 720,
+    "x": 2880,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 37",
    "frame": {
-    "x": 740,
+    "x": 2960,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 38",
    "frame": {
-    "x": 760,
+    "x": 3040,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   },
   {
    "filename": "glasses 39",
    "frame": {
-    "x": 780,
+    "x": 3120,
     "y": 0,
-    "w": 20,
-    "h": 41
+    "w": 80,
+    "h": 164
    },
    "duration": 120
   }
@@ -404,8 +404,8 @@
  "meta": {
   "app": "tools/import_sprites.py placeholders",
   "size": {
-   "w": 800,
-   "h": 41
+   "w": 3200,
+   "h": 164
   },
   "frameTags": [
    {

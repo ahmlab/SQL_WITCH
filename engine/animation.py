@@ -155,14 +155,17 @@ def is_default(look: dict | None, character: str = "witch") -> bool:
     return not look or {**default_look(character), **look} == default_look(character)
 
 
-def outline(surface: pygame.Surface, colour=render.INK) -> pygame.Surface:
-    """A one-pixel outline around the figure, in a palette colour."""
+def outline(surface: pygame.Surface, colour=render.INK, width: int = 1) -> pygame.Surface:
+    """An outline `width` pixels thick around the figure, in a palette colour."""
     mask = pygame.mask.from_surface(surface)
-    out = pygame.Surface((surface.get_width() + 2, surface.get_height() + 2), pygame.SRCALPHA)
+    out = pygame.Surface((surface.get_width() + 2 * width, surface.get_height() + 2 * width),
+                         pygame.SRCALPHA)
     edge = mask.to_surface(setcolor=(*colour, 255), unsetcolor=(0, 0, 0, 0))
-    for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
-        out.blit(edge, (dx, dy))
-    out.blit(surface, (1, 1))
+    for dx in range(0, 2 * width + 1):
+        for dy in range(0, 2 * width + 1):
+            if (dx - width) ** 2 + (dy - width) ** 2 <= width * width:
+                out.blit(edge, (dx, dy))
+    out.blit(surface, (width, width))
     return out
 
 
@@ -192,8 +195,13 @@ class Character:
             image = pygame.Surface((w, h), pygame.SRCALPHA)
             for sheet in self.sheets:
                 image.blit(sheet.frame(tag, i), (0, 0))
-            self._frames[key] = outline(image)
+            self._frames[key] = outline(image, width=max(1, self.hd // 2))
         return self._frames[key]
+
+    @property
+    def hd(self) -> int:
+        """Real pixels per logical pixel in this character's sheets (4 since the HD art)."""
+        return int(self.spec.get("hd_scale", 1))
 
     def draw(self, canvas: pygame.Surface, feet: tuple[int, int], flip: bool = False,
              flash: bool = False, shadow: bool = True) -> pygame.Rect:
@@ -203,11 +211,15 @@ class Character:
         if flash:                                       # the white hit flash (reduced motion off)
             image = pygame.mask.from_surface(image).to_surface(setcolor=(*render.WHITE, 255),
                                                                unsetcolor=(0, 0, 0, 0))
-        rect = image.get_rect(midbottom=(round(feet[0]), round(feet[1])))
+        w, h = image.get_width() / self.hd, image.get_height() / self.hd
+        x, y = feet[0] - w / 2, feet[1] - h
         if shadow:
-            gfx.ellipse(canvas, render.FOREST, (rect.centerx - 7, rect.bottom - 3, 14, 4))
-        canvas.blit(image, rect)
-        return rect
+            gfx.ellipse(canvas, render.FOREST, (feet[0] - 7, feet[1] - 3, 14, 4))
+        if self.hd > 1:
+            gfx.blit_hd(canvas, image, (x, y))
+        else:
+            canvas.blit(image, (round(x), round(y)))
+        return pygame.Rect(round(x), round(y), round(w), round(h))
 
     def portrait(self, emotion: str = "neutral") -> pygame.Surface:
         emotions = self.spec["emotions"]

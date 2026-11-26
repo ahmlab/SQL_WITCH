@@ -68,136 +68,208 @@ def pose(tag: str, i: int) -> dict:
     return p
 
 
+Q = 4                                 # HD: four real pixels per logical pixel (D9)
+
+
 def _layer_frame(s: dict, layer: str, option: str, p: dict) -> pygame.Surface:
+    """One HD frame of one layer, seen from behind, 80x164 real pixels (20x41 logical).
+    Hard pixels only (no anti-aliasing): every pixel is a swap or a palette colour, so the
+    creator's colours replace the swap colours exactly."""
     w, h = s["frame"]
     img = pygame.Surface((w, h), pygame.SRCALPHA)
-    cx = w // 2 + p["dx"]
-    top = p["dy"]
+    cx = w // 2 + p["dx"] * Q
+    top = p["dy"] * Q
     skin, skin_d = swap(s, "skin", 0), swap(s, "skin", 1)
     hair, hair_d = swap(s, "hair", 0), swap(s, "hair", 1)
     prim, prim_d = swap(s, "primary", 0), swap(s, "primary", 1)
-    sec = swap(s, "secondary", 0)
-    head_y = 9 + top
+    sec, sec_d = swap(s, "secondary", 0), swap(s, "secondary", 1)
+    head_y = 36 + top
+    hand_y = {0: 108, 1: 76, 2: 30}[p["arms"]] + top
     if layer == "body":
-        pygame.draw.circle(img, skin, (cx, head_y), 5)                  # the back of the head
-        pygame.draw.rect(img, skin_d, (cx - 1, head_y + 4, 3, 3))       # neck
-        hand_y = {0: 27, 1: 19, 2: 8}[p["arms"]] + top
-        for side in (-7, 6):                                            # hands
-            pygame.draw.rect(img, skin, (cx + side, hand_y, 2, 2))
-        for side in (-3, 1):                                            # boots
-            pygame.draw.rect(img, render.BARK, (cx + side + p["step"] * (1 if side < 0 else -1),
-                                                38, 3, 3))
+        pygame.draw.circle(img, skin, (cx, head_y), 19)                       # head
+        pygame.draw.circle(img, skin_d, (cx + 4, head_y + 4), 15, 3)          # its shade
+        pygame.draw.rect(img, skin_d, (cx - 5, head_y + 16, 11, 12))          # neck
+        pygame.draw.rect(img, skin, (cx - 26, head_y - 2, 5, 9))              # ears
+        pygame.draw.rect(img, skin, (cx + 21, head_y - 2, 5, 9))
+        for side in (-1, 1):                                                 # hands
+            hx = cx + side * 27 - 4
+            pygame.draw.rect(img, skin, (hx, hand_y, 9, 9), border_radius=3)
+            pygame.draw.line(img, skin_d, (hx + 2, hand_y + 7), (hx + 7, hand_y + 7), 2)
+        for side in (-1, 1):                                                 # boots
+            step = p["step"] * Q * (1 if side < 0 else -1)
+            bx = cx + side * 9 - 6 + step
+            pygame.draw.rect(img, render.BARK, (bx, h - 14, 13, 13), border_radius=3)
+            pygame.draw.line(img, render.LEATHER, (bx + 2, h - 12), (bx + 10, h - 12), 2)
     elif layer == "outfit":
-        robe = [(cx - 4, 14 + top), (cx + 4, 14 + top), (cx + 7, 38), (cx - 7, 38)]
-        if option == "coat":
-            robe = [(cx - 4, 14 + top), (cx + 4, 14 + top), (cx + 5, 37), (cx - 5, 37)]
-        pygame.draw.polygon(img, prim, robe)
-        pygame.draw.line(img, prim_d, (cx, 15 + top), (cx, 37), 1)      # the back seam
-        pygame.draw.line(img, sec, (cx - 4, 22 + top), (cx + 4, 22 + top), 1)   # belt
+        y0 = 58 + top
         if option == "robe":
-            pygame.draw.line(img, sec, (cx - 7, 37), (cx + 7, 37), 1)   # hem
+            body = [(cx - 16, y0), (cx + 16, y0), (cx + 30, h - 14), (cx - 30, h - 14)]
         else:
-            pygame.draw.line(img, prim_d, (cx, 28), (cx, 37), 1)        # the coat's split
-        arm_y = {0: 16, 1: 15, 2: 10}[p["arms"]] + top
-        for side in (-6, 5):                                            # sleeves
-            pygame.draw.rect(img, prim_d, (cx + side, arm_y, 2, 12 - 4 * p["arms"] // 2))
+            body = [(cx - 16, y0), (cx + 16, y0), (cx + 22, h - 18), (cx - 22, h - 18)]
+        pygame.draw.polygon(img, prim, body)
+        pygame.draw.polygon(img, prim_d, body, 3)
+        for fx in (-14, -5, 5, 14):                                          # folds
+            pygame.draw.line(img, prim_d, (cx + fx // 3, y0 + 22), (cx + fx, body[2][1] - 4), 2)
+        pygame.draw.rect(img, sec, (cx - 17, y0 + 30, 34, 5))                 # belt
+        pygame.draw.rect(img, sec_d, (cx - 4, y0 + 29, 8, 7))                 # its buckle
+        hem_y = body[2][1] - 4
+        pygame.draw.rect(img, sec, (body[3][0], hem_y, body[2][0] - body[3][0], 4))
+        if option == "coat":
+            pygame.draw.line(img, prim_d, (cx, y0 + 40), (cx, hem_y), 3)      # the split
+            for by in range(y0 + 8, y0 + 30, 7):
+                pygame.draw.circle(img, sec, (cx - 9, by), 2)                 # buttons
+        arm_top = {0: y0 + 2, 1: y0 - 4, 2: y0 - 26}[p["arms"]]
+        for side in (-1, 1):                                                 # sleeves + cuffs
+            sx = cx + side * 21
+            sleeve = [(cx + side * 14, y0 + 2), (sx + side * 7, arm_top), (sx + side * 9, hand_y),
+                      (sx - side * 3, hand_y)]
+            pygame.draw.polygon(img, prim_d, sleeve)
+            pygame.draw.line(img, sec, sleeve[2], sleeve[3], 3)
     elif layer == "hair":
-        pygame.draw.circle(img, hair, (cx, head_y), 5)
-        pygame.draw.circle(img, hair_d, (cx, head_y + 1), 4, 1)
+        pygame.draw.circle(img, hair, (cx, head_y), 20)
+        for hx in (-12, -6, 0, 6, 12):                                       # strands on the crown
+            pygame.draw.line(img, hair_d, (cx + hx // 3, head_y - 18), (cx + hx, head_y + 16), 2)
+        pygame.draw.arc(img, hair_d, (cx - 20, head_y - 20, 40, 40), 3.6, 5.8, 3)   # the nape
         if option == "long":
-            pygame.draw.rect(img, hair, (cx - 5, head_y, 11, 13))
-            pygame.draw.line(img, hair_d, (cx, head_y + 2), (cx, head_y + 12), 1)
-        elif option == "braid":
-            for k in range(6):
-                pygame.draw.rect(img, hair if k % 2 else hair_d, (cx - 1, head_y + 5 + 2 * k, 3, 2))
-        # bob: just the head
+            pygame.draw.rect(img, hair, (cx - 20, head_y, 41, 66), border_radius=10)
+            for i, hx in enumerate(range(-16, 18, 5)):                        # strands
+                pygame.draw.line(img, hair_d if i % 2 else hair, (cx + hx // 2, head_y - 14),
+                                 (cx + hx, head_y + 62), 2)
+        elif option == "bob":
+            pygame.draw.rect(img, hair, (cx - 21, head_y - 4, 43, 28), border_radius=12)
+            pygame.draw.line(img, hair_d, (cx - 18, head_y + 22), (cx + 18, head_y + 22), 3)
+            for hx in (-10, 0, 10):
+                pygame.draw.line(img, hair_d, (cx + hx // 2, head_y - 16), (cx + hx, head_y + 20), 2)
+        else:                                                                # braid
+            pygame.draw.circle(img, hair_d, (cx, head_y), 20, 3)
+            for k in range(9):
+                bx = cx + (3 if k % 2 else -3)
+                pygame.draw.ellipse(img, hair if k % 2 else hair_d, (bx - 6, head_y + 16 + k * 8, 12, 10))
+            pygame.draw.rect(img, sec, (cx - 5, head_y + 86, 10, 6), border_radius=2)   # ribbon
     elif layer == "hat" and option != "none":
-        brim = 7 if option == "pointed" else 9
-        pygame.draw.rect(img, prim_d, (cx - brim, head_y - 5, 2 * brim + 1, 2))
+        brim_w = 34 if option == "pointed" else 42
+        brim_y = head_y - 16
+        pygame.draw.ellipse(img, prim_d, (cx - brim_w, brim_y - 5, brim_w * 2, 12))
         if option == "pointed":
-            pygame.draw.polygon(img, prim, [(cx - 4, head_y - 5), (cx + 4, head_y - 5),
-                                            (cx + 2, max(0, head_y - 13))])
+            cone = [(cx - 17, brim_y), (cx + 17, brim_y), (cx + 6, brim_y - 26),
+                    (cx + 16, max(0, brim_y - 34)), (cx + 2, brim_y - 30)]
+            pygame.draw.polygon(img, prim, cone)
+            pygame.draw.polygon(img, prim_d, cone, 2)
+            pygame.draw.circle(img, sec, (cx + 16, max(2, brim_y - 34)), 3)    # a star
         else:
-            pygame.draw.rect(img, prim, (cx - 4, head_y - 9, 9, 4))
-        pygame.draw.line(img, sec, (cx - 4, head_y - 6), (cx + 4, head_y - 6), 1)   # band
+            pygame.draw.rect(img, prim, (cx - 17, brim_y - 18, 35, 18), border_radius=5)
+            pygame.draw.rect(img, prim_d, (cx - 17, brim_y - 18, 35, 18), 2, border_radius=5)
+        pygame.draw.rect(img, sec, (cx - 17, brim_y - 6, 35, 5))               # band
+        pygame.draw.rect(img, sec_d, (cx - 4, brim_y - 7, 8, 7))               # buckle
     elif layer == "accessory" and option != "none":
-        if option == "glasses":                                         # the arms, from behind
-            pygame.draw.line(img, render.INK, (cx - 5, head_y), (cx - 3, head_y), 1)
-            pygame.draw.line(img, render.INK, (cx + 3, head_y), (cx + 5, head_y), 1)
+        if option == "glasses":                                              # arms, behind
+            pygame.draw.line(img, render.INK, (cx - 22, head_y - 2), (cx - 14, head_y - 2), 3)
+            pygame.draw.line(img, render.INK, (cx + 14, head_y - 2), (cx + 22, head_y - 2), 3)
+            pygame.draw.circle(img, render.GOLD, (cx - 22, head_y - 2), 2)
         elif option == "scarf":
-            pygame.draw.rect(img, sec, (cx - 4, 13 + top, 9, 2))
-            pygame.draw.rect(img, sec, (cx + 2, 15 + top, 2, 5))
+            pygame.draw.rect(img, sec, (cx - 17, head_y + 18, 35, 9), border_radius=4)
+            tail = [(cx + 6, head_y + 24), (cx + 16, head_y + 24), (cx + 18 + p["step"] * 2, head_y + 52),
+                    (cx + 8 + p["step"] * 2, head_y + 52)]
+            pygame.draw.polygon(img, sec, tail)
+            for k in range(3):
+                pygame.draw.line(img, sec_d, (cx + 7, head_y + 32 + k * 7), (cx + 17, head_y + 32 + k * 7), 2)
         elif option == "charm":
-            pygame.draw.rect(img, render.SAND, (cx + 3, 23 + top, 3, 4))
-            pygame.draw.line(img, render.LEATHER, (cx + 3, 23 + top), (cx + 3, 26 + top), 1)
+            bx, by = cx + 12, 90 + top
+            pygame.draw.rect(img, render.SAND, (bx, by, 12, 15), border_radius=2)
+            pygame.draw.rect(img, render.LEATHER, (bx, by, 3, 15))
+            for gx, gy in ((bx + 9, by + 1), (bx + 9, by + 12)):
+                pygame.draw.rect(img, render.GOLD, (gx, gy, 2, 2))
     if p["squash"]:                                                     # folding to the ground
-        squashed = pygame.transform.scale(img, (w, h - p["squash"]))
+        squashed = pygame.transform.scale(img, (w, h - p["squash"] * Q))
         img = pygame.Surface((w, h), pygame.SRCALPHA)
-        img.blit(squashed, (0, p["squash"]))
+        img.blit(squashed, (0, p["squash"] * Q))
     return img
 
 
 def _portrait_frame(s: dict, layer: str, option: str, emotion: str) -> pygame.Surface:
+    """One HD portrait layer, 128x128, seen from the front, for one emotion."""
     w, h = s["portrait_frame"]
     img = pygame.Surface((w, h), pygame.SRCALPHA)
     cx = w // 2
     skin, skin_d = swap(s, "skin", 0), swap(s, "skin", 1)
     hair, hair_d = swap(s, "hair", 0), swap(s, "hair", 1)
-    prim, prim_d, sec = swap(s, "primary", 0), swap(s, "primary", 1), swap(s, "secondary", 0)
+    prim, prim_d = swap(s, "primary", 0), swap(s, "primary", 1)
+    sec, sec_d = swap(s, "secondary", 0), swap(s, "secondary", 1)
     if layer == "body":
-        pygame.draw.ellipse(img, skin, (cx - 7, 9, 14, 16))
-        pygame.draw.rect(img, skin_d, (cx - 2, 24, 5, 3))
-        eye_y = 16
-        for ex in (cx - 4, cx + 3):
+        pygame.draw.rect(img, skin_d, (cx - 9, 92, 19, 16))                  # neck
+        pygame.draw.ellipse(img, skin, (cx - 28, 34, 56, 64))                 # face
+        pygame.draw.ellipse(img, skin_d, (cx + 6, 70, 16, 10))                # cheek shade
+        pygame.draw.ellipse(img, skin_d, (cx - 22, 70, 16, 10))
+        eye_y = 62
+        for ex in (cx - 13, cx + 13):
             if emotion == "happy":
-                pygame.draw.line(img, render.INK, (ex - 1, eye_y), (ex + 1, eye_y), 1)
-            else:
-                pygame.draw.rect(img, render.INK, (ex, eye_y - (1 if emotion == "surprised" else 0),
-                                                   1, 2 if emotion == "surprised" else 1))
-        if emotion == "angry":
-            pygame.draw.line(img, render.INK, (cx - 5, 13), (cx - 2, 14), 1)
-            pygame.draw.line(img, render.INK, (cx + 5, 13), (cx + 2, 14), 1)
-        if emotion == "sad":
-            pygame.draw.line(img, render.INK, (cx - 5, 14), (cx - 2, 13), 1)
-            pygame.draw.line(img, render.INK, (cx + 5, 14), (cx + 2, 13), 1)
-        mouth = {"neutral": [(cx - 1, 21), (cx + 1, 21)], "happy": [(cx - 2, 20), (cx, 22), (cx + 2, 20)],
-                 "sad": [(cx - 2, 22), (cx, 20), (cx + 2, 22)], "angry": [(cx - 2, 21), (cx + 2, 21)],
-                 "surprised": [(cx, 21), (cx, 22)]}[emotion]
-        pygame.draw.lines(img, render.WINE, False, mouth + ([mouth[-1]] if len(mouth) < 2 else []), 1)
+                pygame.draw.arc(img, render.INK, (ex - 7, eye_y - 4, 14, 10), 0.2, 2.9, 3)
+                continue
+            tall = 14 if emotion == "surprised" else 10
+            pygame.draw.ellipse(img, render.WHITE, (ex - 7, eye_y - tall // 2, 14, tall))
+            pygame.draw.ellipse(img, render.INK, (ex - 3, eye_y - 4, 7, 8))
+            pygame.draw.rect(img, render.WHITE, (ex, eye_y - 3, 2, 2))
+        brow = {"angry": (6, -2), "sad": (-2, 6), "surprised": (-4, -4)}.get(emotion, (0, 0))
+        for side in (-1, 1):
+            x0, x1 = cx + side * 20, cx + side * 6
+            y0 = eye_y - 12 + (brow[0] if side > 0 else brow[0])
+            y1 = eye_y - 12 + (brow[1] if side > 0 else brow[1])
+            pygame.draw.line(img, render.BARK, (x0, y0 if side < 0 else y1), (x1, y1 if side < 0 else y0), 3)
+        pygame.draw.rect(img, skin_d, (cx - 1, 72, 3, 5))                     # nose
+        mouth = {"neutral": [(cx - 6, 84), (cx + 6, 84)], "happy": [(cx - 9, 81), (cx, 88), (cx + 9, 81)],
+                 "sad": [(cx - 8, 88), (cx, 83), (cx + 8, 88)], "angry": [(cx - 8, 85), (cx + 8, 83)],
+                 "surprised": [(cx - 3, 82), (cx + 3, 82), (cx + 3, 89), (cx - 3, 89), (cx - 3, 82)]}[emotion]
+        pygame.draw.lines(img, render.WINE, False, mouth, 3)
     elif layer == "outfit":
-        pygame.draw.polygon(img, prim, [(cx - 12, 32), (cx - 8, 26), (cx + 8, 26), (cx + 12, 32)])
-        pygame.draw.polygon(img, sec, [(cx - 3, 26), (cx, 30), (cx + 3, 26)])
+        shoulders = [(cx - 52, h), (cx - 40, 108), (cx + 40, 108), (cx + 52, h)]
+        pygame.draw.polygon(img, prim, shoulders)
+        pygame.draw.polygon(img, prim_d, shoulders, 3)
+        pygame.draw.polygon(img, sec, [(cx - 14, 106), (cx, 122), (cx + 14, 106)])   # collar
         if option == "coat":
-            pygame.draw.line(img, prim_d, (cx, 30), (cx, 31), 1)
+            pygame.draw.line(img, prim_d, (cx, 122), (cx, h), 3)
+            pygame.draw.circle(img, sec, (cx - 8, 124), 3)
     elif layer == "hair":
-        pygame.draw.rect(img, hair, (cx - 7, 8, 15, 5))                 # the fringe
-        pygame.draw.line(img, hair_d, (cx - 6, 12), (cx + 6, 12), 1)
+        pygame.draw.ellipse(img, hair, (cx - 32, 26, 64, 34))                 # crown and fringe
+        for i in range(6):
+            fx = cx - 26 + i * 10
+            pygame.draw.polygon(img, hair, [(fx, 44), (fx + 12, 44), (fx + 4, 56 + (i % 2) * 4)])
+        pygame.draw.line(img, hair_d, (cx - 24, 40), (cx + 20, 34), 3)
         if option in ("long", "braid"):
-            pygame.draw.rect(img, hair, (cx - 9, 10, 3, 16 if option == "long" else 8))
-            pygame.draw.rect(img, hair, (cx + 7, 10, 3, 16 if option == "long" else 8))
+            length = 104 if option == "long" else 76
+            for side in (-1, 1):
+                pygame.draw.rect(img, hair, (cx + (side * 30) - (8 if side > 0 else 0), 44, 10, length - 44),
+                                 border_radius=4)
         if option == "braid":
-            for k in range(4):
-                pygame.draw.rect(img, hair if k % 2 else hair_d, (cx + 8, 18 + 2 * k, 2, 2))
+            for k in range(6):
+                pygame.draw.ellipse(img, hair if k % 2 else hair_d, (cx + 26, 74 + k * 7, 10, 9))
+            pygame.draw.rect(img, sec, (cx + 26, 116, 10, 5))
         if option == "bob":
-            pygame.draw.rect(img, hair, (cx - 8, 10, 2, 9))
-            pygame.draw.rect(img, hair, (cx + 7, 10, 2, 9))
+            for side in (-1, 1):
+                pygame.draw.rect(img, hair, (cx + side * 30 - (10 if side > 0 else 0), 40, 12, 40),
+                                 border_radius=6)
     elif layer == "hat" and option != "none":
-        brim = 10 if option == "pointed" else 13
-        pygame.draw.rect(img, prim_d, (cx - brim, 7, 2 * brim + 1, 2))
+        brim_w = 46 if option == "pointed" else 58
+        pygame.draw.ellipse(img, prim_d, (cx - brim_w, 22, brim_w * 2, 16))
         if option == "pointed":
-            pygame.draw.polygon(img, prim, [(cx - 6, 7), (cx + 6, 7), (cx + 3, 0)])
+            cone = [(cx - 24, 30), (cx + 24, 30), (cx + 10, 6), (cx + 26, 0), (cx + 4, 2)]
+            pygame.draw.polygon(img, prim, cone)
+            pygame.draw.polygon(img, prim_d, cone, 2)
         else:
-            pygame.draw.rect(img, prim, (cx - 6, 2, 13, 5))
-        pygame.draw.line(img, sec, (cx - 6, 6), (cx + 6, 6), 1)
+            pygame.draw.rect(img, prim, (cx - 24, 6, 48, 24), border_radius=6)
+        pygame.draw.rect(img, sec, (cx - 24, 24, 48, 6))
+        pygame.draw.rect(img, sec_d, (cx - 5, 23, 10, 8))
     elif layer == "accessory" and option != "none":
         if option == "glasses":
-            for ex in (cx - 5, cx + 2):
-                pygame.draw.rect(img, render.INK, (ex, 14, 4, 4), 1)
-            pygame.draw.line(img, render.INK, (cx - 1, 15), (cx + 1, 15), 1)
+            for ex in (cx - 13, cx + 13):
+                pygame.draw.rect(img, render.INK, (ex - 10, 54, 20, 16), 3, border_radius=4)
+            pygame.draw.line(img, render.INK, (cx - 3, 60), (cx + 3, 60), 3)
         elif option == "scarf":
-            pygame.draw.rect(img, sec, (cx - 7, 25, 15, 3))
+            pygame.draw.rect(img, sec, (cx - 26, 100, 52, 12), border_radius=5)
+            for k in range(4):
+                pygame.draw.line(img, sec_d, (cx - 20 + k * 13, 101), (cx - 20 + k * 13, 110), 2)
         elif option == "charm":
-            pygame.draw.rect(img, render.SAND, (cx + 7, 27, 4, 4))
+            pygame.draw.rect(img, render.SAND, (cx + 28, 112, 14, 16), border_radius=2)
+            pygame.draw.rect(img, render.LEATHER, (cx + 28, 112, 3, 16))
     return img
 
 
