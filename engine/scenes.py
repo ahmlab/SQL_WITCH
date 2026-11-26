@@ -37,7 +37,7 @@ from engine.textinput import (KEYWORD_WORDS, QueryEditor, layout, locked_words,
                               schema_tables, schema_words)
 from ai import steering
 from ai.roster import GUARDIANS, ORDER, next_guardian
-from magic.battle import Battle
+from magic.battle import EXPLORATION, Battle
 from magic.cast import SCRY_PER_TURN, CastReport, effect_word
 from magic.db import DATA_DIR
 from magic.fatigue import Fatigue
@@ -861,7 +861,7 @@ class BattleScene(Scene):
         self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes,
                                        codex=game.codex, scrolls=game.scrolls,
                                        ada_name=CATALOG.player["name"],
-                                       fatigue=game.fatigue)
+                                       fatigue=game.fatigue, inventory=game.state.inventory)
         # The guardian's body on screen, steered towards whatever its brain orders.
         home = steering.Vec(*HOME[guardian])
         self.body = steering.Kinematic(home, max_speed=75 if guardian == "knight" else 55)
@@ -1034,6 +1034,11 @@ class BattleScene(Scene):
                     (" " + t("battle.crit") if crit else "") + (f" {words}" if words else "")
                 self.say(text, 650, self._hit(self.side_of(target), dmg, crit, spell),
                          "crit" if crit else "hit", *(("hp_down",) if dmg else ()))
+            elif kind == "item" and event[4] not in ("hp", "mp"):
+                line = {"ward": "battle.ward", "cleanse": "battle.cleanse", "scry": "battle.lens",
+                        "snapshot": "battle.hourglass"}.get(event[4], "battle.gain")
+                self.say(t(line, spell=event[2], amount=event[5]), 700, None,
+                         "ward_up" if event[4] == "ward" else "rune")
             elif kind in ("heal", "item"):
                 side = self.side_of(event[3])
                 amount = event[4] if kind == "heal" else event[5]
@@ -1060,6 +1065,16 @@ class BattleScene(Scene):
                     self.say(t("battle.mp", before=before, after=after), 600,
                              self._set_shown(self.side_of(name), 1, after),
                              "mp_down" if after < before else "mp_up")
+            elif kind == "aegis":
+                self.say(t("battle.aegis_up", spell=event[2], amount=event[4]), 1100, None,
+                         "ward_up")
+            elif kind == "aegis_holds":
+                self.say(t("battle.aegis_holds", spell=event[2]), 650, None, "deflect")
+            elif kind == "insight":
+                self.say(t("battle.insight", tables=", ".join(event[1]), mp=event[2]), 800,
+                         self._add_shown("ada", 1, event[2]), "rune")
+            elif kind == "free_rewind":
+                self.say(t("battle.free_rewind"), 900, None, "rune")
             elif kind == "deflect":
                 self.say(t("battle.deflect", spell=event[2]), 750, None, "deflect")
             elif kind == "shatter":
@@ -1206,6 +1221,9 @@ class BattleScene(Scene):
             self.order = turn.movement                 # steer as the brain planned
         name = self.battle.state.foe.name.split()[-1]
         self.say(t("battle.foe_casts", foe=name), 650, None, "scry" if turn.report.scry else "cast")
+        if turn.telegraph:                             # the big spell is coming: read its power
+            self.say(t("battle.telegraph", foe=name), 1300, None, "invitation",
+                     speaker=self.battle.state.foe.name)
         self.narrate(turn.report)
         self._tell_world(turn.report)
         if turn.acknowledged:                          # she already used it: no lesson needed
@@ -1322,7 +1340,9 @@ class BattleScene(Scene):
             self.narrate(report)
             self._tell_world(report)
             self._tell_round_end()
-            self.phase, self.idle = "wait", 0
+            if report.ends_turn:
+                self.phase, self.idle = "wait", 0
+            self._sync_shown()
 
     def save_scroll(self) -> None:
         book = self.battle.spellbook
@@ -1665,9 +1685,25 @@ class BattleScene(Scene):
             f.draw(canvas, more, (box.right - 6 - f.width(more, small=True), box.bottom - 8),
                    render.VIOLET, small=True)
 
+    def satchel_pulses(self) -> bool:
+        """The satchel calls (prompt 08 §3): HP is low and an item in it would help."""
+        ada = self.battle.state.ada
+        if ada.hp_ratio >= EXPLORATION["satchel_pulse_hp"] and not self.battle.state.foe.aegis:
+            return False
+        try:
+            return bool(self.battle.conn.execute(
+                "SELECT 1 FROM items WHERE qty > 0 AND kind IN ('hp', 'ward', 'cleanse')"
+            ).fetchone())
+        except Exception:
+            return False
+
     def _draw_tables_button(self, canvas):
         f = render.font()
         fill = render.TEAL if self.tables_open else render.FOAM
+        if not self.tables_open and self.phase == "input" and self.satchel_pulses():
+            beat = abs((self.time % 1000) - 500) / 500 if self.game.settings.screen_shake else 1
+            gfx.rect(canvas, render.GOLD, TABLES_BUTTON.inflate(2 + round(2 * beat),
+                                                                2 + round(2 * beat)))
         gfx.rect(canvas, render.INK, TABLES_BUTTON)
         gfx.rect(canvas, fill, TABLES_BUTTON.inflate(-2, -2))
         f.draw(canvas, t("panel.tables"), (TABLES_BUTTON.x + 3, TABLES_BUTTON.y + 2),
@@ -1847,6 +1883,8 @@ class ResultScene(Scene):
         self.rune = battle.guardian.signature
         self.codex = next((sql for sql in battle.state.foe_book if self.rune in sql), None)
         self.next = next_guardian(self.key) if self.won else self.key
+        self.drops = dict(EXPLORATION["drops"].get(self.key, {})) if self.won else {}
+        self.coins = EXPLORATION["coins"].get(self.key, 0) if self.won else 0
         if self.key in ORDER:
             game.record_battle(dict(getattr(battle, "stats", {}) or
                                     {"guardian": self.key, "result": battle.winner,
@@ -1857,6 +1895,14 @@ class ResultScene(Scene):
             # the story stands at the next guardian (or the end of this build).
             state = game.state
             game.runes |= battle.state.ada.runes | {self.rune}
+            # The satchel as the fight left it, plus what the guardian dropped. A lost fight
+            # changes nothing (D12: nothing is lost), so only a victory writes the satchel.
+            satchel = battle.inventory()
+            for name, qty in self.drops.items():
+                satchel[name] = satchel.get(name, 0) + qty
+            state.inventory = satchel
+            purse = EXPLORATION["coins"]["start"] if state.coins is None else state.coins
+            state.coins = purse + self.coins
             if self.key not in state.beaten:
                 state.beaten.append(self.key)
             state.at = self.next or "end"

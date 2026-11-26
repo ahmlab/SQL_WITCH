@@ -205,6 +205,11 @@
         "title": "Trickster: knowledge beats force",
         "text": "You broke a guardian with what you know about databases. That counts.",
         "dialects": ""
+      },
+      "insight": {
+        "title": "Looking first",
+        "text": "Before writing anything, an analyst reads the shape of the data: which tables exist, which columns they have, what a few rows look like. SELECT * FROM a table LIMIT 5 is the oldest habit in the trade. In battle every first look at a table pays a little MP.",
+        "dialects": "PostgreSQL and MySQL: the same. Their own catalogues (information_schema) list every table and column; SQLite keeps them in sqlite_master and PRAGMA table_info."
       }
     },
     "screen": {
@@ -290,7 +295,15 @@
       "yawn": "The Grimoire yawns: {rows} rows now.",
       "focus": "Clean casts. Focus: one more row.",
       "focus_lost": "Focus slips away."
-    }
+    },
+    "aegis_up": "{spell}: nothing gets through for {amount} rounds!",
+    "aegis_holds": "{spell} breaks on the Aegis.",
+    "cleanse": "{spell}: the stone crumbles ({amount}).",
+    "lens": "{spell}: {amount} more free looks next turn.",
+    "hourglass": "{spell}: the next Rewind costs no turn.",
+    "free_rewind": "The Hourglass turns. Your turn goes on.",
+    "insight": "Insight: {tables}. +{mp} MP",
+    "telegraph": "{foe} gathers itself: read its power!"
   },
   "panel": {
     "_help": "The battle screen's panels and buttons. Short: they sit in small boxes.",
@@ -347,7 +360,8 @@
     "to_title": "ENTER title    ESC quit",
     "continue": "ENTER continue    ESC quit",
     "retry": "ENTER try again    ESC quit",
-    "fainted": "{player.name} sways; the ink swims. You wake by the fire."
+    "fainted": "{player.name} sways; the ink swims. You wake by the fire.",
+    "drops": "Found: {items}"
   },
   "guide": {
     "_help": "The spell guide's frame (F3). Its pages are data/guide.json (keys guide.<path>).",
@@ -563,5 +577,13 @@
       "taken": "Grimoire: That name is already something in this world, and names here are unique. {suggestion}? (TAB)",
       "keyword": "Grimoire: That is a word of power, not a name: SQL would read it as a command. {suggestion}? (TAB)"
     }
+  },
+  "shop": {
+    "refuse": "Shopkeeper: Look all you like, or put something in your items. I do not sell anything else.",
+    "nothing": "Shopkeeper: Your query put nothing in your items. Pick a row of the stall.",
+    "not_for_sale": "Shopkeeper: {name}? That is not on my stall. Copy the row from stall.",
+    "bad_qty": "Shopkeeper: How many {name}? At least one.",
+    "too_poor": "Shopkeeper: That comes to {price} coins. Your purse holds {coins}.",
+    "bought": "Shopkeeper: {items}. That is {price} coins. Pleasure."
   }
 }

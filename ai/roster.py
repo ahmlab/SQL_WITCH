@@ -9,12 +9,13 @@ STATUS: the Asterisk Slime, Sir Wherewell and the tutorial's Training Dummy.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 from ai.dummy import DummyBrain, render_dummy
 from ai.fsm import SlimeBrain
 from ai.knight import ACTION_SPELLS, KnightBrain
+from ai.pressure import PRESSURE, PressureBrain, pressure_style
 from ai.styles import (KNIGHT_RUNES, KNIGHT_SIGNATURE, SLIME_RUNES, SLIME_SIGNATURE,
                        render_knight, render_slime)
 
@@ -46,6 +47,17 @@ def _knight_brain(conn) -> KnightBrain:
     return KnightBrain(costs)
 
 
+def _pressured(guardian: Guardian) -> Guardian:
+    """Wrap a guardian's brain and style with its pressure move, if data/pressure.json has
+    one for it (prompt 08 §3)."""
+    spec = PRESSURE.get(guardian.key)
+    if spec is None:
+        return guardian
+    make = guardian.make_brain
+    return replace(guardian, style=pressure_style(spec, guardian.style),
+                   make_brain=lambda conn: PressureBrain(make(conn), spec))
+
+
 GUARDIANS = {
     "slime": Guardian("slime", 1, 1, frozenset(SLIME_RUNES), SLIME_SIGNATURE, frozenset(),
                       render_slime, _slime_brain),
@@ -56,6 +68,7 @@ GUARDIANS = {
     "dummy": Guardian("dummy", 3, 1, frozenset(), "", frozenset(), render_dummy,
                       lambda conn: DummyBrain()),
 }
+GUARDIANS = {key: _pressured(g) for key, g in GUARDIANS.items()}
 ORDER = ["slime", "knight"]                 # the story's fights; the dummy is not one of them
 
 

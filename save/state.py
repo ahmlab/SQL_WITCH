@@ -44,6 +44,7 @@ class GameState:
     codex: list[dict] = field(default_factory=list)
     scrolls: dict[str, str] = field(default_factory=dict)
     inventory: dict[str, int] | None = None    # None: the data defaults (the Hearth, prompt 08)
+    coins: int | None = None                   # None: the starting purse (data/exploration.json)
     story: dict = field(default_factory=dict)  # <<set>> variables of the scripts
     region: str = "glade"
     position: list[int] = field(default_factory=lambda: [0, 0])

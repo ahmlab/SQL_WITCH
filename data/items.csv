@@ -1,3 +1,11 @@
+# Ada's satchel (prompt 08 §3). kind: hp heals, mp restores MP, ward adds a ward, cleanse strips a
+# foe's Aegis and ward (or clears Ada's exhaustion when her own name is in the row), scry gives
+# more free looks next turn, snapshot makes the next Rewind cost no turn. qty: the starting satchel
+# (0: not in it; guardians drop them and the stall sells them, data/exploration.json, data/hearth).
 name,kind,amount,qty
 Ether,mp,10,2
 Healing Herb,hp,20,2
+Warding Charm,ward,30,0
+Rust Salts,cleanse,0,0
+Scrying Lens,scry,2,0
+Hourglass Charm,snapshot,1,0

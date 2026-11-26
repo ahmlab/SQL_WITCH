@@ -465,7 +465,7 @@ def test_every_hint_node_the_data_names_exists():
                 assert step.replace("{guardian}", guardian) in nodes
     for node in nodes:
         pools[node.split("_")[0]] += 1
-    assert pools == {"slime": 8, "knight": 8, "grimoire": 12}
+    assert pools == {"slime": 10, "knight": 10, "grimoire": 15}
 
 
 def test_the_battle_scene_speaks_a_hint_when_ada_is_stuck():

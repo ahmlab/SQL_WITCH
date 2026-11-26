@@ -356,8 +356,11 @@ def expert(battle):
 
 
 def test_the_knight_beats_a_player_who_never_filters_and_loses_to_one_who_does():
+    # Filtering wins the duel, but his Aegis (prompt 08) needs an item: a filterer who never
+    # opens the satchel loses; one who throws the Rust Salts mostly wins (sim/bots.py).
+    from sim.bots import competent, play
     assert all(fight("knight", novice, seed).winner == "foe" for seed in range(8))
-    assert all(fight("knight", expert, seed).winner == "ada" for seed in range(8))
+    assert sum(play("knight", competent(), seed).winner == "ada" for seed in range(8)) >= 5
 
 
 def test_the_same_seed_replays_the_same_knight_battle():
@@ -417,19 +420,22 @@ def test_a_knight_battle_plays_to_its_result_screen_and_he_walks_around():
     pygame.init()
     pygame.display.set_mode((320, 180))
     from engine.scenes import BattleScene, Game, ResultScene
+    from sim.bots import competent, first_attempt_satchel
     game = Game(pygame.Surface((320, 180)), seed=3, start="knight")
+    game.state.inventory = first_attempt_satchel("knight")
+    bot = competent()
     game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, mod=0))
     game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0))
     scene = game.scene
     assert isinstance(scene, BattleScene) and scene.key == "knight"
     xs = set()
-    for _ in range(60 * 150):
+    for _ in range(60 * 200):
         game.update(16)
         if not isinstance(game.scene, BattleScene):
             break
         xs.add(round(scene.body.position.x))
         if scene.phase == "input":
-            for char in expert(scene.battle):
+            for char in bot(scene.battle):
                 game.handle(pygame.event.Event(pygame.TEXTINPUT, text=char))
             game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN,
                                            mod=pygame.KMOD_LCTRL))
@@ -453,10 +459,12 @@ def slime_learner(battle):
 
 
 def test_the_slime_beats_a_player_who_never_learns_limit_and_loses_to_one_who_does():
+    # LIMIT is the lesson; its big turn (prompt 08) asks for a ward too (sim/bots.py).
+    from sim.bots import competent, play
     novice = [fight("slime", slime_novice, seed).winner for seed in range(12)]
-    learner = [fight("slime", slime_learner, seed).winner for seed in range(12)]
+    learner = [play("slime", competent(), seed).winner for seed in range(12)]
     assert novice.count("ada") == 0
-    assert learner.count("ada") >= 10
+    assert learner.count("ada") >= 7
 
 
 def test_the_slime_shows_limit_by_its_second_turn():

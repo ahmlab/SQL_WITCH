@@ -1,0 +1,8 @@
+# The Hearth's stall (magic/shop.py). Prices in coins. Every name must be an item of data/items.csv.
+name,kind,amount,price
+Healing Herb,hp,20,6
+Ether,mp,10,8
+Warding Charm,ward,30,12
+Rust Salts,cleanse,0,15
+Scrying Lens,scry,2,10
+Hourglass Charm,snapshot,1,20

@@ -1,4 +1,4 @@
 id,name,hp,max_hp,mp,max_mp,element,weakness,speed
-1,Asterisk Slime,230,230,20,20,Nature,Fire,3
-2,Sir Wherewell,260,260,40,40,Tide,Storm,4
+1,Asterisk Slime,360,360,20,20,Nature,Fire,3
+2,Sir Wherewell,590,590,40,40,Tide,Storm,4
 3,Training Dummy,300,300,0,0,Nature,Fire,0

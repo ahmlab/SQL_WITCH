@@ -84,7 +84,7 @@ class Spell:
 @dataclass(frozen=True)
 class Item:
     name: str
-    kind: str              # hp | mp
+    kind: str              # hp | mp | ward | cleanse | scry | snapshot (data/items.csv)
     amount: int
     qty: int
 
@@ -234,12 +234,16 @@ def _read_row(index: int, row: tuple, book: dict, items: dict,
     return _Row(index, name, column, book.get(name), items.get(name), target)
 
 
-SELF_KINDS = ("heal", "ward", "relevance")
+SELF_KINDS = ("heal", "ward", "relevance", "aegis")
 
 
 def _default_target(kind: str, caster: str) -> str:
     # Attacks and dispels go to the other side; heals and wards go to the caster (clause 3).
     return caster if kind in SELF_KINDS else ("foe" if caster == "ada" else "ada")
+
+
+# Items aimed at the other side by default: a cleansing salt is thrown at a foe's Aegis.
+FOE_ITEMS = ("cleanse",)
 
 
 def _cost(plan: _Row) -> int:
@@ -259,7 +263,9 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
                                  element=spell.element, deflected=hit.deflected))
         report.events.append(("cast", plan.index, me.name, spell.name, target.name,
                               hit.amount, hit.crit, hit.multiplier))
-        if hit.deflected:
+        if hit.aegis:
+            report.events.append(("aegis_holds", plan.index, spell.name, target.name))
+        elif hit.deflected:
             report.events.append(("deflect", plan.index, spell.name, target.name))
         if hit.shatters:
             report.events.append(("shatter", target.name))
@@ -284,6 +290,11 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
         report.casts.append(Cast(plan.index, spell.name, target.name, "relevance",
                                  element=spell.element))
         report.events.append(("relevance", plan.index, spell.name, target.name))
+    elif spell.kind == "aegis":
+        target.aegis = max(target.aegis, spell.power)
+        report.casts.append(Cast(plan.index, spell.name, target.name, "aegis",
+                                 amount=spell.power, element=spell.element))
+        report.events.append(("aegis", plan.index, spell.name, target.name, spell.power))
     elif spell.kind == "dispel":
         removed, target.ward = target.ward, 0
         report.casts.append(Cast(plan.index, spell.name, target.name, "dispel", amount=removed,
@@ -291,12 +302,29 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
         report.events.append(("dispel", plan.index, spell.name, target.name, removed))
 
 
-def _use_item(conn, plan: _Row, target: Combatant, report: CastReport) -> None:
+def _use_item(conn, state: BattleState, plan: _Row, target: Combatant,
+              report: CastReport) -> None:
+    """An item from the satchel (prompt 08 §3). Kinds, in data/items.csv: hp, mp, ward,
+    cleanse (on a foe: strips its Aegis and ward; on the witch: clears exhaustion), scry
+    (more free looks next turn), snapshot (the next Rewind costs no turn)."""
     item = plan.item
-    if item.kind == "mp":
-        amount = rules.restore_mp(target, item.amount)
-    else:
-        amount = rules.heal(target, item.amount)
+    match item.kind:
+        case "mp":
+            amount = rules.restore_mp(target, item.amount)
+        case "ward":
+            amount = rules.add_ward(target, item.amount)
+        case "cleanse":
+            amount = target.aegis + target.ward
+            target.aegis = target.ward = 0
+            target.exhausted = False
+        case "scry":
+            amount = item.amount
+            state.extra_looks += item.amount
+        case "snapshot":
+            amount = item.amount
+            state.free_rewinds += item.amount
+        case _:
+            amount = rules.heal(target, item.amount)
     conn.execute("UPDATE items SET qty = qty - 1 WHERE name = ?", (item.name,))
     report.casts.append(Cast(plan.index, item.name, target.name, "item", amount=amount))
     report.events.append(("item", plan.index, item.name, target.name, item.kind, amount))
@@ -365,8 +393,9 @@ def _cast(conn, state, caster, plans, page, chart, rng, report) -> None:
         me.mp -= paid
         report.mp_spent += paid
         readable = plan.index < report.page_rows and plan.column in page.visible_columns
-        target_side = plan.target or _default_target(
-            plan.spell.kind if plan.spell else "heal", caster)
+        kind = plan.spell.kind if plan.spell else (
+            "attack" if plan.item.kind in FOE_ITEMS else "heal")
+        target_side = plan.target or _default_target(kind, caster)
         pair = (plan.name, target_side)
 
         if not readable:
@@ -379,7 +408,7 @@ def _cast(conn, state, caster, plans, page, chart, rng, report) -> None:
         elif plan.item and plan.item.qty - _used(report, plan.name) <= 0:
             _fizzle(report, plan, "empty", paid)
         elif plan.item:
-            _use_item(conn, plan, state.side(target_side), report)
+            _use_item(conn, state, plan, state.side(target_side), report)
         else:
             rage = RAGE_MULT if (caster == "foe" and state.foe_rage) else 1.0
             _apply_spell(plan, me, state.side(target_side), chart, rng, report, rage)

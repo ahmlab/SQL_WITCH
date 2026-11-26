@@ -45,6 +45,7 @@ class FoeTurn:
     movement: object = None      # the brain's steering order (ai.steering.Movement), if any
     acknowledged: str | None = None   # the foe's technique, which Ada already knew
     confused: bool = False       # the foe could not cast: its book is gone or unreadable
+    telegraph: bool = False      # it announced a big spell for its next turn (ai/pressure.py)
 
 
 @dataclass
@@ -60,13 +61,14 @@ class Battle:
                  ada_runes: set[str] | None = None, level: int | None = None,
                  foe_opens: bool = True, codex: Codex | None = None,
                  scrolls: dict[str, str] | None = None, ada_name: str | None = None,
-                 fatigue: Fatigue | None = None):
+                 fatigue: Fatigue | None = None, inventory: dict[str, int] | None = None):
         self.guardian: Guardian = GUARDIANS[guardian]
         g = self.guardian
         # One random generator for the whole battle: same seed, same battle (design doc 5.10).
         self.rng = random.Random(seed)
         self.seed = seed
-        self.conn = guard.harden(build_db(level or g.level, foe_ids=[g.foe_id]))
+        self.conn = guard.harden(build_db(level or g.level, foe_ids=[g.foe_id],
+                                          inventory=inventory))
         if ada_name:            # the protagonist's name (prompt 06): it lives in the witch row
             self.conn.execute("UPDATE witch SET name = ?", (ada_name,))
         self.state = load_state(self.conn, foe_id=g.foe_id, seed=seed)
@@ -90,6 +92,7 @@ class Battle:
         # every round and cast. None (tests, the simulator): a rested witch, always 4 rows.
         self.fatigue = fatigue
         self.fainted = False                   # spent: she faints when the fight ends
+        self.looked: set[str] = set()          # tables Ada has looked at (Insight, once each)
         self._start_round()
 
     # ------------------------------------------------------------ whose turn
@@ -208,6 +211,8 @@ class Battle:
                 report.codex.append(technique)
             self.state.ada.runes.add(technique)
         self.spellbook.note(sql, bool(report.casts))
+        if report.scry:
+            self._insight(report)
         if self.fatigue is not None:
             self.fatigue.rise("cast")
             self.fatigue.note(report)
@@ -219,6 +224,37 @@ class Battle:
         if report.ends_turn:
             self._advance()
         return report
+
+    def _insight(self, report: CastReport) -> None:
+        """Discovery (prompt 08 §3): the first free look at each table in a battle pays a
+        little MP, and the first one of all opens the Codex page about exploring the data."""
+        from magic.tutorial import tables_read
+        try:
+            tables = tables_read(report.sql)
+        except Exception:
+            return
+        new = sorted(t for t in tables if t not in self.looked and t in INSIGHT_TABLES)
+        if not new:
+            return
+        self.looked.update(new)
+        gained = rules.restore_mp(self.state.ada, INSIGHT["mp"] * len(new))
+        report.insight = new
+        report.events.append(("insight", tuple(new), gained))
+        sync_state(self.conn, self.state)
+        if self.codex.unlock(INSIGHT["codex"]):
+            report.codex.append(INSIGHT["codex"])
+
+    def inventory(self) -> dict[str, int]:
+        """The satchel as it stands now (the save keeps it after the battle)."""
+        try:
+            rows = self.conn.execute("SELECT name, qty FROM items").fetchall()
+        except Exception:
+            return {}
+        out: dict[str, int] = {}
+        for name, qty in rows:
+            if isinstance(name, str) and isinstance(qty, int) and qty > 0:
+                out[name] = out.get(name, 0) + qty
+        return out
 
     # ------------------------------------------------------------ the world's consequences
 
@@ -260,6 +296,7 @@ class Battle:
         Ada's turn, it is written in query_log, and the guardian comments on it."""
         if self.whose_turn != "ada":
             raise RuntimeError(f"It is not Ada's turn ({self.whose_turn}).")
+        free = self.state.free_rewinds > 0                     # an Hourglass Charm was used
         snap, state = self.world.rewind(index)
         state.scries_used = 0
         self.broken_round = None
@@ -281,7 +318,11 @@ class Battle:
         report.events.append(("rewind", snap.turn))
         self._apply(found, report)
         self.last_round = None
-        self._advance()
+        if free:
+            report.ends_turn = False                           # the charm pays for it
+            report.events.append(("free_rewind",))
+        else:
+            self._advance()
         return report
 
     def _remember(self, report: CastReport) -> rules.CastMemory:
@@ -303,6 +344,7 @@ class Battle:
         snapshot = copy.deepcopy(self.state)                  # perceive: a copy it cannot change
         intent = self.brain.decide(snapshot, self.rng)        # decide
         reasoning = self.brain.explain()
+        telegraph = bool(getattr(self.brain, "telegraphed", False))
         movement = getattr(self.brain, "movement", None)
         if intent.kind == "confused":                         # express
             sql = CONFUSED_SQL
@@ -324,7 +366,8 @@ class Battle:
         self._apply(found, report)
         invitation, acknowledged = self._invitation(report)   # reveal
         self._advance()
-        return FoeTurn(sql, report, reasoning, invitation, movement, acknowledged, confused)
+        return FoeTurn(sql, report, reasoning, invitation, movement, acknowledged, confused,
+                       telegraph)
 
     def _invitation(self, report: CastReport) -> tuple[str | None, str | None]:
         """The foe's book shows its signature technique (design doc 3.6). If Ada has not used it
@@ -338,6 +381,18 @@ class Battle:
         if self.codex.demonstrate(rune, report.sql, self.guardian.key, self.state.turn):
             report.codex.append(rune)
         return rune, None
+
+
+def _exploration() -> dict:
+    import json
+    from magic.db import DATA_DIR
+    with open(DATA_DIR / "exploration.json", encoding="utf-8") as f:
+        return json.load(f)
+
+
+EXPLORATION = _exploration()
+INSIGHT = EXPLORATION["insight"]
+INSIGHT_TABLES = set(INSIGHT["tables"])
 
 
 def _summary(report: CastReport) -> tuple[str, dict]:

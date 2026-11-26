@@ -1,0 +1,21 @@
+{
+  "_comment": "Pressure (prompt 08 \u00a73): moves that damage alone cannot answer, applied on top of a guardian's brain by ai/pressure.py. Every move is a real query on the guardian's own book (sql, with {foe_id}); its numbers live in data/foe_spells.csv. big_turn: when the guardian's HP share drops below trigger_hp it spends a turn reading its big spell's power (the telegraph: the player can read it in the foe's book), then casts it next turn; repeat_every rounds later it may do it again (0: once). aegis: below trigger_hp it raises its Aegis (every spell bounces off for the spell's power in rounds; a cleansing item strips it); while it stands the guardian casts during_sql each turn it has during_mp MP (with press_after, for the rest of the fight too). docs/EXPLORATION.md.",
+  "slime": {
+    "kind": "big_turn",
+    "trigger_hp": 0.6,
+    "repeat_every": 4,
+    "not_before_turn": 3,
+    "telegraph_sql": "SELECT power, mp_cost FROM foe_spells WHERE name = 'Gelatinous Avalanche'",
+    "strike_sql": "SELECT name FROM foe_spells WHERE foe_id = {foe_id} AND name = 'Gelatinous Avalanche'"
+  },
+  "knight": {
+    "kind": "aegis",
+    "trigger_hp": 0.55,
+    "repeat_every": 0,
+    "not_before_turn": 3,
+    "sql": "SELECT name FROM foe_spells WHERE foe_id = {foe_id} AND kind = 'aegis'",
+    "during_sql": "SELECT name FROM foe_spells WHERE foe_id = {foe_id} AND kind = 'attack' AND power > 30",
+    "press_after": true,
+    "during_mp": 12
+  }
+}

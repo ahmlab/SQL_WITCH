@@ -65,9 +65,11 @@ def insert_rows(conn, table, rows):
     sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
     conn.executemany(sql, [tuple(row[c] for c in columns) for row in rows])
 
-def build_db(level=1, data_dir=DATA_DIR, foe_ids=None):
+def build_db(level=1, data_dir=DATA_DIR, foe_ids=None, inventory=None):
     """Create a fresh in-memory battle database for Ada at the given level.
-    foe_ids: only these foes (and their spells) enter the battle; None loads every foe."""
+    foe_ids: only these foes (and their spells) enter the battle; None loads every foe.
+    inventory: the satchel the save holds (item name -> how many); None: the starting
+    quantities of items.csv. Items she has none of are not in her satchel table."""
     data_dir = Path(data_dir)
     spells = read_csv(data_dir / "spells.csv")
     items = read_csv(data_dir / "items.csv")
@@ -94,6 +96,9 @@ def build_db(level=1, data_dir=DATA_DIR, foe_ids=None):
     conn.executescript(SCHEMA)
     insert_rows(conn, "witch", [ada])
     insert_rows(conn, "spells", known)
+    if inventory is not None:
+        items = [dict(row, qty=int(inventory.get(row["name"], 0))) for row in items]
+    items = [row for row in items if (row["qty"] or 0) > 0]
     insert_rows(conn, "items", items)
     if foe_ids is not None:     # one guardian per battle: the others are not in this world yet
         foes = [row for row in foes if row["id"] in foe_ids]

@@ -29,6 +29,12 @@ Asterisk Slime: You keep casting, but you have never looked at me. I am in a tab
 == slime_items ==
 Asterisk Slime: Witches carry things. Do you even know what is in your items?
 
+== slime_telegraph ==
+Asterisk Slime: Blub. Read my power column, witch. Then read it again. Next turn it all lands on you.
+
+== slime_aegis ==
+Asterisk Slime: Shiny shield? I do not have one. Blub.
+
 == slime_stuck ==
 Asterisk Slime: Blub? Is the witch asleep again? I can wait. I am {mode}. I am a slime.
 
@@ -55,6 +61,12 @@ Sir Wherewell: You strike without knowing me. My weakness is written in the enem
 == knight_items ==
 Sir Wherewell: A witch who never opens {player.gender, select, masculine {his} other {her}} items fights with one hand.
 
+== knight_telegraph ==
+Sir Wherewell: I announce my blows. A knight's honour.
+
+== knight_aegis ==
+Sir Wherewell: My Oath of Stone holds. Your spells are words against a wall. What else is in your satchel?
+
 == knight_stuck ==
 Sir Wherewell: I am {mode}, and still you hesitate. Write something, witch.
 
@@ -62,6 +74,15 @@ Sir Wherewell: I am {mode}, and still you hesitate. Write something, witch.
 
 == grimoire_world_nudge ==
 Grimoire: The world changed under us. F6 opens the rewind page: we can go back to before it broke.
+
+== grimoire_telegraph_shape ==
+Grimoire: That look printed the power of a big spell. Brace first: {rune SELECT} name FROM spells {rune WHERE} kind = 'ward'.
+
+== grimoire_aegis_nudge ==
+Grimoire: Nothing gets through an Aegis. Not spells. Items still work.
+
+== grimoire_aegis_shape ==
+Grimoire: Salts dissolve stone: {rune SELECT} name FROM items {rune WHERE} kind = 'cleanse'.
 
 == grimoire_heal_shape ==
 Grimoire: Your HP is low. Read the herb from your items: {rune SELECT} name FROM items {rune WHERE} name = 'Healing Herb'.

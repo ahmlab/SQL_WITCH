@@ -1,5 +1,5 @@
 {
-  "_help": "The Hint Director (story/hints.py): when someone speaks during Ada's turn. Each topic has a condition (the script condition language: see docs/WRITING.md) and a ladder of steps, from an in-character observation by the guardian to an explicit offer by the Grimoire. A step is a node of data/story/hints.script; {guardian} becomes slime or knight, and a guardian without that node simply skips the step. A topic speaks once its condition holds and Ada has been idle for idle_s seconds (default speak_after_idle_s); each step is said at most once per fight; at most one line per turn, then cooldown_turns of silence. Topics are tried in order: the first that is due speaks. While quiet_when holds (she is doing well) only loud topics speak. Names a condition can use: turn, idle (seconds), miscasts (in a row), overflows (casts that spilled), hp and mp (Ada's ratios 0-1), heals and ethers (left in her items), heal_used, ether_used, seen.<table> (she has read it), same_query (the same query this many turns in a row), last_damage, integrity (intact | altered | damaged | broken), foe.mode and foe.intent (from the brain's explain()), guardian.",
+  "_help": "The Hint Director (story/hints.py): when someone speaks during Ada's turn. Each topic has a condition (the script condition language: see docs/WRITING.md) and a ladder of steps, from an in-character observation by the guardian to an explicit offer by the Grimoire. A step is a node of data/story/hints.script; {guardian} becomes slime or knight, and a guardian without that node simply skips the step. A topic speaks once its condition holds and Ada has been idle for idle_s seconds (default speak_after_idle_s); each step is said at most once per fight; at most one line per turn, then cooldown_turns of silence. Topics are tried in order: the first that is due speaks. While quiet_when holds (she is doing well) only loud topics speak. Names a condition can use: turn, idle (seconds), miscasts (in a row), overflows (casts that spilled), hp and mp (Ada's ratios 0-1), heals and ethers (left in her items), heal_used, ether_used, seen.<table> (she has read it), same_query (the same query this many turns in a row), last_damage, integrity (intact | altered | damaged | broken), foe.mode and foe.intent (from the brain's explain()), foe.aegis (rounds its Aegis still stands), items (how many items are in her satchel), guardian.",
   "script": "hints",
   "speak_after_idle_s": 6,
   "cooldown_turns": 1,
@@ -7,6 +7,10 @@
   "topics": [
     {"id": "world", "when": "integrity == damaged or integrity == broken", "idle_s": 0, "loud": true,
      "steps": ["{guardian}_world", "grimoire_world_nudge"]},
+    {"id": "telegraph", "when": "foe.intent == pressure_telegraph", "idle_s": 0, "loud": true,
+     "steps": ["{guardian}_telegraph", "grimoire_telegraph_shape"]},
+    {"id": "aegis", "when": "foe.aegis > 0 and items > 0", "idle_s": 1, "loud": true,
+     "steps": ["{guardian}_aegis", "grimoire_aegis_nudge", "grimoire_aegis_shape"]},
     {"id": "heal", "when": "hp < 0.35 and heals > 0 and not heal_used", "idle_s": 2, "loud": true,
      "steps": ["{guardian}_heal", "grimoire_heal_shape"]},
     {"id": "ether", "when": "mp < 0.25 and ethers > 0 and not ether_used", "idle_s": 2, "loud": true,

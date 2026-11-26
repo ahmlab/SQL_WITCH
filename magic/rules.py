@@ -42,6 +42,9 @@ class Combatant:
     # Sir Wherewell's Ward of Relevance (design doc 5.4): while it is up, only super-effective
     # spells land, and the first one that does shatters it.
     relevance: bool = False
+    # An Aegis (prompt 08, the pressure phase): for this many rounds every spell bounces off.
+    # Items still work, and a cleansing item strips it.
+    aegis: int = 0
 
     @property
     def hp_ratio(self) -> float:
@@ -81,6 +84,8 @@ class BattleState:
     foe_rage: bool = False              # the player wrecked her own side: the foe hits harder
     foe_forgets: bool = False           # the foe's book is gone: it stares at an empty page
     ending: str | None = None           # "confused": the fight dissolves at the end of the round
+    extra_looks: int = 0                # a Scrying Lens: more free looks on Ada's next turn
+    free_rewinds: int = 0               # an Hourglass Charm: the next Rewind costs no turn
 
     def side(self, who: str) -> Combatant:
         """'ada' or 'foe' -> the combatant. Callers pass the side, never the name."""
@@ -100,8 +105,9 @@ class Hit:
     absorbed: int        # damage the ward soaked (and loses)
     multiplier: float    # type-chart multiplier, used for "super effective" messages
     crit: bool
-    deflected: bool = False   # a Ward of Relevance turned it aside
+    deflected: bool = False   # a Ward of Relevance (or an Aegis) turned it aside
     shatters: bool = False    # it broke a Ward of Relevance
+    aegis: bool = False       # it was an Aegis that turned it aside
 
 
 def load_type_chart(conn) -> dict[tuple[str, str], float]:
@@ -128,6 +134,9 @@ def damage(power: int, element: str, target: Combatant, chart: dict,
     if target.exhausted:
         raw *= EXHAUSTED_MULT
     raw = round(raw)
+    if target.aegis > 0:                      # nothing gets through: only items help
+        return Hit(amount=0, absorbed=0, multiplier=multiplier, crit=crit, deflected=True,
+                   aegis=True)
     if target.relevance:
         if multiplier < SUPER_EFFECTIVE:      # irrelevant: it bounces off
             return Hit(amount=0, absorbed=0, multiplier=multiplier, crit=crit, deflected=True)
@@ -172,9 +181,12 @@ def first_mover(state: BattleState, rng: random.Random) -> str:
 
 
 def start_turn(state: BattleState, who: str) -> None:
-    """Exhaustion lasts exactly one enemy turn: it wears off when the tired side acts again."""
+    """Exhaustion lasts exactly one enemy turn: it wears off when the tired side acts again.
+    A Scrying Lens used earlier gives Ada's new turn extra free looks."""
     state.side(who).exhausted = False
     state.scries_used = 0
+    if who == "ada" and state.extra_looks:
+        state.scries_used, state.extra_looks = -state.extra_looks, 0
 
 
 def winner(state: BattleState) -> str | None:
@@ -192,5 +204,6 @@ def end_of_round(state: BattleState) -> str | None:
         fighter.mp = min(fighter.max_mp, fighter.mp + fighter.mp_regen)
         # Wards halve each round, so a ward is a short-term shield, not a permanent wall.
         fighter.ward //= 2
+        fighter.aegis = max(0, fighter.aegis - 1)
     state.turn += 1
     return winner(state)

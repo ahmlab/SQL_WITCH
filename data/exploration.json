@@ -1,0 +1,33 @@
+{
+  "_comment": "Exploration levers (prompt 08 §3, docs/EXPLORATION.md). insight: the first free look at each of these tables in a battle restores mp MP; the first Insight of all unlocks the Codex page named by codex. satchel_pulse_hp: below this HP share the satchel button pulses when an item would help. drops: what each guardian leaves when beaten (item name -> how many). coins: the purse a new run starts with, and what each guardian leaves (spent at the Hearth's stall, data/hearth/stall.csv).",
+  "insight": {
+    "mp": 2,
+    "codex": "insight",
+    "tables": [
+      "witch",
+      "spells",
+      "items",
+      "enemies",
+      "foe_spells",
+      "type_chart",
+      "query_log"
+    ]
+  },
+  "satchel_pulse_hp": 0.45,
+  "drops": {
+    "slime": {
+      "Healing Herb": 1,
+      "Rust Salts": 1
+    },
+    "knight": {
+      "Ether": 1,
+      "Warding Charm": 1,
+      "Hourglass Charm": 1
+    }
+  },
+  "coins": {
+    "start": 20,
+    "slime": 25,
+    "knight": 40
+  }
+}

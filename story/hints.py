@@ -134,7 +134,9 @@ class HintDirector:
             "hp": context.get("hp", 1.0), "mp": context.get("mp", 1.0),
             "heals": context.get("heals", 0), "ethers": context.get("ethers", 0),
             "integrity": context.get("integrity", "intact"),
-            "foe": {"mode": mode_of(explain), "intent": explain.get("intent", "")},
+            "foe": {"mode": mode_of(explain), "intent": explain.get("intent", ""),
+                    "aegis": context.get("aegis", 0)},
+            "items": context.get("items", 0),
             "guardian": self.guardian,
         }
 
@@ -190,17 +192,21 @@ def context_of(battle) -> dict:
     state = battle.state
     ada = state.ada
     counts = {"hp": 0, "mp": 0}
+    every = 0
     try:
         for kind, qty in battle.conn.execute("SELECT kind, qty FROM items"):
-            if kind in counts and isinstance(qty, int) and qty > 0:
-                counts[kind] += qty
+            if isinstance(qty, int) and qty > 0:
+                every += qty
+                if kind in counts:
+                    counts[kind] += qty
     except Exception:                              # the items table may be gone: none left
         pass
     explain = battle.brain.explain() if hasattr(battle.brain, "explain") else {}
     return {"hp": ada.hp_ratio,
             "mp": ada.mp / ada.max_mp if ada.max_mp else 0.0,
             "heals": counts["hp"], "ethers": counts["mp"],
-            "integrity": state.integrity, "explain": explain or {}}
+            "integrity": state.integrity, "explain": explain or {},
+            "aegis": state.foe.aegis, "items": every}
 
 
 def all_keys() -> dict[str, str]:
