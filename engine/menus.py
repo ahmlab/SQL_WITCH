@@ -152,17 +152,42 @@ class LoadScene(Menu):
     def __init__(self, game, back):
         super().__init__(game)
         self.back_to, self.profile = back, None
+        self.confirm: dict | None = None        # the profile waiting for "really delete?"
 
     def back(self):
-        if self.profile is not None:
+        if self.confirm is not None:
+            self.confirm = None
+        elif self.profile is not None:
             self.profile, self.choice = None, 0
         else:
             self.game.switch(self.back_to)
 
+    def handle(self, event):
+        if event.type != pygame.KEYDOWN:
+            return
+        if self.confirm is not None:             # ENTER deletes, anything else keeps it
+            if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.game.saves.delete_profile(self.confirm["id"])
+                self.game.audio.play("shatter")
+                self.choice = 0
+            self.confirm = None
+            return
+        if self.profile is None and event.key in (pygame.K_DELETE, pygame.K_BACKSPACE):
+            profiles = self.game.saves.profiles()
+            if profiles:
+                self.confirm = profiles[min(self.choice, len(profiles) - 1)]
+            return
+        super().handle(event)
+
     def items(self):
         saves = self.game.saves
         if self.profile is None:
-            return [(p["name"], lambda p=p: self.open(p["id"])) for p in saves.profiles()]
+            out = []
+            for p in saves.profiles():
+                label = p["name"] if saves.has_saves(p["id"]) else \
+                    f"{p['name']}  {t('menu.no_saves')}"
+                out.append((label, lambda p=p: self.open(p["id"])))
+            return out
         out = []
         for info in saves.slots(self.profile):
             name = t("menu.autosave") if info.slot == "auto" else t("menu.slot", n=info.slot)
@@ -179,7 +204,22 @@ class LoadScene(Menu):
         return out
 
     def open(self, pid):
+        if not self.game.saves.has_saves(pid):    # nothing saved yet: its story from the start
+            self.game.play_profile(pid)
+            return
         self.profile, self.choice = pid, 0
+
+    def draw(self, canvas):
+        super().draw(canvas)
+        f = render.font()
+        if self.confirm is not None:
+            note = t("menu.confirm_delete", name=self.confirm["name"])
+            box = pygame.Rect(16, 140, 288, 20)
+            render.panel(canvas, box)
+            f.draw(canvas, note, (box.x + 4, box.y + 6), render.RED)
+        elif self.profile is None:
+            hint = t("menu.delete_hint")
+            f.draw(canvas, hint, ((320 - f.width(hint)) // 2, 168), render.GREY)
 
     def pick(self, info, backup: bool):
         if backup and not info.has_backup:

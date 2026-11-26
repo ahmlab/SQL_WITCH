@@ -473,3 +473,61 @@ def test_changing_the_language_never_shrinks_the_window(monkeypatch):
     game.settings.scale = 2                             # a real change still applies
     settings_screen.apply(game)
     assert screen.window.get_size() == (640, 360)
+
+
+# ------------------------------------------------------------------ after the end (bug report)
+
+def finished_profile(tmp_path):
+    saves = SaveSystem(tmp_path)
+    SettingsFile(saves.root).save(Settings(language="en", consent_asked=True))
+    pid = saves.create_profile("Ada")
+    state = GameState(at="end", beaten=["slime", "knight"], runes=["LIMIT", "WHERE"])
+    saves.save(pid, "auto", state)
+    game = Game(render.Canvas(), seed=1, audio=Silent(), saves=saves,
+                settings=SettingsFile(saves.root).load(), start="tutorial", skip_creator=False)
+    return saves, pid, game
+
+
+def test_continue_after_the_end_plays_again_keeping_what_was_learned(tmp_path):
+    saves, pid, game = finished_profile(tmp_path)
+    key(game, pygame.K_RETURN)                         # Continue
+    assert isinstance(game.scene, DialogueScene) and game.scene.guardian == "slime"
+    assert game.runes == {"LIMIT", "WHERE"} and game.profile_id == pid
+
+
+def test_new_game_after_continuing_a_finished_run_starts_the_story(tmp_path):
+    from engine.creator import CreatorScene
+    saves, pid, game = finished_profile(tmp_path)
+    key(game, pygame.K_RETURN)                         # Continue: a finished run
+    game.switch(TitleScene(game))
+    game.new_game()
+    assert isinstance(game.scene, CreatorScene)
+    game.scene.finish()                                # Done (the name Ada is valid)
+    assert isinstance(game.scene, DialogueScene) and game.scene.guardian == "tutorial"
+    assert game.profile_id != pid and game.runes == set()
+
+
+def test_a_profile_with_no_save_can_be_played_and_profiles_can_be_deleted(tmp_path):
+    saves, pid, game = finished_profile(tmp_path)
+    empty = saves.create_profile("Lin", {"hair": "bob"})
+    load = LoadScene(game, game.scene)
+    game.switch(load)
+    labels = [label for label, _ in load.items()]
+    assert any("Lin" in label and "no saves yet" in label for label in labels)
+    load.choice = next(i for i, label in enumerate(labels) if "Lin" in label)
+    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_DELETE, mod=0))
+    assert load.confirm["id"] == empty
+    key(game, pygame.K_ESCAPE)                         # keep it
+    assert any(p["id"] == empty for p in saves.profiles())
+    key(game, pygame.K_RETURN)                         # ENTER on Lin: play its story
+    assert isinstance(game.scene, DialogueScene) and CATALOG.player["name"] == "Lin"
+    assert game.profile_id == empty and game.state.player.look == {"hair": "bob"}
+    load = LoadScene(game, TitleScene(game))
+    game.switch(load)
+    labels = [label for label, _ in load.items()]
+    load.choice = next(i for i, label in enumerate(labels) if label.startswith("Ada"))
+    game.handle(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_DELETE, mod=0))
+    game.draw()                                        # the question is on screen
+    key(game, pygame.K_RETURN)                         # delete Ada for good
+    assert [p["name"] for p in saves.profiles()] == ["Lin"]
+    assert not (tmp_path / "profiles" / pid).exists()

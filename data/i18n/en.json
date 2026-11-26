@@ -388,9 +388,12 @@
       "tutorial": "the tutorial",
       "slime": "the Asterisk Slime",
       "knight": "the Filter Keep",
-      "end": "the end"
+      "end": "the end (ENTER plays again)"
     },
-    "mirror": "The mirror (change your look)"
+    "mirror": "The mirror (change your look)",
+    "no_saves": "(no saves yet: ENTER starts its story)",
+    "delete_hint": "ENTER play   DEL delete a profile   ESC back",
+    "confirm_delete": "Delete {name} and every save? ENTER deletes, ESC keeps it."
   },
   "consent": {
     "title": "Help us make the game better?",

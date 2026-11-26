@@ -70,6 +70,17 @@ class SaveSystem:
             raise KeyError(pid)
         return data
 
+    def delete_profile(self, pid: str) -> None:
+        """A profile and every save of it, gone (the Load screen asks first)."""
+        import shutil
+        folder = self._dir(pid)
+        if folder.parent != self.root / "profiles":     # never anything outside profiles/
+            raise ValueError(pid)
+        shutil.rmtree(folder, ignore_errors=True)
+
+    def has_saves(self, pid: str) -> bool:
+        return any(info.status != "empty" for info in self.slots(pid))
+
     def update_profile(self, pid: str, **fields) -> None:
         data = self.profile(pid)
         data.update(fields)

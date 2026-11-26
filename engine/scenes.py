@@ -108,6 +108,7 @@ class Game:
         # Where the story begins: "tutorial", "slime" or "knight". main.py starts at the
         # tutorial; the default here stays "slime" so a bare Game() is the classic slice.
         self.start = start
+        self.story_start = start          # where every New Game begins (never a loaded save's)
         self.runes: set[str] = set()      # runes Ada keeps after each victory
         self.screen = screen              # optional: only used for screen shake
         self.audio = audio if audio is not None else Silent()
@@ -181,7 +182,7 @@ class Game:
         self.runes = set(state.runes)
         self.codex = Codex.from_json(state.codex)
         self.scrolls = dict(state.scrolls)
-        self.start = state.at
+        self.start = state.at if state.at != "end" else self.story_start
         CATALOG.set_player(state.player.name, state.player.gender)
 
     def autosave(self) -> bool:
@@ -222,25 +223,39 @@ class Game:
         """Into the story at the point the state holds (a new game: the intro)."""
         at = self.state.at
         if at == "end":
-            self.switch(TitleScene(self))
-            return
+            # A finished run: play it again from the first guardian, keeping the profile,
+            # its Codex, runes and Scrolls (there is no later content yet to continue to).
+            at = self.state.at = ORDER[0]
         key = "intro" if at in ("tutorial", "slime") else f"{at}_intro"
         self.switch(DialogueScene(self, key, at))
 
     def new_game(self) -> None:
         """A new profile and run: the first-launch flow (language, consent, the creator)."""
         from engine.menus import first_launch_steps
-        self.state = GameState(at=self.start)
+        self.state = GameState(at=self.story_start)
         self.state.sessions.append(self.session)
         self.runes, self.codex, self.scrolls = set(), Codex(), {}
         first_launch_steps(self)
 
-    def start_profile(self) -> None:
-        """The flow is done: the profile exists from now on, the story begins."""
+    def start_profile(self, profile_id: str | None = None) -> None:
+        """The flow is done: the profile exists from now on (a new one, or the one given:
+        a profile that has no save yet), the story begins."""
         if self.saves is not None:
-            self.profile_id = self.saves.create_profile(CATALOG.player["name"],
-                                                        self.state.player.look)
+            self.profile_id = profile_id or self.saves.create_profile(
+                CATALOG.player["name"], self.state.player.look)
         self.begin_story()
+
+    def play_profile(self, profile_id: str) -> None:
+        """A profile with no save yet (it never beat a guardian): its story from the start,
+        with its name and look."""
+        profile = self.saves.profile(profile_id)
+        self.state = GameState(at=self.story_start)
+        self.state.sessions.append(self.session)
+        self.state.player.name = profile.get("name", "Ada")
+        self.state.player.look = dict(profile.get("look") or {})
+        self.runes, self.codex, self.scrolls = set(), Codex(), {}
+        CATALOG.set_player(self.state.player.name, self.state.player.gender)
+        self.start_profile(profile_id)
 
     def continue_game(self) -> bool:
         found = self.saves.latest() if self.saves else None
