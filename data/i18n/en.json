@@ -285,7 +285,12 @@
     "round_end": "Round {turn} ends: +{mp} MP",
     "foe_casts": "{foe} casts!",
     "rune_glows": "{rune} glows in {foe}'s book!",
-    "copies_rune": "{player.name} copies the rune: {rune}"
+    "copies_rune": "{player.name} copies the rune: {rune}",
+    "fatigue": {
+      "yawn": "The Grimoire yawns: {rows} rows now.",
+      "focus": "Clean casts. Focus: one more row.",
+      "focus_lost": "Focus slips away."
+    }
   },
   "panel": {
     "_help": "The battle screen's panels and buttons. Short: they sit in small boxes.",
@@ -299,7 +304,14 @@
     "mp": "MP",
     "exhausted": "EXHAUSTED",
     "relevance": "WARD OF RELEVANCE",
-    "codex": "CODEX: {count}"
+    "codex": "CODEX: {count}",
+    "fatigue": {
+      "rested": "RESTED",
+      "tired": "TIRED: {rows} ROWS",
+      "exhausted": "WEARY: {rows} ROWS",
+      "spent": "SPENT: {rows} ROWS"
+    },
+    "focus": "FOCUS +1 ROW"
   },
   "grimoire": {
     "_help": "The Grimoire's two pages. status: the line under the left page after a cast; foe_*: the summary under the guardian's book.",
@@ -334,7 +346,8 @@
     "codex": "CODEX - {rune}, as {foe} cast it:",
     "to_title": "ENTER title    ESC quit",
     "continue": "ENTER continue    ESC quit",
-    "retry": "ENTER try again    ESC quit"
+    "retry": "ENTER try again    ESC quit",
+    "fainted": "{player.name} sways; the ink swims. You wake by the fire."
   },
   "guide": {
     "_help": "The spell guide's frame (F3). Its pages are data/guide.json (keys guide.<path>).",

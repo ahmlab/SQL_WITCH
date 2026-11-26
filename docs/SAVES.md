@@ -28,7 +28,7 @@ signature, rows, MP, real execution time, query plan). The statistics screen rea
 
 A battle is never saved halfway: Continue starts the battle again from its beginning. Losing
 restarts the battle with HP and MP restored; the retry is counted and Fatigue rises a little
-(`defeat_fatigue` in `data/accessibility.json`).
+(`rise.defeat` in `data/fatigue.json`).
 
 ## Safety
 

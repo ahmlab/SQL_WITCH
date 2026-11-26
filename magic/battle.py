@@ -13,7 +13,7 @@ the reactions' effects (a foe enraged or confused, a refused query undone) and r
 techniques in the Codex. Ada may Rewind to a snapshot; it costs her turn. A world left broken
 until the end of the round ends the fight in confusion: no winner, no reward.
 
-STATUS: guardians, turn order, the World (snapshots, Rewind, reactions, tricks), the Codex,
+STATUS: Fatigue sets Ada's page and faints a spent witch at the end; guardians, turn order, the World (snapshots, Rewind, reactions, tricks), the Codex,
 Scrolls, confused foes, the confused ending.
 """
 
@@ -26,8 +26,9 @@ from dataclasses import dataclass
 from ai.base import CONFUSED_SQL
 from ai.roster import GUARDIANS, Guardian
 from magic import guard, rules
-from magic.cast import CastReport, load_state, resolve, sync_state
+from magic.cast import PAGE_ROWS, CastReport, load_state, resolve, sync_state
 from magic.db import build_db
+from magic.fatigue import Fatigue
 from magic.guard import Miscast
 from magic.spellbook import Spellbook
 from magic.world import Reaction, World
@@ -58,7 +59,8 @@ class Battle:
     def __init__(self, seed: int, guardian: str = "slime", brain=None,
                  ada_runes: set[str] | None = None, level: int | None = None,
                  foe_opens: bool = True, codex: Codex | None = None,
-                 scrolls: dict[str, str] | None = None, ada_name: str | None = None):
+                 scrolls: dict[str, str] | None = None, ada_name: str | None = None,
+                 fatigue: Fatigue | None = None):
         self.guardian: Guardian = GUARDIANS[guardian]
         g = self.guardian
         # One random generator for the whole battle: same seed, same battle (design doc 5.10).
@@ -84,6 +86,10 @@ class Battle:
         self.world = World(self.conn, self.state)
         self.rewards: list[dict] = []          # tricks rewarded in this fight
         self.broken_round: int | None = None   # the round the world broke in, if it is broken
+        # The run's Fatigue (magic/fatigue.py): it sets the rows of Ada's page and tires with
+        # every round and cast. None (tests, the simulator): a rested witch, always 4 rows.
+        self.fatigue = fatigue
+        self.fainted = False                   # spent: she faints when the fight ends
         self._start_round()
 
     # ------------------------------------------------------------ whose turn
@@ -106,10 +112,20 @@ class Battle:
         self.queue = list(self.turn_order)
         rules.start_turn(self.state, self.queue[0])
 
+    def page_rows(self) -> int:
+        """The rows Ada's page shows right now (her Fatigue band, plus Focus)."""
+        return self.fatigue.page_rows() if self.fatigue is not None else PAGE_ROWS
+
+    def _over(self) -> None:
+        """The fight just ended (any outcome). A spent witch faints now (prompt 08)."""
+        if self.fatigue is not None and self.fatigue.faints:
+            self.fainted = True
+
     def _advance(self) -> None:
         """The current side is done: check for a winner, then pass the turn or end the round."""
         self.winner = rules.winner(self.state)
         if self.winner:
+            self._over()
             return
         self.queue.pop(0)
         if self.queue:
@@ -127,6 +143,7 @@ class Battle:
                 self.winner = "confused"
                 self.codex.unlock("backups")
                 self.last_round = RoundEnd(turn, {"ada": 0, "foe": 0}, self.winner)
+                self._over()
                 return
         else:
             self.broken_round = None
@@ -134,8 +151,12 @@ class Battle:
         gained = {"ada": self.state.ada.mp - before["ada"],
                   "foe": self.state.foe.mp - before["foe"]}
         self.last_round = RoundEnd(turn, gained, self.winner)
+        if self.fatigue is not None:
+            self.fatigue.rise("round")
         sync_state(self.conn, self.state)      # the regenerated MP must be visible to queries
-        if not self.winner:
+        if self.winner:
+            self._over()
+        else:
             self._start_round()
 
     # ------------------------------------------------------------ the two sides
@@ -166,9 +187,12 @@ class Battle:
         self.last_round = None
         snap = self.world.snapshot(self.state)                 # the way back, taken first
         try:
-            report = resolve(self.conn, self.state, sql, "ada", self.rng, self.chart)
+            report = resolve(self.conn, self.state, sql, "ada", self.rng, self.chart,
+                             page_rows=self.page_rows())
         except Miscast:
             self.world.discard(snap)                           # nothing happened
+            if self.fatigue is not None:
+                self.fatigue.note(None)                        # a miscast breaks Focus
             raise
         found = self.world.assess("player", report.statements, report.outcome, report)
         if found.refusal is not None or found.duplicate:
@@ -184,6 +208,9 @@ class Battle:
                 report.codex.append(technique)
             self.state.ada.runes.add(technique)
         self.spellbook.note(sql, bool(report.casts))
+        if self.fatigue is not None:
+            self.fatigue.rise("cast")
+            self.fatigue.note(report)
         if report.scry and not report.ends_turn and not found.changes:
             self.world.discard(snap)                           # a free look changes nothing
         else:

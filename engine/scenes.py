@@ -40,6 +40,7 @@ from ai.roster import GUARDIANS, ORDER, next_guardian
 from magic.battle import Battle
 from magic.cast import SCRY_PER_TURN, CastReport, effect_word
 from magic.db import DATA_DIR
+from magic.fatigue import Fatigue
 from magic.battle import _summary
 from magic.guard import Miscast
 from i18n import CATALOG, locale as i18n_locale, set_locale, t
@@ -158,6 +159,20 @@ class Game:
             dialogue_portraits["ada"] = self._character[1].portrait
         return self._character[1]
 
+    @property
+    def fatigue(self) -> Fatigue:
+        """The run's Fatigue and Focus (magic/fatigue.py), built from the save's numbers.
+        A new state (new game, a loaded save) gets its own meter."""
+        if getattr(self, "_fatigue_for", None) is not self.state:
+            self._fatigue = Fatigue.from_save(self.state.fatigue, self.state.focus)
+            self._fatigue_for = self.state
+        return self._fatigue
+
+    def keep_fatigue(self) -> None:
+        """Write the meter back into the state, so the save and the statistics see it."""
+        self.state.fatigue = self.fatigue.value
+        self.state.focus = {"streak": self.fatigue.streak, "charges": self.fatigue.charges}
+
     def save_settings(self) -> None:
         if self.settings_file is not None:
             self.settings_file.save(self.settings)
@@ -165,6 +180,7 @@ class Game:
     def snapshot(self) -> GameState:
         """The state to write: what the session holds now (never a battle in progress)."""
         state = self.state
+        self.keep_fatigue()
         state.runes = sorted(self.runes)
         state.codex = self.codex.to_json()
         state.scrolls = dict(self.scrolls)
@@ -209,6 +225,7 @@ class Game:
                        mp_spent=record["mp_spent"], sql=record["sql"])
 
     def record_battle(self, record: dict) -> None:
+        self.keep_fatigue()
         record.update(run=self.state.run_id, fatigue=self.state.fatigue)
         self.state.battles.append(record)
         self.track("battle_end", **record)
@@ -843,7 +860,8 @@ class BattleScene(Scene):
         # A scene may be handed its battle (the tutorial runs its own); otherwise a new one.
         self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes,
                                        codex=game.codex, scrolls=game.scrolls,
-                                       ada_name=CATALOG.player["name"])
+                                       ada_name=CATALOG.player["name"],
+                                       fatigue=game.fatigue)
         # The guardian's body on screen, steered towards whatever its brain orders.
         home = steering.Vec(*HOME[guardian])
         self.body = steering.Kinematic(home, max_speed=75 if guardian == "knight" else 55)
@@ -895,6 +913,7 @@ class BattleScene(Scene):
         self.hints = HintDirector(guardian) if self.HINTS else None
         self.speech_box = DialogueBox(pygame.Rect(4, 70, 312, 28), rows=3, opaque=True)
         self.hint_context: dict = {}
+        self._sync_fatigue()
         if self.phase == "input":
             self._hint_turn()
 
@@ -1116,12 +1135,18 @@ class BattleScene(Scene):
 
     # ------------------------------------------------------------ turns
 
+    def _fatigue_now(self) -> tuple[str, bool]:
+        fatigue = self.battle.fatigue
+        return (fatigue.band.id, fatigue.focused) if fatigue is not None else ("rested", False)
+
     def cast(self, sql: str) -> None:
         turn = self.battle.state.turn
         started = time.perf_counter()
+        tired_before = self._fatigue_now()
         try:
             report = self.battle.ada_cast(sql)
         except Miscast as miscast:
+            self._sync_fatigue()
             self.grimoire.show_miscast(str(miscast), self.time)
             self.game.audio.play("miscast")
             if self.hints is not None:
@@ -1151,6 +1176,7 @@ class BattleScene(Scene):
         self.grimoire.show_result(report, self.time, looks)
         self.narrate(report)
         self._tell_world(report)
+        self._fatigue_news(tired_before)
         if self.battle.spellbook.can_save(sql):
             from magic.spellbook import SCROLL_THRESHOLD
             self.say(t("ui.scroll.can_save", count=SCROLL_THRESHOLD), 1400, None, "rune")
@@ -1173,6 +1199,7 @@ class BattleScene(Scene):
             self.ada.faint()
 
     def foe_turn(self) -> None:
+        tired_before = self._fatigue_now()
         turn = self.battle.foe_act()
         self.foe_sql, self.foe_report, self.reasoning = turn.sql, turn.report, turn.reasoning
         if turn.movement is not None:
@@ -1193,6 +1220,7 @@ class BattleScene(Scene):
             self.say(t("battle.rune_glows", rune=rune, foe=name), 1200, learn, "invitation")
             self.say(t("battle.copies_rune", rune=rune), 1200)
         self._tell_round_end()
+        self._fatigue_news(tired_before)
 
     # ------------------------------------------------------------ input and time
 
@@ -1729,9 +1757,55 @@ class BattleScene(Scene):
         f.draw(canvas, f"{mp}/{ada.max_mp}", (box.x + 88, box.y + 18), render.NAVY)
         runes = t("panel.codex", count=len(self.battle.codex.pages))
         f.draw(canvas, runes, (box.x, box.y - 8), render.GOLD, shadow=render.INK)
+        self._draw_fatigue(canvas, box)
         if ada.exhausted:
             f.draw(canvas, t("panel.exhausted"), (box.right - f.width(t("panel.exhausted")), box.y - 8),
                    render.RED, shadow=render.INK)
+
+    def _draw_fatigue(self, canvas, box: pygame.Rect) -> None:
+        """Fatigue as a candle on the panel's right edge (it burns down as she tires), and the
+        band under the panel when she is not rested; Focus in gold."""
+        fatigue = self.battle.fatigue
+        if fatigue is None:
+            return
+        f = render.font()
+        candle = pygame.Rect(box.right - 5, box.y + 3, 2, box.height - 6)
+        gfx.rect(canvas, render.SAND, candle)
+        left = round(candle.height * (1 - fatigue.value))
+        colour = render.BUTTER if fatigue.band.id == "rested" else \
+            render.AMBER if fatigue.band.id == "tired" else render.WINE
+        if left:
+            gfx.rect(canvas, colour, (candle.x, candle.bottom - left, candle.width, left))
+        band = fatigue.band
+        label = t("panel.focus") if fatigue.focused else \
+            t(f"panel.fatigue.{band.id}", rows=fatigue.page_rows()) if band.id != "rested" else ""
+        if label:
+            f.draw(canvas, label, (box.right - f.width(label), box.bottom + 1),
+                   render.GOLD if fatigue.focused else render.PEACH, shadow=render.INK)
+
+    def _fatigue_news(self, before: tuple[str, bool]) -> None:
+        """After a cast or a round: the Grimoire yawns into a wearier band, Focus comes, goes."""
+        fatigue = self.battle.fatigue
+        if fatigue is None:
+            return
+        band, focused = fatigue.band, fatigue.focused
+        if band.id != before[0] and band.yawn:
+            self.say(t("battle.fatigue.yawn", rows=band.rows), 1400, None, "rune",
+                     speaker="Grimoire")
+        if focused and not before[1]:
+            self.say(t("battle.fatigue.focus"), 1200, None, "rune")
+        elif before[1] and not focused and fatigue.streak == 0 and fatigue.charges == 0 \
+                and self.battle.fatigue.judge(self.grimoire.report) == "sloppy":
+            self.say(t("battle.fatigue.focus_lost"), 900)
+        self._sync_fatigue()
+
+    def _sync_fatigue(self) -> None:
+        fatigue = self.battle.fatigue
+        if fatigue is None:
+            return
+        self.grimoire.blur = fatigue.band.blur
+        self.grimoire.motion = self.game.settings.screen_shake
+        self.grimoire.focused = fatigue.focused
 
     def _draw_debug(self, canvas):
         """F1: what the brain was thinking, straight from Brain.explain()."""
@@ -1799,8 +1873,8 @@ class ResultScene(Scene):
             if not self.won:                         # try the same guardian again (D12)
                 state = self.game.state
                 state.retries[self.key] = state.retries.get(self.key, 0) + 1
-                tired = settings_screen.ACCESSIBILITY.get("defeat_fatigue", 0.0)
-                state.fatigue = round(min(1.0, state.fatigue + tired), 3)
+                self.game.fatigue.rise("defeat")          # data/fatigue.json
+                self.game.keep_fatigue()
                 self.game.switch(BattleScene(self.game, self.key))   # HP and MP restored
                 return
             # Runes are kept after a victory, and a defeated guardian always grants its own

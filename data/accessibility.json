@@ -9,6 +9,5 @@
     "tritanopia": {"hp": ["FOREST", "PEACH", "RED"],
                    "elements": {"Tide": "TEAL", "Nature": "FOREST", "Storm": "PEACH", "Arcane": "WINE"}}
   },
-  "text_speeds": {"slow": 0.6, "normal": 1.0, "fast": 1.8, "instant": 0},
-  "defeat_fatigue": 0.02
+  "text_speeds": {"slow": 0.6, "normal": 1.0, "fast": 1.8, "instant": 0}
 }

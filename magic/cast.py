@@ -56,8 +56,9 @@ def column_widths(columns: list[str], rows: list[tuple]) -> list[int]:
     return widths
 
 
-def split_page(columns: list[str], rows: list[tuple]) -> Page:
-    """Cut a result at PAGE_ROWS rows and PAGE_WIDTH characters."""
+def split_page(columns: list[str], rows: list[tuple], page_rows: int = PAGE_ROWS) -> Page:
+    """Cut a result at page_rows rows (PAGE_ROWS for a rested caster) and PAGE_WIDTH
+    characters. Fatigue shrinks the page and Focus widens it (magic/fatigue.py)."""
     widths = column_widths(columns, rows)
     visible_columns, x = [], 0
     for i, width in enumerate(widths):
@@ -65,7 +66,7 @@ def split_page(columns: list[str], rows: list[tuple]) -> Page:
             break                  # this column is clipped, and so is everything to its right
         visible_columns.append(i)
         x += width + COLUMN_GAP
-    return Page(visible_rows=list(rows[:PAGE_ROWS]), hidden_rows=list(rows[PAGE_ROWS:]),
+    return Page(visible_rows=list(rows[:page_rows]), hidden_rows=list(rows[page_rows:]),
                 visible_columns=visible_columns, widths=widths)
 
 
@@ -181,6 +182,8 @@ class CastReport:
     tricks: list = field(default_factory=list)
     codex: list = field(default_factory=list)        # techniques whose page just unlocked
     integrity: str = "intact"
+    page_rows: int = PAGE_ROWS         # the page this cast was read on (Fatigue, Focus)
+    insight: list = field(default_factory=list)      # tables looked at for the first time
 
     @property
     def mp_after(self) -> int:
@@ -305,22 +308,23 @@ def _fizzle(report: CastReport, plan: _Row, reason: str, paid: int) -> None:
 
 
 def resolve(conn, state: BattleState, sql: str, caster: str, rng: random.Random,
-            chart: dict | None = None) -> CastReport:
+            chart: dict | None = None, page_rows: int = PAGE_ROWS) -> CastReport:
     """Run one query for 'ada' or 'foe' and apply the Casting Contract.
 
+    page_rows: the rows the caster can read (the player's Fatigue and Focus; foes read 4).
     Raises guard.Miscast for a rejected query; nothing changes in that case.
     """
     me = state.side(caster)
     runes = guard.inspect(sql)
     outcome = guard.Outcome()
     columns, rows = guard.run_query(conn, sql, outcome=outcome)
-    page = split_page(columns, rows)
+    page = split_page(columns, rows, page_rows)
     chart = chart if chart is not None else rules.load_type_chart(conn)
 
     report = CastReport(sql=sql, caster=caster, columns=columns, rows=rows,
                         visible=len(page.visible_rows), visible_columns=page.visible_columns,
                         runes=runes, mp_before=me.mp, kind=runes.kind,
-                        statements=runes.statements, outcome=outcome)
+                        statements=runes.statements, outcome=outcome, page_rows=page_rows)
     if caster == "foe":
         state.foe_book.append(sql)
 
@@ -360,7 +364,7 @@ def _cast(conn, state, caster, plans, page, chart, rng, report) -> None:
         paid = min(cost, me.mp)
         me.mp -= paid
         report.mp_spent += paid
-        readable = plan.index < PAGE_ROWS and plan.column in page.visible_columns
+        readable = plan.index < report.page_rows and plan.column in page.visible_columns
         target_side = plan.target or _default_target(
             plan.spell.kind if plan.spell else "heal", caster)
         pair = (plan.name, target_side)

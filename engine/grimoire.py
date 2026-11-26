@@ -40,6 +40,18 @@ STATUS_BOX = pygame.Rect(LEFT_PAGE.x, LEFT_PAGE.bottom - 9, LEFT_PAGE.width, 9)
 LOOKS_AT = pygame.Rect(LEFT_PAGE.right - 29, LEFT_PAGE.y - 1, 30, 8)
 
 
+def row_height(page_rows: int) -> int:
+    """A rested page holds 4 rows of 11 px; a focused one squeezes a fifth in (9 px rows)."""
+    return ROW_H if page_rows <= PAGE_ROWS else 9
+
+
+def page_cut(page_rows: int) -> int:
+    """How far below the table's first row the clip ends: through the middle of the first
+    unreadable row, so the player sees that the table goes on."""
+    rh = row_height(page_rows)
+    return page_rows * rh + rh // 2 + 1
+
+
 def wrap(text: str, width: int) -> list[str]:
     """Word wrap to `width` cells (a Chinese character takes two): i18n.width.wrap."""
     return wrap_cells(text, width)
@@ -66,8 +78,21 @@ def row_shades(report: CastReport) -> dict[int, tuple]:
     return shades
 
 
+def blur_offset(row: int, column: int, now: int, blur: float, motion: bool) -> int:
+    """Fatigue's pixel jitter: some cells wander one pixel, on a slow beat. A pure function of
+    where and when (never the battle's random generator); none when motion is reduced."""
+    if blur <= 0 or not motion:
+        return 0
+    every = 7 if blur < 1 else 3                  # wearier: more cells wander
+    beat = now // 180
+    if (row * 5 + column * 3 + beat) % every:
+        return 0
+    return 1 if (row + column + beat) % 2 else -1
+
+
 def draw_table(surface: pygame.Surface, report: CastReport, rows_shown: int,
-               topleft: tuple[int, int], scroll_px: int = 0) -> None:
+               topleft: tuple[int, int], scroll_px: int = 0, blur: float = 0.0,
+               now: int = 0, motion: bool = True) -> None:
     """Draw the whole result table from topleft. It may be bigger than the page: the caller
     sets the clip, and the clip is what cuts row five and the columns past the edge.
     scroll_px slides it left, to read columns past the right edge (looking only: the cast
@@ -79,20 +104,25 @@ def draw_table(surface: pygame.Surface, report: CastReport, rows_shown: int,
     total_w = (xs[-1] + widths[-1] * render.ADVANCE) if xs else 1
     x0, y0 = topleft[0] - scroll_px, topleft[1]
     shades = row_shades(report)
-    for i in range(min(rows_shown, PAGE_ROWS + 1, len(rows))):
+    rh, cut = row_height(report.page_rows), report.page_rows + 1
+    for i in range(min(rows_shown, cut, len(rows))):
         if i in shades:                                         # behind the text
             gfx.rect(surface, shades[i],
-                             (topleft[0], y0 + TABLE_TOP + i * ROW_H - 1, RIGHT_PAGE.width, ROW_H - 1))
+                             (topleft[0], y0 + TABLE_TOP + i * rh - 1, RIGHT_PAGE.width, rh - 1))
     for name, x in zip(columns, xs):
         f.draw(surface, name, (x0 + x, y0), render.LEATHER)
     gfx.line(surface, render.LEATHER, (x0, y0 + render.GLYPH_H + 1),
                      (x0 + total_w, y0 + render.GLYPH_H + 1))
-    for i, row in enumerate(rows[:min(rows_shown, PAGE_ROWS + 1)]):   # nobody sees past row 5
-        y = y0 + TABLE_TOP + i * ROW_H
-        for value, x in zip(row, xs):
-            f.draw(surface, cell_text(value), (x0 + x, y + TEXT_DY), render.INK)
+    for i, row in enumerate(rows[:min(rows_shown, cut)]):   # nobody sees past the cut row
+        y = y0 + TABLE_TOP + i * rh
+        for c, (value, x) in enumerate(zip(row, xs)):
+            text = cell_text(value)
+            if blur > 0:                                        # tired eyes see double
+                f.draw(surface, text, (x0 + x + 1, y + TEXT_DY), render.PARCHMENT)
+            dx = blur_offset(i, c, now, blur, motion)
+            f.draw(surface, text, (x0 + x + dx, y + TEXT_DY), render.INK)
         for dot in range(0, total_w, 3):                        # dotted row separator
-            surface.set_at((x0 + dot, y + ROW_H - 2), render.SAND)
+            surface.set_at((x0 + dot, y + rh - 2), render.SAND)
 
 
 class Grimoire:
@@ -110,6 +140,9 @@ class Grimoire:
         self.show_status = True
         self.footer: str | None = None      # None: the usual keys (grimoire.footer)
         self.closed: str | None = None    # why the book is closed (turn lock), or None: open
+        self.blur = 0.0                   # Fatigue's blur on the result (magic/fatigue.py)
+        self.motion = True                # False: reduced motion, the blur keeps still
+        self.focused = False              # Focus: the page edge glows
 
     EDITOR_AT = (LEFT_PAGE.x, LEFT_PAGE.y + 9)
 
@@ -172,20 +205,22 @@ class Grimoire:
         if report is None or not report.rows:
             return None
 
+        rh, page_rows = row_height(report.page_rows), report.page_rows
+
         def rows_rect(first: int, last: int) -> pygame.Rect:
-            y = top + TABLE_TOP + first * ROW_H - 1
+            y = top + TABLE_TOP + first * rh - 1
             return pygame.Rect(RIGHT_PAGE.x - 1, y, RIGHT_PAGE.width + 2,
-                               (last - first + 1) * ROW_H)
+                               (last - first + 1) * rh)
 
         if kind == "header":
             rect = pygame.Rect(RIGHT_PAGE.x - 1, top - 1, RIGHT_PAGE.width + 2, render.GLYPH_H + 3)
         elif kind in ("row", "cut_row"):
-            index = PAGE_ROWS if kind == "cut_row" else row
+            index = page_rows if kind == "cut_row" else row
             if index >= len(report.rows):
                 return None
             rect = rows_rect(index, index)
         elif kind == "cast_rows":
-            rows = sorted({c.row for c in report.casts if c.row < PAGE_ROWS})
+            rows = sorted({c.row for c in report.casts if c.row < page_rows})
             if not rows:
                 return None
             rect = rows_rect(rows[0], rows[-1])
@@ -198,10 +233,10 @@ class Grimoire:
             width = column_widths(report.columns, report.rows)[i] * render.ADVANCE
             x = RIGHT_PAGE.x + xs[i] - xs[self.scroll_col] - 1
             if kind == "cell":
-                rect = pygame.Rect(x, rows_rect(row, row).y, width + 2, ROW_H)
+                rect = pygame.Rect(x, rows_rect(row, row).y, width + 2, rh)
             else:
-                shown = min(len(report.rows), PAGE_ROWS)
-                rect = pygame.Rect(x, top - 1, width + 2, TABLE_TOP + shown * ROW_H)
+                shown = min(len(report.rows), page_rows)
+                rect = pygame.Rect(x, top - 1, width + 2, TABLE_TOP + shown * rh)
         else:
             return None
         rect = rect.clip(RIGHT_PAGE.inflate(2, 2))      # what the page really shows
@@ -231,6 +266,8 @@ class Grimoire:
             self._draw_status(surface)
 
         # Right page: the result, cut by the page.
+        if self.focused:
+            self._draw_focus(surface, now)
         f.draw(surface, t("grimoire.result"), (RIGHT_PAGE.x, RIGHT_PAGE.y), render.VIOLET)
         if self.miscast:
             self._draw_miscast(surface)
@@ -287,23 +324,44 @@ class Grimoire:
                                (RIGHT_PAGE.x, RIGHT_PAGE.y + 12), render.GREY)
             return
         rows_shown = 1 + (now - self.shown_at) // INK_MS            # ink in, row by row
-        clip = pygame.Rect(RIGHT_PAGE.x, RIGHT_PAGE.y + TABLE_TOP,
-                           RIGHT_PAGE.width, RIGHT_PAGE.height - TABLE_TOP)
+        page_rows, rh = report.page_rows, row_height(report.page_rows)
+        # The clip ends inside the first unreadable row: a tired page is a shorter page.
+        clip = pygame.Rect(RIGHT_PAGE.x, RIGHT_PAGE.y + TABLE_TOP, RIGHT_PAGE.width,
+                           min(RIGHT_PAGE.height - TABLE_TOP, TABLE_TOP + page_cut(page_rows)))
         scroll_px = column_x(report.columns, report.rows)[self.scroll_col]
         surface.set_clip(clip)
-        draw_table(surface, report, rows_shown, clip.topleft, scroll_px)  # row 5 is cut here
+        draw_table(surface, report, rows_shown, clip.topleft, scroll_px, self.blur, now,
+                   self.motion)                                   # the cut row is cut here
         surface.set_clip(None)
         self._draw_scroll_arrows(surface)
 
         # A gold star in the spine marks every row that cast (design doc 4.4).
         cast_rows = {c.row for c in report.casts}
-        for row in range(min(PAGE_ROWS, rows_shown, len(report.rows))):
+        for row in range(min(page_rows, rows_shown, len(report.rows))):
             if row in cast_rows:
-                y = clip.y + TABLE_TOP + row * ROW_H + TEXT_DY
+                y = clip.y + TABLE_TOP + row * rh + TEXT_DY
                 render.font().draw(surface, "*", (RIGHT_PAGE.x - 5, y), render.GOLD)
 
-        if len(report.rows) > PAGE_ROWS and rows_shown > PAGE_ROWS:
-            self._draw_drips(surface, now - self.shown_at - PAGE_ROWS * INK_MS)
+        self._draw_drowsy(surface, clip)
+        if len(report.rows) > page_rows and rows_shown > page_rows:
+            self._draw_drips(surface, now - self.shown_at - page_rows * INK_MS)
+
+    def _draw_focus(self, surface: pygame.Surface, now: int) -> None:
+        """Focus: a gold glow along the right page's edge, breathing slowly (still when motion
+        is reduced)."""
+        alpha = 150 if not self.motion else 90 + int(60 * abs((now % 1600) - 800) / 800)
+        edge = RIGHT_PAGE.inflate(6, 6)
+        render.cover(surface, pygame.Rect(edge.right - 2, edge.y, 2, edge.height),
+                     (*render.GOLD, alpha))
+        render.cover(surface, pygame.Rect(edge.x, edge.bottom - 2, edge.width, 2),
+                     (*render.GOLD, alpha))
+
+    def _draw_drowsy(self, surface: pygame.Surface, clip: pygame.Rect) -> None:
+        """Below a tired page's last row the paper is veiled, like heavy eyelids."""
+        below = pygame.Rect(RIGHT_PAGE.x - 3, clip.bottom, RIGHT_PAGE.width + 6,
+                            RIGHT_PAGE.bottom + 3 - clip.bottom)
+        if below.height > 2:
+            render.cover(surface, below, (*render.SAND, 150))
 
     def _draw_scroll_arrows(self, surface: pygame.Surface) -> None:
         """< > at the top right of the page: lit when there are columns to see that way."""

@@ -1,0 +1,28 @@
+{
+  "_comment": "Fatigue and Focus (plan §4.5, magic/fatigue.py). One meter from 0 (rested) to 1 (spent). Rise and fall amounts are fractions of the whole meter. docs/FATIGUE.md explains each number.",
+  "rise": {
+    "round": 0.012,
+    "cast": 0.006,
+    "region": 0.08,
+    "defeat": 0.05,
+    "wrong_answer": 0.04,
+    "skipped_sleep": 0.05
+  },
+  "fall": {
+    "sleep": 1.0,
+    "meal": 0.25,
+    "letter": 0.08
+  },
+  "bands": [
+    {"id": "rested",    "below": 0.40, "rows": 4, "blur": 0,   "yawn": false, "faint": false},
+    {"id": "tired",     "below": 0.70, "rows": 3, "blur": 0.5, "yawn": true,  "faint": false},
+    {"id": "exhausted", "below": 0.92, "rows": 2, "blur": 1.0, "yawn": true,  "faint": false},
+    {"id": "spent",     "below": 1.01, "rows": 2, "blur": 1.5, "yawn": true,  "faint": true}
+  ],
+  "focus": {
+    "streak": 3,
+    "bonus_rows": 1,
+    "lasts_casts": 2,
+    "letter_charges": 1
+  }
+}

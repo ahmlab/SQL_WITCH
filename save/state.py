@@ -49,6 +49,7 @@ class GameState:
     position: list[int] = field(default_factory=lambda: [0, 0])
     companions: dict = field(default_factory=dict)
     fatigue: float = 0.0
+    focus: dict = field(default_factory=dict)          # the Focus streak and charges
     playtime_s: float = 0.0
     settings: dict = field(default_factory=dict)
     telemetry: dict = field(default_factory=lambda: {"consent": False, "share_queries": False})
