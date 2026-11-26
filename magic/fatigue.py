@@ -84,10 +84,12 @@ class Fatigue:
         self.value = round(min(1.0, self.value + self.tuning["rise"][reason] * times), 4)
         return self.value - before
 
-    def rest(self, kind: str) -> float:
-        """Rest at the Hearth: sleep, meal or letter. Returns how much the meter fell."""
+    def rest(self, kind: str, amount: float | None = None) -> float:
+        """Rest at the Hearth: sleep, meal or letter. Returns how much the meter fell.
+        amount: a meal's own rest value (data/hearth/recipes.csv); default the data's fall."""
         before = self.value
-        self.value = round(max(0.0, self.value - self.tuning["fall"][kind]), 4)
+        fall = self.tuning["fall"][kind] if amount is None else float(amount)
+        self.value = round(max(0.0, self.value - fall), 4)
         if kind == "letter":
             # A letter from home steadies the hand: a Focus charge for the next fight.
             self.charges = max(self.charges, self.tuning["focus"]["letter_charges"])

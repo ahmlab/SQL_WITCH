@@ -578,3 +578,72 @@ def dummy(flash: bool) -> pygame.Surface:
             pygame.draw.line(s, render.INK, (ex + 4, 22), (ex - 4, 30), 3)
         pygame.draw.line(s, render.INK, (cx - 8, 40), (cx + 8, 40), 3)
     return s
+
+
+# ------------------------------------------------------------------ the Hearth
+
+@lru_cache(maxsize=2)
+def hearth(ground_y: int = 128) -> pygame.Surface:
+    """The Hearth at night (prompt 08): the glade's sky and forest, a lean-to of branches with
+    a blanket, a log to sit on, a pot on a tripod, the letter box on a post. Static; the fire
+    is drawn per frame (campfire)."""
+    W, H = 320 * S, 180 * S
+    g = ground_y * S
+    s = pygame.Surface((W, H))
+    vgradient(s, (0, 0, W, g), [(0, render.INK), (0.5, render.NIGHT), (1, render.DUSK)])
+    _sky_table(s, g)
+    rng = _Pattern(5)
+    for _ in range(110):
+        x, y = rng.next() % W, rng.next() % int(g * 0.65)
+        disc(s, (render.LILAC, render.WHITE, render.SKY)[rng.next() % 3], (x, y),
+             (1, 1, 2, 2, 3)[rng.next() % 5], 190)
+    _hills(s, g - 30 * S, render.DUSK, 0.005, 14 * S, 5)
+    _forest(s, g)
+    vgradient(s, (0, g, W, H - g), [(0, mix(render.FOREST, render.INK, 0.3)),
+                                    (1, mix(render.FOREST, render.INK, 0.65))])
+    # the firelight on the ground: warm ovals fading out
+    fx, fy = 160 * S, g + 18 * S
+    for r, a in ((120, 26), (86, 34), (56, 44)):
+        oval(s, render.AMBER, (fx - r * S / 2, fy - r * S / 6, r * S, r * S / 3), a)
+    # the lean-to: two poles, a slanted roof of branches, a blanket inside
+    lx, ly = 40 * S, g + 6 * S
+    poly(s, render.BARK, [(lx, ly), (lx + 70 * S, ly), (lx + 62 * S, ly - 40 * S),
+                          (lx + 6 * S, ly - 32 * S)])
+    for i in range(9):                                     # branches of the roof
+        x0 = lx + 4 * S + i * 7 * S
+        pygame.draw.line(s, mix(render.BARK, render.FOREST, 0.4), (x0, ly - 30 * S - i * S),
+                         (x0 + 8 * S, ly - 2 * S), 2 * S)
+    poly(s, render.WINE, [(lx + 14 * S, ly), (lx + 52 * S, ly), (lx + 46 * S, ly - 12 * S),
+                          (lx + 18 * S, ly - 10 * S)])
+    pygame.draw.line(s, render.PEACH, (lx + 16 * S, ly - 6 * S), (lx + 50 * S, ly - 7 * S), S)
+    # the log to sit on, the pot on its tripod
+    oval(s, render.BARK, (186 * S, g + 20 * S, 40 * S, 9 * S))
+    disc(s, mix(render.BARK, render.PEACH, 0.3), (226 * S, g + 24.5 * S), 4 * S)
+    for x0 in (148, 172):
+        pygame.draw.line(s, mix(render.SLATE, render.SAND, 0.5), (x0 * S, g + 18 * S),
+                         (160 * S, g - 14 * S), S)
+    oval(s, render.INK, (152 * S, g - 12 * S, 16 * S, 9 * S))
+    pygame.draw.line(s, render.SLATE, (160 * S, g - 14 * S), (160 * S, g - 11 * S), S)
+    # the letter box on its post, by the lean-to
+    pygame.draw.rect(s, render.BARK, (118 * S, g - 12 * S, 2 * S, 24 * S))
+    pygame.draw.rect(s, render.WINE, (113 * S, g - 18 * S, 12 * S, 8 * S))
+    pygame.draw.rect(s, render.GOLD, (116 * S, g - 15 * S, 6 * S, 1 * S))
+    return s
+
+
+def campfire(frame: int) -> pygame.Surface:
+    """The Hearth's fire, 28x24 logical pixels over 4 frames: logs, three tongues, embers."""
+    w, h = 28 * S, 24 * S
+    s = pygame.Surface((w, h), pygame.SRCALPHA)
+    sway = (0, 3, -3, 1)[frame % 4]
+    disc(s, render.GOLD, (w / 2, h * 0.62), 40 + frame % 2 * 4, 40)
+    for (x0, x1) in ((0.15, 0.85), (0.85, 0.15)):
+        pygame.draw.line(s, render.BARK, (w * x0, h * 0.95), (w * x1, h * 0.78), 3 * S)
+    for dx, tall, colour in ((-7, 0.25, render.RED), (6, 0.32, render.RED), (0, 0.1, render.AMBER)):
+        poly(s, colour, [(w / 2 + dx * S - 7 * S, h * 0.85), (w / 2 + dx * S + 7 * S, h * 0.85),
+                         (w / 2 + dx * S + sway * S / 2, h * tall)])
+    poly(s, render.GOLD, [(w / 2 - 5 * S, h * 0.85), (w / 2 + 5 * S, h * 0.85),
+                          (w / 2 - sway * S / 2, h * 0.38)])
+    poly(s, render.BUTTER, [(w / 2 - 2 * S, h * 0.85), (w / 2 + 2 * S, h * 0.85),
+                            (w / 2, h * 0.58)])
+    return s

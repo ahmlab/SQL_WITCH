@@ -1,0 +1,36 @@
+# The Hearth (prompt 08 §2): arriving, waking, the companions' talks. Conditions read the Hearth's
+# variables (magic/hearth.py: fatigue, band, slept, ate, skipped_sleeps, burnout, visits,
+# beaten.<guardian>, letters). Edit freely: docs/WRITING.md.
+
+== hearth_arrival ==
+[scene hearth]
+Grimoire: A fire, a pot, a roof of branches. The Hearth. Nothing here needs a query until you want one.
+<<if band == "tired" or band == "exhausted" or band == "spent">>
+Grimoire: Your page is shorter tonight. Sleep would give the rows back.
+<<endif>>
+
+== hearth_woke ==
+[scene hearth]
+Grimoire: You fainted on the field. Someone carried you here. The ink stopped swimming.
+Marta Quill: You went down like a sack of letters. Sit. Eat. The road will wait for once.
+
+== marta_talk ==
+[scene hearth]
+<<if burnout>>
+Marta Quill: I am fine. I am fine. I just need to sit down for... a minute. Or a night.
+Marta Quill: Do not tell the post office. They would send someone faster.
+<<elif skipped_sleeps >= 1>>
+Marta Quill: We did not sleep last time either. My legs have started writing me complaints.
+<<elif fatigue > 0.6>>
+Marta Quill: You look like a ledger nobody has read in a year. Sleep. I will watch the pot.
+<<elif ate>>
+Marta Quill: That was a real dinner. Sitting down. My children would not believe it.
+<<else>>
+Marta Quill: I carry what fits in the bag. Four letters, never five. Five and one gets wet.
+Marta Quill: Your book has the same rule, I think. Four rows. Pick the ones that matter.
+<<endif>>
+
+== marta_leave ==
+<<if not slept>>
+Marta Quill: No sleep? Good. Good! We can make the next village by dawn. Probably.
+<<endif>>

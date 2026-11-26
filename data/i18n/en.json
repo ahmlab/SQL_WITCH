@@ -388,7 +388,8 @@
   "speaker": {
     "_help": "Names shown on a speaker's tag. Guardians use their names from the database (data, in English); the Grimoire and the protagonist are translated here.",
     "Grimoire": "Grimoire",
-    "Ada": "{player.name}"
+    "Ada": "{player.name}",
+    "Shopkeeper": "Shopkeeper"
   },
   "menu": {
     "_help": "The title and system screens (engine/menus.py). at.*: where a save stands, shown in the Load list.",
@@ -579,11 +580,43 @@
     }
   },
   "shop": {
-    "refuse": "Shopkeeper: Look all you like, or put something in your items. I do not sell anything else.",
-    "nothing": "Shopkeeper: Your query put nothing in your items. Pick a row of the stall.",
-    "not_for_sale": "Shopkeeper: {name}? That is not on my stall. Copy the row from stall.",
-    "bad_qty": "Shopkeeper: How many {name}? At least one.",
-    "too_poor": "Shopkeeper: That comes to {price} coins. Your purse holds {coins}.",
-    "bought": "Shopkeeper: {items}. That is {price} coins. Pleasure."
+    "refuse": "Look all you like, or put something in your items. I do not sell anything else.",
+    "nothing": "Your query put nothing in your items. Pick a row of the stall.",
+    "not_for_sale": "{name}? That is not on my stall. Copy the row from stall.",
+    "bad_qty": "How many {name}? At least one.",
+    "too_poor": "That comes to {price} coins. Your purse holds {coins}.",
+    "bought": "{items}. That is {price} coins. Pleasure."
+  },
+  "hearth": {
+    "title": "THE HEARTH",
+    "sleep": "Sleep",
+    "cook": "Cook",
+    "talk": "Talk to {name}",
+    "letters": "{count, plural, =0 {Letter box} one {Letter box (#)} other {Letter box (#)}}",
+    "stall": "The stall",
+    "mirror": "The mirror",
+    "shelf": "Scroll shelf",
+    "backup": "World backup",
+    "leave": "Leave",
+    "coins": "{coins} coins",
+    "slept": "You sleep. The page is whole again (-{amount}% fatigue).",
+    "ate": "{meal}. Warm, and sitting down (-{amount}% fatigue).",
+    "just_looking": "A look at the pot. Name a recipe to cook it.",
+    "no_letters": "The letter box is empty tonight.",
+    "letter_read": "You fold the letter and keep it. Your hand is steadier (Focus).",
+    "backed_up": "World backup \"{name}\" saved. Nothing saved is ever lost.",
+    "backup_prompt": "Name this backup of the world (ENTER saves, ESC goes back):",
+    "cook_title": "THE POT",
+    "cook_prompt": "Query the recipes. The first recipe in the result is supper, if the pantry has what it needs.",
+    "stall_title": "THE STALL",
+    "stall_prompt": "Look at the stall as much as you like. To buy, put its row in your items: I wrote half of it.",
+    "desk_keys": "CTRL+ENTER run   TAB complete   ESC back",
+    "desk_keys_done": "ENTER back to the fire   ESC back",
+    "shelf_title": "SCROLL SHELF (your saved views)",
+    "shelf_empty": "No Scrolls yet. Cast the same query well three times in battle, then F7 saves it here as a view.",
+    "shelf_keys": "UP/DOWN choose   DEL throw away   ESC back",
+    "cook_read_only": "Read the recipes, do not rewrite them. My grandmother wrote those.",
+    "no_ingredient": "{meal}? We have no {needs}.",
+    "already_ate": "One supper a night. Even I know that."
   }
 }

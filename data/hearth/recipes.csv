@@ -1,0 +1,7 @@
+# Hearth cooking (magic/hearth.py): a query over recipes chooses the meal. rest: how much Fatigue
+# it takes off (data/fatigue.json fall.meal is the plain supper); needs: the pantry row it uses up.
+name,rest,needs,serves
+Plain Porridge,0.15,Oats,3
+Barley Stew,0.25,Barley,3
+Wenna's Pie,0.35,Apples,2
+Fireside Fish,0.30,Fish,2

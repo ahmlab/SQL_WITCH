@@ -298,6 +298,22 @@ def test_defeat_restarts_the_battle_with_the_retry_counted():
     assert ada.hp == ada.max_hp and ada.mp == ada.max_mp
 
 
+def on_to_the_next_battle(game):
+    """Between regions (prompt 08): the Hearth's dialogue, the Hearth (Leave), the walk."""
+    from engine.hearth import HearthScene
+    for _ in range(40):
+        if isinstance(game.scene, BattleScene):
+            return
+        if isinstance(game.scene, DialogueScene):
+            through_dialogue(game)
+        elif isinstance(game.scene, HearthScene):
+            game.scene.choice = len(game.scene.items()) - 1        # Leave
+            key(game, pygame.K_RETURN)
+        else:
+            run(game, 200)
+            key(game, pygame.K_RETURN)
+
+
 def test_first_launch_flow_then_tutorial_slime_and_knight(tmp_path):
     """A fresh save: language, consent, (creator skipped), the story, the tutorial, the Slime,
     the autosave, the Knight."""
@@ -327,7 +343,7 @@ def test_first_launch_flow_then_tutorial_slime_and_knight(tmp_path):
     win_the_battle(game)
     key(game, pygame.K_RETURN)
     assert isinstance(game.scene, DialogueScene) and game.scene.guardian == "knight"
-    through_dialogue(game)
+    on_to_the_next_battle(game)
     assert isinstance(game.scene, BattleScene) and game.scene.key == "knight"
     assert saves.load(game.profile_id, "auto").at == "knight"
 

@@ -1,0 +1,14 @@
+{
+  "_comment": "The Hearth (prompt 08 §2, magic/hearth.py, docs/HEARTH.md). companions: who sits by the fire, from when (joins_after: a guardian beaten), and the script node of each talk in data/story/hearth.script (the node's own <<if>> lines choose what is said, on story variables and fatigue). letters: one per region, arriving at the Hearth once its guardian is beaten (after); the text is the node in data/story/letters.script. burnout: the companion who collapses when the party leaves the Hearth this many times in a row without sleeping. backups: how many named world backups the shelf keeps.",
+  "companions": [
+    {"id": "marta", "name": "Marta Quill", "joins_after": "slime", "talk": "marta_talk", "leave": "marta_leave"}
+  ],
+  "letters": [
+    {"id": "letter_1", "after": "slime"},
+    {"id": "letter_2", "after": "knight"}
+  ],
+  "burnout": {"companion": "marta", "skips": 2},
+  "backups": 3,
+  "arrival": "hearth_arrival",
+  "woke": "hearth_woke"
+}

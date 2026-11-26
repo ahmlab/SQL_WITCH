@@ -545,14 +545,17 @@ class DialogueScene(Scene):
     BOX = pygame.Rect(8, 128, 304, 44)
     SKIP_HOLD_MS = 90                 # while CTRL is held, a finished line waits this long
 
-    def __init__(self, game, key: str = "intro", guardian: str = "slime"):
+    def __init__(self, game, key: str = "intro", guardian: str = "slime", script: str = INTRO,
+                 then: Callable[[], None] | None = None, variables: dict | None = None):
         super().__init__(game)
         self.guardian = guardian             # what follows: "tutorial" or a guardian's battle
         self.key = key
+        self.then = then                     # or this, when the scene ends (the Hearth's talks)
         # The script's conditions read these: <<if next == "tutorial">>, codex.WHERE, ...
         self.variables = {"next": guardian,
-                          "codex": {page.id: True for page in game.codex.unlocked()}}
-        self.runner = ScriptRunner(script_named(INTRO), key, self.variables)
+                          "codex": {page.id: True for page in game.codex.unlocked()},
+                          **(variables or {})}
+        self.runner = ScriptRunner(script_named(script), key, self.variables)
         self.lines: list[dict] = []
         self.choice = None                   # a Choice waiting for the player, when one is due
         self.choice_at = 0
@@ -635,6 +638,12 @@ class DialogueScene(Scene):
             self._start_line()
         elif self.choice is None:
             self.game.audio.play("next")
+            self._finish()
+
+    def _finish(self) -> None:
+        if self.then is not None:
+            self.then()
+        else:
             self.game.switch(next_scene(self.game, self.guardian))
 
     def _choose(self, option: int) -> None:
@@ -647,7 +656,7 @@ class DialogueScene(Scene):
             self.index = before - 1
             self._advance()
         else:
-            self.game.switch(next_scene(self.game, self.guardian))
+            self._finish()
 
     def _choosing(self) -> bool:
         return self.choice is not None and self.index == len(self.lines) - 1 and \
@@ -669,7 +678,7 @@ class DialogueScene(Scene):
             self.show_log = False
             return
         if event.key == pygame.K_ESCAPE:
-            self.game.switch(next_scene(self.game, self.guardian))
+            self._finish()
         elif event.key == pygame.K_p:              # pause: save, settings, statistics
             from engine.menus import PauseScene
             self.game.switch(PauseScene(self.game, self))
@@ -733,6 +742,9 @@ class DialogueScene(Scene):
             scenery.draw_office(canvas, self.time, self.drowsy, progress)
         elif name == "void":
             scenery.draw_void(canvas, self.time - self.void_since)
+        elif name == "hearth":
+            from engine.hearth import draw_hearth
+            draw_hearth(self.game, canvas, self.time)
         elif name in ("glade", "keep"):
             if name == "glade":
                 draw_backdrop(canvas, ground_y=110)
@@ -1916,6 +1928,17 @@ class ResultScene(Scene):
             self.game.running = False
         elif is_confirm_key(event):
             self.game.seed += 1                      # a new, still reproducible battle
+            if self.battle.fainted and self.key in ORDER:
+                # Spent: she fainted when the fight ended, whatever its outcome, and wakes at
+                # the Hearth (prompt 08). A lost fight is tried again from there.
+                from engine.hearth import HearthScene
+                if not self.won:
+                    state = self.game.state
+                    state.retries[self.key] = state.retries.get(self.key, 0) + 1
+                self.game.runes |= self.battle.state.ada.runes | ({self.rune} if self.won else set())
+                self.game.switch(HearthScene(self.game, self.next if self.won else self.key,
+                                             woke=True))
+                return
             if not self.won:                         # try the same guardian again (D12)
                 state = self.game.state
                 state.retries[self.key] = state.retries.get(self.key, 0) + 1
@@ -1927,7 +1950,10 @@ class ResultScene(Scene):
             # (design doc 2.4: "each region's guardian grants the keyword"), even if Ada won
             # before the Invitation.
             self.game.runes |= self.battle.state.ada.runes | {self.rune}
-            if self.next is None:                    # the end of this build
+            if self.key in ORDER:                    # between regions: the Hearth (prompt 08)
+                from engine.hearth import HearthScene
+                self.game.switch(HearthScene(self.game, self.next))
+            elif self.next is None:                  # the end of this build
                 self.game.switch(TitleScene(self.game))
             else:
                 self.game.switch(DialogueScene(self.game, f"{self.next}_intro", self.next))
@@ -1963,10 +1989,20 @@ class ResultScene(Scene):
                    (box.x + 4, box.y + 3), render.VIOLET)
             for i, line in enumerate(wrap(self.codex, 62)[:2]):
                 f.draw(canvas, line, (box.x + 4, box.y + 12 + i * render.LINE_H), render.INK)
-        if self.won and self.next is None:
+        if self.drops or self.coins:
+            found = ", ".join([f"{n} x{q}" for n, q in self.drops.items()] +
+                              ([t("hearth.coins", coins=self.coins)] if self.coins else []))
+            line = t("result.drops", items=found)
+            f.draw(canvas, line, ((320 - f.width(line)) // 2, 146), render.GOLD, shadow=render.INK)
+        if self.battle.fainted:
+            line = t("result.fainted")
+            f.draw(canvas, line, ((320 - f.width(line)) // 2, 156), render.PEACH, shadow=render.INK)
+            prompt = t("result.continue")
+        elif self.won and self.next is None:
             end = self.game.dialogue.get("end_of_slice", "")
             f.draw(canvas, end, ((320 - f.width(end)) // 2, 156), render.BUTTER)
-            prompt = t("result.to_title")
+            # The Hearth comes first, then the title (the end of this build).
+            prompt = t("result.continue") if self.key in ORDER else t("result.to_title")
         elif self.won:
             prompt = t("result.continue")
         else:
