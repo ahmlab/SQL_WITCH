@@ -49,7 +49,7 @@ def data_strings(name: str, data: dict) -> dict[str, str]:
     out: dict[str, str] = {}
     if name == "tutorial":                           # lessons are keyed by id, not by position
         for lesson in data.get("lessons", []) + [data.get("practice", {})]:
-            for field in TEXT_FIELDS["tutorial"]:
+            for field in sorted(TEXT_FIELDS["tutorial"]):
                 if isinstance(lesson.get(field), str):
                     out[f"tutorial.{lesson['id']}.{field}"] = lesson[field]
         return out
@@ -80,7 +80,7 @@ def localise(name: str, data, catalog=None):
     if name == "tutorial":
         data = json.loads(json.dumps(data))
         for lesson in data.get("lessons", []) + [data.get("practice", {})]:
-            for field in TEXT_FIELDS["tutorial"]:
+            for field in sorted(TEXT_FIELDS["tutorial"]):
                 if isinstance(lesson.get(field), str):
                     lesson[field] = catalog.raw(f"tutorial.{lesson['id']}.{field}") or lesson[field]
         return data

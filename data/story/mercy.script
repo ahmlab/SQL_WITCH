@@ -1,0 +1,25 @@
+# What a guardian says when Ada keeps hitting it after it fell: every spell after the knockout
+# still lands (and was paid for). Line n of a guardian's node answers the n-th extra hit; past
+# the last line, the last one repeats. grimoire_overkill follows once, after the pleading.
+# A guardian without its own node uses "mercy" (narration). {foe} is the guardian's name.
+# Draft lines (prompt 03 format); the real writing is prompt 07. See docs/WRITING.md.
+
+== slime_mercy ==
+Asterisk Slime: {shake}Blub!{/shake} I'm already a puddle!
+Asterisk Slime: Stop! I yield! I'm just goo now!
+Asterisk Slime: Mercy, little witch! There is nothing left to hit!
+Asterisk Slime: ...why are you still casting at a puddle?
+
+== knight_mercy ==
+Sir Wherewell: Hold! I am down, witch. I yield!
+Sir Wherewell: {shake}I yield, I said!{/shake} Have you no honour?
+Sir Wherewell: Mercy! A knight on the floor is not a target!
+Sir Wherewell: ...is this what you call relevance?
+
+== mercy ==
+: {foe} is already down, and begs for mercy.
+: {foe} waves a tiny white flag.
+: {foe} has nothing left to lose. Literally.
+
+== grimoire_overkill ==
+Grimoire: Every spell after the first was paid for, and hit a fallen foe. {rune LIMIT} 1 would have been kinder, and cheaper.

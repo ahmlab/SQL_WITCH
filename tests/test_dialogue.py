@@ -480,3 +480,56 @@ def test_the_battle_scene_speaks_a_hint_when_ada_is_stuck():
             break
     assert scene.beat.speaker in ("Asterisk Slime", "Grimoire")
     assert scene.hints.log
+
+
+# ------------------------------------------------------------------ overkill: the fallen foe begs
+
+def overkill_battle(guardian="slime"):
+    battle = Battle(seed=1, guardian=guardian, foe_opens=False)
+    battle.state.foe.hp = 1                            # the first spell will knock it out
+    battle.conn.execute("UPDATE enemies SET hp = 1")
+    return battle
+
+
+def test_a_foe_faints_once_and_every_later_spell_is_an_overkill():
+    battle = overkill_battle()
+    report = battle.ada_cast("SELECT name FROM spells LIMIT 4")
+    kinds = [e[0] for e in report.events if e[0] in ("cast", "faint", "overkill")]
+    assert kinds == ["cast", "faint", "cast", "overkill", "cast", "overkill", "cast", "overkill"]
+    assert len(report.casts) == 4 and report.mp_spent > 0          # still landed, still paid
+    assert battle.winner == "ada"
+
+
+def test_overkill_keeps_the_battle_reproducible():
+    """The extra hits still roll their damage: the rng sequence is the same as before."""
+    a, b = overkill_battle(), overkill_battle()
+    ra = a.ada_cast("SELECT name FROM spells LIMIT 4")
+    rb = b.ada_cast("SELECT name FROM spells LIMIT 4")
+    assert [c.damage for c in ra.casts] == [c.damage for c in rb.casts]
+    assert a.rng.random() == b.rng.random()
+
+
+def test_mercy_lines_escalate_per_guardian_and_the_last_repeats():
+    from story.scenes import mercy_line, overkill_lesson
+    first, second = mercy_line("slime", 1, "Asterisk Slime"), mercy_line("slime", 2, "x")
+    assert first["speaker"] == "Asterisk Slime" and "puddle" in first["text"]
+    assert "yield" in second["text"] and first["text"] != second["text"]
+    assert mercy_line("slime", 9, "x")["text"] == mercy_line("slime", 4, "x")["text"]
+    assert mercy_line("knight", 1, "Sir Wherewell")["speaker"] == "Sir Wherewell"
+    dummy = mercy_line("dummy", 1, "Training Dummy")                # no lines of its own
+    assert dummy["speaker"] == "" and "Training Dummy" in dummy["text"]
+    assert "LIMIT" in overkill_lesson()["text"]
+
+
+def test_the_battle_scene_lets_the_fallen_slime_beg_for_mercy():
+    game = Game(pygame.Surface((320, 180)), seed=1, audio=Recorder())
+    battle = overkill_battle()
+    scene = BattleScene(game, "slime", battle=battle)
+    game.switch(scene)
+    scene.cast("SELECT name FROM spells LIMIT 4")
+    said = [(b.speaker, b.text) for b in scene.beats]
+    faints = [text for speaker, text in said if "faints" in text]
+    begging = [text for speaker, text in said if speaker == "Asterisk Slime"]
+    assert len(faints) == 1 and len(begging) == 3
+    assert len(set(begging)) == 3                                    # it grows more desperate
+    assert said[-1][0] == "Grimoire" or any(s == "Grimoire" and "LIMIT" in x for s, x in said)

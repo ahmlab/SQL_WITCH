@@ -9,6 +9,7 @@ and, if something is wrong, says which file, which line and what to fix.
 | `data/story/intro.script` | The intro (office, void, glade), the guardians' arrivals, the result lines. |
 | `data/story/tutorial.script` | Every word of the tutorial. `data/tutorial.json` keeps its structure. |
 | `data/story/hints.script` | What the guardians and the Grimoire say when the player is stuck. |
+| `data/story/mercy.script` | What a fallen guardian says when more spells of the same cast keep hitting it. |
 | `data/pacing.json` | How fast text types out, pauses after punctuation, voices, box styles. |
 | `data/hints.json` | When the Hint Director lets someone speak, and which hint comes next. |
 
@@ -103,6 +104,14 @@ query, and finally an offer to show the exact query (F3). To add a hint, write a
 
 A guardian's `{mode}` is its brain's real mode (from `explain()`), in the words of the `hint.mode`
 entries of `data/i18n/en.json`, so a taunt never lies about what the guardian is doing.
+
+## Overkill: the fallen guardian begs (`data/story/mercy.script`)
+
+A cast can knock a guardian out with its first row and keep going: the other rows still land
+(and were paid for). The guardian faints once; every extra hit plays the next line of its
+`<guardian>_mercy` node (the last line repeats if there are more hits than lines), then the
+Grimoire's `grimoire_overkill` line points at the lesson. A guardian without a node of its own
+uses the narrated `mercy` node; `{foe}` is its name.
 
 ## The tutorial (`data/story/tutorial.script`)
 

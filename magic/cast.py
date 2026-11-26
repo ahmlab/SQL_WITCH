@@ -249,6 +249,7 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
     if spell.kind in ("attack", "area"):
         # An enraged foe (the player wrecked her own side of the world) hits harder.
         hit = rules.damage(round(spell.power * rage), spell.element, target, chart, rng)
+        already_down = not target.alive
         rules.apply_hit(target, hit)
         report.casts.append(Cast(plan.index, spell.name, target.name, spell.kind,
                                  damage=hit.amount, crit=hit.crit, effective=hit.multiplier,
@@ -259,7 +260,11 @@ def _apply_spell(plan: _Row, me: Combatant, target: Combatant, chart: dict,
             report.events.append(("deflect", plan.index, spell.name, target.name))
         if hit.shatters:
             report.events.append(("shatter", target.name))
-        if not target.alive:
+        if already_down:
+            # It fell to an earlier row of the same cast: the spell still lands (and was paid
+            # for), but a target faints only once. The scene lets the guardian beg for mercy.
+            report.events.append(("overkill", target.name, plan.index))
+        elif not target.alive:
             report.events.append(("faint", target.name))
     elif spell.kind == "heal":
         amount = rules.heal(target, spell.power)

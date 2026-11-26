@@ -6,7 +6,8 @@ current language (with its inline markup), and the stage directions read as scen
 (backdrop, Ada's sleepiness, the floating book, who stands on stage, a sound, a portrait).
 
 legacy() rebuilds the shape the old data/dialogue.json had, for the parts of the game that only
-need text by name (result screens, the battle tip).
+need text by name (result screens, the battle tip). mercy_line() picks what a fallen guardian
+says when more spells keep hitting it (data/story/mercy.script).
 
 Never imports pygame.
 
@@ -104,3 +105,28 @@ def _all_lines(node: str) -> list[dict]:
                 entry["only_before"] = condition
             lines.append(entry)
     return lines
+
+
+# ------------------------------------------------------------------ overkill: begging for mercy
+
+MERCY = "mercy"
+
+
+def mercy_line(guardian: str, n: int, foe: str) -> dict:
+    """What a fallen guardian says to the n-th spell (1, 2, 3...) that hit it after it fell:
+    line n of <guardian>_mercy in data/story/mercy.script, the last line once they run out;
+    the narrated "mercy" node for a guardian without its own lines."""
+    script = get(MERCY)
+    node = f"{guardian}_mercy" if f"{guardian}_mercy" in script.nodes else "mercy"
+    lines = [item for item in script.node(node).items if isinstance(item, Line)]
+    line = record(lines[min(n, len(lines)) - 1])
+    line["markup"] = CATALOG.format(line["markup"], foe=foe)
+    line["text"] = plain(line["markup"])
+    return line
+
+
+def overkill_lesson() -> dict:
+    """The Grimoire's word after the pleading: the extra spells were paid for."""
+    line = next(item for item in get(MERCY).node("grimoire_overkill").items
+                if isinstance(item, Line))
+    return record(line)

@@ -41,7 +41,7 @@ from magic.guard import Miscast
 from i18n import CATALOG, locale as i18n_locale, set_locale, t
 from story.codex import Codex
 from story.pacing import Typewriter, settings as settings_pacing, voice
-from story.scenes import INTRO, legacy, record, text_of_key
+from story.scenes import INTRO, legacy, mercy_line, overkill_lesson, record, text_of_key
 from story.script import Choice, ScriptRunner, get as script_named, plain as plain_text
 from story.script import tokens as script_tokens
 from story.hints import HintDirector, context_of
@@ -742,7 +742,7 @@ class BattleScene(Scene):
 
     def narrate(self, report: CastReport) -> None:
         """Turn the cast's events into beats, in the order they happened (design doc 7.3)."""
-        margin = 0
+        margin = overkill = 0
         for event in report.events:
             kind = event[0]
             if kind == "cast":
@@ -793,6 +793,12 @@ class BattleScene(Scene):
                 self.say(t("battle.exhausted", foe=event[1].split()[-1]), 800)
             elif kind == "faint":
                 self.say(t("battle.faints", name=event[1]), 1000, None, "faint")
+            elif kind == "overkill":
+                # The foe is down and the next row of the page hits it anyway: it begs.
+                overkill += 1
+                foe = event[1]
+                if foe == self.battle.state.foe.name:
+                    self._speak_line(mercy_line(self.key, overkill, foe), "deflect")
             elif kind == "scry":
                 self.say(t("battle.free_look") if not event[2] else t("battle.nothing_castable"), 600)
             elif kind == "write":
@@ -803,6 +809,17 @@ class BattleScene(Scene):
             elif kind == "rewind":
                 self.say(t("reaction.rewind_grimoire", turn=event[1]), 1100,
                          self._sync_shown, "invitation", speaker="Grimoire")
+
+        if overkill:
+            self._speak_line(overkill_lesson(), "next")
+
+    def _speak_line(self, line: dict, sound: str) -> None:
+        """A script line as a beat: in the speech box when someone speaks, typed out."""
+        ms = int(Typewriter(line["markup"], line["speaker"], i18n_locale()).total_ms) + 1300
+        if line["speaker"]:
+            self.say(line["text"], ms, None, sound, speaker=line["speaker"], markup=line["markup"])
+        else:
+            self.say(line["text"], ms, None, sound)
 
     def _speaker(self, who: str) -> str:
         return {"foe": self.battle.state.foe.name, "grimoire": "Grimoire",

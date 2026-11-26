@@ -143,6 +143,8 @@ def narrate(report: CastReport) -> list[str]:
             lines.append(f"  {event[2]} strips {event[4]} ward from {event[3]}.")
         elif kind == "faint":
             lines.append(f"  {event[1]} faints!")
+        elif kind == "overkill":
+            lines.append(f"  {event[1]} is already down, and begs for mercy.")
         elif kind == "write":
             from magic.battle import _summary
             key, args = _summary(report)
