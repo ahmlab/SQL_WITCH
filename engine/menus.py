@@ -91,7 +91,7 @@ def first_launch_steps(game) -> None:
     elif game.saves is not None and not game.settings.consent_asked:
         game.switch(ConsentScene(game))
     elif not game.skip_creator:
-        from engine.creator import CreatorScene                  # prompt 06
+        from engine.creator import CreatorScene
         game.switch(CreatorScene(game))
     else:
         game.start_profile()
@@ -204,6 +204,9 @@ class PauseScene(Menu):
         out = [(t("menu.resume"), self.back)]
         if self.game.saves is not None and self.game.profile_id is not None:
             out += [(t("menu.save_to", n=n), lambda n=n: self.save(n)) for n in ("1", "2", "3")]
+        from engine.creator import CreatorScene         # the mirror: the look, not the name
+        out.append((t("menu.mirror"),
+                    lambda: self.game.switch(CreatorScene(self.game, mirror=True, back=self))))
         out += [(t("menu.settings"),
                  lambda: self.game.switch(settings_screen.SettingsScene(self.game, self))),
                 (t("menu.statistics"), lambda: self.game.switch(StatsScene(self.game, self))),

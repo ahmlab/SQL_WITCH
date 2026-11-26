@@ -1,0 +1,473 @@
+{
+ "frames": [
+  {
+   "filename": "charm 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 220
+  },
+  {
+   "filename": "charm 1",
+   "frame": {
+    "x": 20,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 220
+  },
+  {
+   "filename": "charm 2",
+   "frame": {
+    "x": 40,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 220
+  },
+  {
+   "filename": "charm 3",
+   "frame": {
+    "x": 60,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 220
+  },
+  {
+   "filename": "charm 4",
+   "frame": {
+    "x": 80,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 90
+  },
+  {
+   "filename": "charm 5",
+   "frame": {
+    "x": 100,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 90
+  },
+  {
+   "filename": "charm 6",
+   "frame": {
+    "x": 120,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 90
+  },
+  {
+   "filename": "charm 7",
+   "frame": {
+    "x": 140,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 90
+  },
+  {
+   "filename": "charm 8",
+   "frame": {
+    "x": 160,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 90
+  },
+  {
+   "filename": "charm 9",
+   "frame": {
+    "x": 180,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 90
+  },
+  {
+   "filename": "charm 10",
+   "frame": {
+    "x": 200,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 80
+  },
+  {
+   "filename": "charm 11",
+   "frame": {
+    "x": 220,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 80
+  },
+  {
+   "filename": "charm 12",
+   "frame": {
+    "x": 240,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 80
+  },
+  {
+   "filename": "charm 13",
+   "frame": {
+    "x": 260,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 140
+  },
+  {
+   "filename": "charm 14",
+   "frame": {
+    "x": 280,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 140
+  },
+  {
+   "filename": "charm 15",
+   "frame": {
+    "x": 300,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 140
+  },
+  {
+   "filename": "charm 16",
+   "frame": {
+    "x": 320,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 140
+  },
+  {
+   "filename": "charm 17",
+   "frame": {
+    "x": 340,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 140
+  },
+  {
+   "filename": "charm 18",
+   "frame": {
+    "x": 360,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 150
+  },
+  {
+   "filename": "charm 19",
+   "frame": {
+    "x": 380,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 150
+  },
+  {
+   "filename": "charm 20",
+   "frame": {
+    "x": 400,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 150
+  },
+  {
+   "filename": "charm 21",
+   "frame": {
+    "x": 420,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 150
+  },
+  {
+   "filename": "charm 22",
+   "frame": {
+    "x": 440,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 600
+  },
+  {
+   "filename": "charm 23",
+   "frame": {
+    "x": 460,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 600
+  },
+  {
+   "filename": "charm 24",
+   "frame": {
+    "x": 480,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 25",
+   "frame": {
+    "x": 500,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 26",
+   "frame": {
+    "x": 520,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 27",
+   "frame": {
+    "x": 540,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 28",
+   "frame": {
+    "x": 560,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 29",
+   "frame": {
+    "x": 580,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 30",
+   "frame": {
+    "x": 600,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 31",
+   "frame": {
+    "x": 620,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 32",
+   "frame": {
+    "x": 640,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 33",
+   "frame": {
+    "x": 660,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 34",
+   "frame": {
+    "x": 680,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 35",
+   "frame": {
+    "x": 700,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 36",
+   "frame": {
+    "x": 720,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 37",
+   "frame": {
+    "x": 740,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 38",
+   "frame": {
+    "x": 760,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  },
+  {
+   "filename": "charm 39",
+   "frame": {
+    "x": 780,
+    "y": 0,
+    "w": 20,
+    "h": 41
+   },
+   "duration": 120
+  }
+ ],
+ "meta": {
+  "app": "tools/import_sprites.py placeholders",
+  "size": {
+   "w": 800,
+   "h": 41
+  },
+  "frameTags": [
+   {
+    "name": "idle",
+    "from": 0,
+    "to": 3,
+    "direction": "forward"
+   },
+   {
+    "name": "cast",
+    "from": 4,
+    "to": 9,
+    "direction": "forward"
+   },
+   {
+    "name": "hit",
+    "from": 10,
+    "to": 12,
+    "direction": "forward"
+   },
+   {
+    "name": "faint",
+    "from": 13,
+    "to": 17,
+    "direction": "forward"
+   },
+   {
+    "name": "victory",
+    "from": 18,
+    "to": 21,
+    "direction": "forward"
+   },
+   {
+    "name": "rest",
+    "from": 22,
+    "to": 23,
+    "direction": "forward"
+   },
+   {
+    "name": "walk_left",
+    "from": 24,
+    "to": 27,
+    "direction": "forward"
+   },
+   {
+    "name": "walk_right",
+    "from": 28,
+    "to": 31,
+    "direction": "forward"
+   },
+   {
+    "name": "walk_up",
+    "from": 32,
+    "to": 35,
+    "direction": "forward"
+   },
+   {
+    "name": "walk_down",
+    "from": 36,
+    "to": 39,
+    "direction": "forward"
+   }
+  ]
+ }
+}

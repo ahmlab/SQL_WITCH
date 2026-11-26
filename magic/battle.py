@@ -58,13 +58,15 @@ class Battle:
     def __init__(self, seed: int, guardian: str = "slime", brain=None,
                  ada_runes: set[str] | None = None, level: int | None = None,
                  foe_opens: bool = True, codex: Codex | None = None,
-                 scrolls: dict[str, str] | None = None):
+                 scrolls: dict[str, str] | None = None, ada_name: str | None = None):
         self.guardian: Guardian = GUARDIANS[guardian]
         g = self.guardian
         # One random generator for the whole battle: same seed, same battle (design doc 5.10).
         self.rng = random.Random(seed)
         self.seed = seed
         self.conn = guard.harden(build_db(level or g.level, foe_ids=[g.foe_id]))
+        if ada_name:            # the protagonist's name (prompt 06): it lives in the witch row
+            self.conn.execute("UPDATE witch SET name = ?", (ada_name,))
         self.state = load_state(self.conn, foe_id=g.foe_id, seed=seed)
         # The Glade assumes nothing beyond SELECT and FROM; each guardian then adds its rune.
         self.state.ada.runes = set(g.ada_runes if ada_runes is None else ada_runes)

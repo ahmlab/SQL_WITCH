@@ -23,8 +23,8 @@ import i18n                                # i18n.t: "t" is the tutorial in this
 from engine import render, scenery
 from engine.grimoire import LOOKS_AT, wrap
 from engine.scenes import (GROUND_SHADOW, GUIDE_BUTTON, TABLES_BUTTON, ADA_FEET, BattleScene,
-                           draw_backdrop, draw_slime, is_cast_key, is_confirm_key)
-from engine.sprites import draw_ada
+                           draw_backdrop, draw_protagonist, draw_slime, is_cast_key,
+                           is_confirm_key)
 from engine.textinput import STYLE_COLOURS, colour_styles
 from ai import steering
 from magic.tutorial import STRIP_CHARS, TALK_PHASES, Step, Tutorial
@@ -60,7 +60,7 @@ class TutorialScene(BattleScene):
     HINTS = False                            # the coach is the only voice in practice
 
     def __init__(self, game, tutorial: Tutorial | None = None):
-        self.tutorial = tutorial or Tutorial(seed=game.seed)
+        self.tutorial = tutorial or Tutorial(seed=game.seed, ada_name=i18n.CATALOG.player["name"])
         super().__init__(game, "dummy", battle=self.tutorial.battle)
         self.beats.clear()                       # no battle tip: the Grimoire is talking
         self.order = steering.Movement("hold")   # a dummy stands still
@@ -343,7 +343,8 @@ class TutorialScene(BattleScene):
                            self.flash["foe"] > 0 and (self.time // 40) % 2 == 0)
         if t.phase == "ending" and t.step is not None and t.step.narrator:
             draw_slime(canvas, (304, 50), self.time, False, False, False)   # it peeks in
-        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0,
+        draw_protagonist(self.game, canvas, ADA_FEET,
+                         self.flash["ada"] > 0 and (self.time // 40) % 2 == 0,
                  anim=self.ada)
         if "foe_panel" in revealed:
             self._draw_foe_panel(canvas)

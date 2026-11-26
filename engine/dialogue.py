@@ -32,6 +32,9 @@ from story.scenes import speaker_name
 from story.script import Token
 
 PORTRAITS = Path(__file__).resolve().parent.parent / "assets" / "portraits"
+# Portraits built at run time, by who: the protagonist's comes from their layered look
+# (engine/animation.py), registered by the game. Everyone else uses assets/portraits/.
+portraits: dict = {}
 
 
 def measure(text: str) -> int:
@@ -137,6 +140,9 @@ class DialogueBox:
     def _portrait(self, canvas: pygame.Surface, portrait: tuple) -> None:
         who, emotion = (portrait + ("neutral",))[:2]
         frame = pygame.Rect(self.rect.right - 36, self.rect.y - 34, 32, 32)
+        if who in portraits:
+            canvas.blit(portraits[who](emotion), frame)
+            return
         path = PORTRAITS / f"{who}_{emotion}.png"
         if path.exists():
             canvas.blit(pygame.image.load(str(path)), frame)

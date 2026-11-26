@@ -1,0 +1,40 @@
+{
+  "_help": "The protagonist as layers (prompt 06, docs/ART_PIPELINE.md). Each layer option is a sprite sheet in assets/characters/witch/<layer>/<option>.png with its Aseprite JSON (json-array, --list-tags), every one with the same tags, frame counts and frame size. Source art paints the recolourable parts in the swap colours below; the creator's choices replace them, at load time, by two colours of the game's 32-colour palette (light, dark). portrait: the same layers drawn as a face, one sheet per option with one frame per emotion. events: a frame that fires something (cast frame 4: the projectile). default: Ada.",
+  "frame": [20, 41],
+  "portrait_frame": [32, 32],
+  "layers": ["body", "outfit", "hair", "hat", "accessory"],
+  "options": {
+    "body": ["base"],
+    "outfit": ["robe", "coat"],
+    "hair": ["long", "bob", "braid"],
+    "hat": ["pointed", "wide", "none"],
+    "accessory": ["none", "glasses", "scarf", "charm"]
+  },
+  "swaps": {
+    "skin": [[255, 0, 255], [190, 0, 190]],
+    "hair": [[0, 255, 255], [0, 180, 180]],
+    "primary": [[255, 255, 0], [180, 180, 0]],
+    "secondary": [[0, 255, 0], [0, 170, 0]]
+  },
+  "colours": {
+    "skin": {"peach": ["PEACH", "CLAY"], "clay": ["CLAY", "BRICK"], "sand": ["SAND", "LEATHER"], "bark": ["LEATHER", "BARK"], "cream": ["CREAM", "PEACH"]},
+    "hair": {"auburn": ["BRICK", "RUST"], "black": ["DUSK", "INK"], "gold": ["GOLD", "AMBER"], "silver": ["WHITE", "GREY"], "lilac": ["LILAC", "LAVENDER"], "teal": ["AQUA", "TEAL"]},
+    "primary": {"violet": ["VIOLET", "DUSK"], "forest": ["FOREST", "TEAL"], "navy": ["BLUE", "NAVY"], "wine": ["RED", "WINE"], "slate": ["GREY", "SLATE"]},
+    "secondary": {"gold": ["GOLD", "AMBER"], "lilac": ["LILAC", "LAVENDER"], "mint": ["MINT", "GRASS"], "sky": ["SKY", "BLUE"], "cream": ["CREAM", "SAND"]}
+  },
+  "tags": {
+    "idle": {"frames": 4, "ms": 220, "loop": true},
+    "cast": {"frames": 6, "ms": 90, "events": {"4": "projectile"}},
+    "hit": {"frames": 3, "ms": 80},
+    "faint": {"frames": 5, "ms": 140, "terminal": true},
+    "victory": {"frames": 4, "ms": 150, "loop": true},
+    "rest": {"frames": 2, "ms": 600, "loop": true},
+    "walk_left": {"frames": 4, "ms": 120, "loop": true},
+    "walk_right": {"frames": 4, "ms": 120, "loop": true},
+    "walk_up": {"frames": 4, "ms": 120, "loop": true},
+    "walk_down": {"frames": 4, "ms": 120, "loop": true}
+  },
+  "emotions": ["neutral", "happy", "sad", "angry", "surprised"],
+  "default": {"outfit": "robe", "hair": "long", "hat": "pointed", "accessory": "none",
+              "skin": "peach", "hair_colour": "auburn", "primary": "violet", "secondary": "gold"}
+}

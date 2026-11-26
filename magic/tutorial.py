@@ -384,11 +384,11 @@ class Tutorial:
     Talk phases move on with advance(). The last lesson is free practice: it stays in `task`
     until ready()."""
 
-    def __init__(self, seed: int, script: dict | None = None):
+    def __init__(self, seed: int, script: dict | None = None, ada_name: str | None = None):
         self.script = script if script is not None else load_script()
         self.seed = seed
         # foe_opens=False and a speed of 0 in foes.csv: Ada always acts first.
-        self.battle = Battle(seed=seed, guardian="dummy", foe_opens=False)
+        self.battle = Battle(seed=seed, guardian="dummy", foe_opens=False, ada_name=ada_name)
         self.chatter = random.Random(seed)       # picks the dummy's lines; not the battle's rng
         self.lessons: list[dict] = self.script["lessons"] + [self.script["practice"]]
         self._own_script = script is None            # a script handed in is never reloaded

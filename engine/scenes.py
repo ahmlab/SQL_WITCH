@@ -53,7 +53,8 @@ from story.scenes import INTRO, legacy, mercy_line, overkill_lesson, record, tex
 from story.script import Choice, ScriptRunner, get as script_named, plain as plain_text
 from story.script import tokens as script_tokens
 from story.hints import HintDirector, context_of
-from engine.dialogue import DialogueBox, draw_log
+from engine.dialogue import DialogueBox, draw_log, portraits as dialogue_portraits
+from engine.animation import Character, is_default as is_default_look
 
 LOG_KEEP = 60                      # lines the dialogue log remembers
 
@@ -144,6 +145,15 @@ class Game:
         self.switch(TitleScene(self))
 
     # ------------------------------------------------------------ saves and the log
+
+    def character(self):
+        """The layered protagonist for the current look (built once per look)."""
+        look = dict(self.state.player.look)
+        key = tuple(sorted(look.items()))
+        if getattr(self, "_character", (None, None))[0] != key:
+            self._character = (key, Character(look))
+            dialogue_portraits["ada"] = self._character[1].portrait
+        return self._character[1]
 
     def save_settings(self) -> None:
         if self.settings_file is not None:
@@ -303,6 +313,33 @@ class Game:
     def shake(self, frames: int = 6) -> None:
         if self.screen is not None and self.settings.screen_shake:   # reduced motion: still
             self.screen.shake = frames
+
+
+# ------------------------------------------------------------------ the protagonist
+
+def draw_protagonist(game, canvas, feet, flash: bool = False, anim=None) -> pygame.Rect:
+    """The protagonist seen from behind: the artist's Ada for the default look, the layered
+    character (engine/animation.py) for any other look, following the same events (cast, hit,
+    faint) that AdaAnimator receives."""
+    look = game.state.player.look
+    if is_default_look(look):
+        return draw_ada(canvas, feet, flash, anim=anim)
+    character = game.character()
+    if anim is not None:
+        seen, animator = character.__dict__.setdefault("seen", {}), character.animator
+        if not seen:
+            seen.update(cast=anim.cast_at, hit=anim.hit_at, t=anim.t)
+        if anim.fainting:
+            animator.play("faint")
+        elif animator.tag == "faint":                   # a new battle: back on her feet
+            animator.__init__(animator.tags)
+        elif anim.hit_at != seen["hit"]:
+            animator.hit()
+        elif anim.cast_at != seen["cast"]:
+            animator.play("cast")
+        animator.update(max(0, anim.t - seen["t"]))
+        seen.update(cast=anim.cast_at, hit=anim.hit_at, t=anim.t)
+    return character.draw(canvas, feet, flash=flash)
 
 
 # ------------------------------------------------------------------ shared scenery
@@ -650,7 +687,7 @@ class DialogueScene(Scene):
                 draw_backdrop(canvas, ground_y=110)
             else:
                 scenery.draw_keep(canvas, self.time, ground_y=110)
-            draw_ada(canvas, ADA_STANDING, anim=self.ada)   # in front of the book, breathing
+            draw_protagonist(self.game, canvas, ADA_STANDING, anim=self.ada)  # in front of the book
             if self.book_born is not None and self.line.get("book"):
                 speaking = (self.line["speaker"] == "Grimoire" and not self._line_done())
                 book_at = self.BOOK_AT if name == "glade" else (130, 64)
@@ -771,7 +808,8 @@ class BattleScene(Scene):
         runes = set(game.runes) | set(GUARDIANS[guardian].ada_runes)
         # A scene may be handed its battle (the tutorial runs its own); otherwise a new one.
         self.battle = battle or Battle(seed=game.seed, guardian=guardian, ada_runes=runes,
-                                       codex=game.codex, scrolls=game.scrolls)
+                                       codex=game.codex, scrolls=game.scrolls,
+                                       ada_name=CATALOG.player["name"])
         # The guardian's body on screen, steered towards whatever its brain orders.
         home = steering.Vec(*HOME[guardian])
         self.body = steering.Kinematic(home, max_speed=75 if guardian == "knight" else 55)
@@ -1013,8 +1051,9 @@ class BattleScene(Scene):
             self.say(line["text"], ms, None, sound)
 
     def _speaker(self, who: str) -> str:
+        # "Ada" is the protagonist's speaker id: their tag shows the player's own name.
         return {"foe": self.battle.state.foe.name, "grimoire": "Grimoire",
-                "ada": self.battle.state.ada.name}.get(who, who)
+                "ada": "Ada"}.get(who, who)
 
     def _tell_world(self, report: CastReport) -> None:
         """What the world said about the last query: reactions, tricks, new Codex pages."""
@@ -1447,7 +1486,8 @@ class BattleScene(Scene):
             pygame.draw.ellipse(canvas, GROUND_SHADOW, (home[0] - 28, home[1] + 12, 56, 10))
             draw_slime(canvas, self.foe_xy(), self.time, flash, state.foe.exhausted, fainted)
         # Seen from behind, standing at the bottom left of the battlefield.
-        draw_ada(canvas, ADA_FEET, self.flash["ada"] > 0 and (self.time // 40) % 2 == 0,
+        draw_protagonist(self.game, canvas, ADA_FEET,
+                         self.flash["ada"] > 0 and (self.time // 40) % 2 == 0,
                  anim=self.ada)
 
         self._draw_foe_panel(canvas)

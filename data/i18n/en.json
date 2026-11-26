@@ -389,7 +389,8 @@
       "slime": "the Asterisk Slime",
       "knight": "the Filter Keep",
       "end": "the end"
-    }
+    },
+    "mirror": "The mirror (change your look)"
   },
   "consent": {
     "title": "Help us make the game better?",
@@ -483,6 +484,68 @@
       "sessions": "{count} sessions, {minutes} minutes",
       "places": "minutes per place: {places}",
       "fatigue": "Fatigue after each battle (%): {values}"
+    }
+  },
+  "creator": {
+    "_help": "The character creator (engine/creator.py). name.*: why a name was refused, said by the Grimoire, with a suggestion. value.*: the look options and colours in words.",
+    "title": "WHO ARE YOU, WITCH?",
+    "mirror_title": "THE MIRROR",
+    "keys": "UP/DOWN choose   LEFT/RIGHT change   type your name   ENTER on Done",
+    "row": {
+      "name": "Name",
+      "gender": "Words for you",
+      "outfit": "Outfit",
+      "hair": "Hair",
+      "hair_colour": "Hair colour",
+      "skin": "Skin",
+      "primary": "Outfit colour",
+      "secondary": "Trim colour",
+      "hat": "Hat",
+      "accessory": "Accessory",
+      "randomise": "Randomise",
+      "done": "Done"
+    },
+    "gender": {
+      "feminine": "she, the witch",
+      "masculine": "he, the witch"
+    },
+    "value": {
+      "robe": "robe",
+      "coat": "coat",
+      "long": "long",
+      "bob": "bob",
+      "braid": "braid",
+      "pointed": "pointed",
+      "wide": "wide brim",
+      "none": "none",
+      "glasses": "glasses",
+      "scarf": "scarf",
+      "charm": "book charm",
+      "peach": "peach",
+      "clay": "clay",
+      "sand": "sand",
+      "bark": "bark",
+      "cream": "cream",
+      "auburn": "auburn",
+      "black": "black",
+      "gold": "gold",
+      "silver": "silver",
+      "lilac": "lilac",
+      "teal": "teal",
+      "violet": "violet",
+      "forest": "forest",
+      "navy": "navy",
+      "wine": "wine",
+      "slate": "slate",
+      "mint": "mint",
+      "sky": "sky"
+    },
+    "name": {
+      "empty": "Grimoire: A witch needs a name. How about {suggestion}?",
+      "too_long": "Grimoire: Twelve letters at most, or it will not fit on my pages. {suggestion}?",
+      "characters": "Grimoire: Quotes, backslashes and semicolons would break every spell that says your name. {suggestion}? (TAB)",
+      "taken": "Grimoire: That name is already something in this world, and names here are unique. {suggestion}? (TAB)",
+      "keyword": "Grimoire: That is a word of power, not a name: SQL would read it as a command. {suggestion}? (TAB)"
     }
   }
 }
